@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, UserCheck, UserX, Pencil, MapPin, UserCog } from 'lucide-react'
+import { Plus, UserCheck, UserX, Pencil, MapPin, UserCog, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -26,6 +26,16 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [isOpen, setIsOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const filteredUsers = users.filter((user) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    const fullName = `${user.first_name} ${user.last_name}`.toLowerCase()
+    const email = (user.email ?? '').toLowerCase()
+    const jobTitle = (user.job_title ?? '').toLowerCase()
+    return fullName.includes(q) || email.includes(q) || jobTitle.includes(q)
+  })
 
   async function handleCreateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -111,7 +121,20 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un utilisateur..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <span className="text-sm text-muted-foreground">
+          {filteredUsers.length} / {users.length} utilisateur{users.length > 1 ? 's' : ''}
+        </span>
+        <div className="flex gap-2 ml-auto">
         <ExcelImportDialog locations={locations} />
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -199,6 +222,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -287,7 +311,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">
                     {user.first_name} {user.last_name}

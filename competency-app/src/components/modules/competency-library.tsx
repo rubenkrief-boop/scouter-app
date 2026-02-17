@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { EmojiPickerField } from '@/components/ui/emoji-picker'
 import type { Module, Competency } from '@/lib/types'
 
 interface ModuleNode extends Module {
@@ -98,6 +99,8 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
   const [isEditCompOpen, setIsEditCompOpen] = useState(false)
   const [editingComp, setEditingComp] = useState<Competency | null>(null)
   const [moduleLoading, setModuleLoading] = useState(false)
+  const [newModuleIcon, setNewModuleIcon] = useState('')
+  const [editModuleIcon, setEditModuleIcon] = useState('')
 
   const tree = buildTree(modules)
   const selectedModule = modules.find(m => m.id === selectedModuleId)
@@ -278,7 +281,10 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
         <CardContent className="p-0">
           <div className="p-3 border-b flex items-center justify-between">
             <h3 className="font-semibold text-sm">Modules</h3>
-            <Dialog open={isAddModuleOpen} onOpenChange={setIsAddModuleOpen}>
+            <Dialog open={isAddModuleOpen} onOpenChange={(open) => {
+              setIsAddModuleOpen(open)
+              if (!open) setNewModuleIcon('')
+            }}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7">
                   <Plus className="h-4 w-4" />
@@ -310,7 +316,11 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Icone (emoji)</Label>
-                      <Input name="icon" placeholder="Ex: 🔊" maxLength={4} />
+                      <EmojiPickerField
+                        value={newModuleIcon}
+                        onChange={setNewModuleIcon}
+                        name="icon"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Couleur</Label>
@@ -365,7 +375,10 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Edit Module */}
-                  <Dialog open={isEditModuleOpen} onOpenChange={setIsEditModuleOpen}>
+                  <Dialog open={isEditModuleOpen} onOpenChange={(open) => {
+                    setIsEditModuleOpen(open)
+                    if (open && selectedModule) setEditModuleIcon(selectedModule.icon ?? '')
+                  }}>
                     <DialogTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Pencil className="h-4 w-4" />
@@ -397,7 +410,11 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>Icone (emoji)</Label>
-                            <Input name="icon" defaultValue={selectedModule.icon ?? ''} maxLength={4} placeholder="Ex: 🔊" />
+                            <EmojiPickerField
+                              value={editModuleIcon}
+                              onChange={setEditModuleIcon}
+                              name="icon"
+                            />
                           </div>
                           <div className="space-y-2">
                             <Label>Couleur</Label>

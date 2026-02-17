@@ -52,8 +52,10 @@ export function JobProfileEditor({
     return map
   })
 
-  // Expanded modules
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
+  // Expanded modules - auto-expand selected modules so expected scores are visible
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(() => {
+    return new Set(expectedScores.map(es => es.module_id))
+  })
 
   // Group competencies by module
   const competenciesByModule = useMemo(() => {
