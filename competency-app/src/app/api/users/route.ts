@@ -72,9 +72,25 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json()
-  const { userId, ...updates } = body
+  const { userId, role, job_title, manager_id, location_id, is_active } = body
+
+  if (!userId) {
+    return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  }
 
   const adminClient = createAdminClient()
+
+  // Build update object explicitly to avoid passing unexpected fields
+  const updates: Record<string, unknown> = {}
+  if (role !== undefined) updates.role = role
+  if (job_title !== undefined) updates.job_title = job_title
+  if (manager_id !== undefined) updates.manager_id = manager_id
+  if (location_id !== undefined) updates.location_id = location_id
+  if (is_active !== undefined) updates.is_active = is_active
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+  }
 
   const { error } = await adminClient
     .from('profiles')

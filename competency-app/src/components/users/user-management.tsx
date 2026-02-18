@@ -28,6 +28,12 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
+  // Controlled state for edit form
+  const [editRole, setEditRole] = useState<string>('worker')
+  const [editJobTitle, setEditJobTitle] = useState<string>('')
+  const [editManagerId, setEditManagerId] = useState<string>('none')
+  const [editLocationId, setEditLocationId] = useState<string>('none')
+
   const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true
     const q = search.toLowerCase()
@@ -64,27 +70,37 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
     setLoading(false)
   }
 
+  function openEditDialog(user: Profile) {
+    setEditingUser(user)
+    setEditRole(user.role || 'worker')
+    setEditJobTitle(user.job_title || '')
+    setEditManagerId(user.manager_id || 'none')
+    setEditLocationId(user.location_id || 'none')
+  }
+
   async function handleUpdateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!editingUser) return
     setLoading(true)
-    const formData = new FormData(e.currentTarget)
 
     const res = await fetch('/api/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: editingUser.id,
-        role: formData.get('role'),
-        job_title: formData.get('job_title') || null,
-        manager_id: formData.get('manager_id') === 'none' ? null : formData.get('manager_id') || null,
-        location_id: formData.get('location_id') === 'none' ? null : formData.get('location_id') || null,
+        role: editRole,
+        job_title: editJobTitle || null,
+        manager_id: editManagerId === 'none' ? null : editManagerId,
+        location_id: editLocationId === 'none' ? null : editLocationId,
       }),
     })
 
     if (res.ok) {
       setEditingUser(null)
       router.refresh()
+    } else {
+      const err = await res.json().catch(() => null)
+      console.error('Update failed:', err)
     }
     setLoading(false)
   }
@@ -239,7 +255,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select name="role" defaultValue={editingUser.role}>
+                <Select value={editRole} onValueChange={setEditRole}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -253,11 +269,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Emploi / Poste</Label>
-                <Input name="job_title" defaultValue={editingUser.job_title || ''} placeholder="Ex: Audioprothésiste, Assistante technique..." />
+                <Input value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)} placeholder="Ex: Audioprothesiste, Assistante technique..." />
               </div>
               <div className="space-y-2">
                 <Label>Manager</Label>
-                <Select name="manager_id" defaultValue={editingUser.manager_id || 'none'}>
+                <Select value={editManagerId} onValueChange={setEditManagerId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun manager" />
                   </SelectTrigger>
@@ -273,7 +289,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Lieu d'exercice</Label>
-                <Select name="location_id" defaultValue={editingUser.location_id || 'none'}>
+                <Select value={editLocationId} onValueChange={setEditLocationId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun lieu" />
                   </SelectTrigger>
@@ -355,7 +371,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setEditingUser(user)}
+                        onClick={() => openEditDialog(user)}
                         title="Modifier"
                       >
                         <Pencil className="h-4 w-4 text-blue-500" />
