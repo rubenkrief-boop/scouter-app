@@ -147,11 +147,15 @@ export async function POST(request: Request) {
       }
 
       if (newUser?.user) {
-        // Update profile with location
-        if (locationId) {
+        // Update profile with location and job_title
+        const profileUpdate: Record<string, unknown> = {}
+        if (locationId) profileUpdate.location_id = locationId
+        if (data.job_title) profileUpdate.job_title = data.job_title
+
+        if (Object.keys(profileUpdate).length > 0) {
           await adminClient
             .from('profiles')
-            .update({ location_id: locationId })
+            .update(profileUpdate)
             .eq('id', newUser.user.id)
         }
 
