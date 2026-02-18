@@ -182,7 +182,12 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
             Déconnexion
           </Button>
         </form>
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2 text-[10px] text-muted-foreground/60">
+            <Link href="/legal/mentions-legales" className="hover:underline">Mentions</Link>
+            <Link href="/legal/cgu" className="hover:underline">CGU</Link>
+            <Link href="/legal/confidentialite" className="hover:underline">RGPD</Link>
+          </div>
           <ThemeToggle />
         </div>
       </div>
