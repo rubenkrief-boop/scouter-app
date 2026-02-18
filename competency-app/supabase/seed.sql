@@ -295,12 +295,9 @@ INSERT INTO public.competencies (module_id, name, sort_order)
 SELECT m.id, c.name, c.sort_order
 FROM public.modules m,
 (VALUES
-  ('Audiometrie comportementale adaptee', 1),
-  ('Choix de l''appareillage', 2),
-  ('Communication avec la famille', 3),
-  ('Empreinte et adaptation physique', 4),
-  ('Reglage specifique pediatrique', 5),
-  ('Suivi et accompagnement', 6)
+  ('Approche psychologique', 1),
+  ('Conditions de realisation des tests auditifs', 2),
+  ('Methodologie de reglage', 3)
 ) AS c(name, sort_order)
 WHERE m.code = '22';
 
@@ -309,11 +306,9 @@ INSERT INTO public.competencies (module_id, name, sort_order)
 SELECT m.id, c.name, c.sort_order
 FROM public.modules m,
 (VALUES
-  ('Avancement du memoire', 1),
-  ('Choix du sujet et problematique', 2),
-  ('Presentation et soutenance', 3),
-  ('Qualite de la redaction', 4),
-  ('Recherche bibliographique', 5)
+  ('Aide a la realisation des tests pratiques', 1),
+  ('Elaboration du protocole avec l''etudiant', 2),
+  ('Participation au choix du sujet', 3)
 ) AS c(name, sort_order)
 WHERE m.code = '23';
 
