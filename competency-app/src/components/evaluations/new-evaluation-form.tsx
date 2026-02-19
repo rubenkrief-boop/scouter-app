@@ -128,7 +128,7 @@ export function NewEvaluationForm({ workers, jobProfiles }: NewEvaluationFormPro
       console.warn('Pre-fill from previous evaluation failed')
     }
 
-    router.push(`/evaluator/evaluations/${newEval.id}`)
+    router.push(`/evaluator/evaluations/${newEval.id}/results`)
     setLoading(false)
   }
 

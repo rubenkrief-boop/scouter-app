@@ -101,7 +101,7 @@ export function EvaluationList({ evaluations }: EvaluationListProps) {
               {filtered.map((evaluation) => (
                 <TableRow key={evaluation.id} className="hover:bg-muted/50">
                   <TableCell>
-                    <Link href={`/evaluator/evaluations/${evaluation.id}`} className="font-medium text-rose-600 hover:underline">
+                    <Link href={`/evaluator/evaluations/${evaluation.id}/results`} className="font-medium text-rose-600 hover:underline">
                       {evaluation.audioprothesiste?.first_name} {evaluation.audioprothesiste?.last_name}
                     </Link>
                   </TableCell>

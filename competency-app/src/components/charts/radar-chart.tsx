@@ -12,9 +12,10 @@ import {
 } from 'recharts'
 import type { RadarDataPoint } from '@/lib/types'
 
+// eLamp-inspired: violet primary, gray secondary
 const DEFAULT_COLORS = {
-  actual: '#6366f1',
-  expected: '#94a3b8',
+  actual: '#7c3aed',
+  expected: '#9ca3af',
 }
 
 interface ChartColors {
@@ -35,19 +36,19 @@ function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
   return (
-    <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 min-w-[180px]">
-      <p className="font-semibold text-sm mb-2 text-gray-800 dark:text-white">{label}</p>
+    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-2xl min-w-[220px] border border-gray-700">
+      <p className="font-bold text-sm mb-2 border-b border-gray-700 pb-2">{label}</p>
       {payload.map((entry: any, index: number) => {
         const isActual = entry.dataKey === 'actual'
         return (
-          <div key={index} className="flex items-center gap-2 text-sm py-0.5">
+          <div key={index} className="flex items-center gap-2.5 text-sm py-1">
             <span
-              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+              className="inline-block w-3 h-1.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-gray-500 dark:text-gray-400">{entry.name}</span>
-            <span className={`font-bold ml-auto ${isActual ? 'text-indigo-600' : 'text-gray-400'}`}>
-              {Math.round(Number(entry.value))}%
+            <span className="text-gray-400">{entry.name}</span>
+            <span className={`font-bold ml-auto ${isActual ? 'text-violet-400' : 'text-gray-300'}`}>
+              {Number(entry.value).toFixed(1)}%
             </span>
           </div>
         )
@@ -60,17 +61,14 @@ function CustomLegend({ payload }: any) {
   if (!payload?.length) return null
 
   return (
-    <div className="flex justify-center gap-6 mt-2">
+    <div className="flex justify-center gap-8 mt-4">
       {payload.map((entry: any, index: number) => (
-        <div key={index} className="flex items-center gap-2 text-sm">
+        <div key={index} className="flex items-center gap-2.5">
           <span
-            className="inline-block w-3 h-3 rounded-full"
-            style={{
-              backgroundColor: entry.color,
-              boxShadow: `0 0 0 2px white, 0 0 0 3px ${entry.color}50`,
-            }}
+            className="inline-block w-5 h-1 rounded-full"
+            style={{ backgroundColor: entry.color }}
           />
-          <span className="font-medium text-gray-600 dark:text-gray-300">{entry.value}</span>
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{entry.value}</span>
         </div>
       ))}
     </div>
@@ -82,20 +80,20 @@ function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
   const dx = x - cx
   const dy = y - cy
   const angle = Math.atan2(dy, dx)
-  const dist = 14
+  const dist = 24
 
   let textAnchor: 'start' | 'middle' | 'end' = 'middle'
   const xOff = Math.cos(angle) * dist
   let yOff = Math.sin(angle) * dist
 
-  if (Math.cos(angle) > 0.3) {
+  if (Math.cos(angle) > 0.25) {
     textAnchor = 'start'
-  } else if (Math.cos(angle) < -0.3) {
+  } else if (Math.cos(angle) < -0.25) {
     textAnchor = 'end'
   }
 
-  if (Math.sin(angle) < -0.5) yOff -= 4
-  else if (Math.sin(angle) > 0.5) yOff += 4
+  if (Math.sin(angle) < -0.5) yOff -= 6
+  else if (Math.sin(angle) > 0.5) yOff += 6
 
   return (
     <text
@@ -103,9 +101,9 @@ function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
       y={y + yOff}
       textAnchor={textAnchor}
       dominantBaseline="central"
-      className="fill-gray-600 dark:fill-gray-400"
+      className="fill-gray-500 dark:fill-gray-400"
       fontSize={12}
-      fontWeight={600}
+      fontWeight={500}
     >
       {label}
     </text>
@@ -129,44 +127,39 @@ export function CompetencyRadarChart({
     )
   }
 
-  // Use module CODE only (e.g. "M1", "M2") for clean labels
+  // Use full module names like eLamp (not codes)
   const chartData = data.map(d => {
     const parts = d.module.split(' - ')
-    const code = parts[0]?.trim() || d.module
-    return { ...d, label: code }
+    const name = parts[1]?.trim() || parts[0]?.trim() || d.module
+    return { ...d, label: name }
   })
 
   const count = chartData.length
-  // Full size: much bigger chart for dedicated views
-  const chartHeight = fullSize ? 620 : (count > 15 ? 480 : 440)
+  // Full size: take up most of the page like eLamp
+  const chartHeight = fullSize ? 750 : (count > 15 ? 520 : 480)
   const outerRadius = fullSize
-    ? (count > 15 ? '70%' : '75%')
-    : (count > 15 ? '60%' : '68%')
+    ? (count > 15 ? '78%' : '82%')
+    : (count > 15 ? '65%' : '72%')
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
       <RadarChart cx="50%" cy="50%" outerRadius={outerRadius} data={chartData}>
         <defs>
-          <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
+          <radialGradient id="actualGradient" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={c.actual} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={c.actual} stopOpacity={0.08} />
-          </linearGradient>
-          <linearGradient id="expectedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.expected} stopOpacity={0.15} />
-            <stop offset="100%" stopColor={c.expected} stopOpacity={0.02} />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
+            <stop offset="100%" stopColor={c.actual} stopOpacity={0.15} />
+          </radialGradient>
+          <radialGradient id="expectedGradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={c.expected} stopOpacity={0.2} />
+            <stop offset="100%" stopColor={c.expected} stopOpacity={0.08} />
+          </radialGradient>
         </defs>
+        {/* Circular grid like eLamp */}
         <PolarGrid
-          stroke="var(--border)"
-          strokeOpacity={0.2}
-          gridType="polygon"
+          stroke="#d1d5db"
+          strokeOpacity={0.6}
+          gridType="circle"
+          radialLines={true}
         />
         <PolarAngleAxis
           dataKey="label"
@@ -175,32 +168,29 @@ export function CompetencyRadarChart({
         <PolarRadiusAxis
           angle={90}
           domain={[0, 100]}
-          tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }}
-          tickCount={5}
+          tick={false}
+          tickCount={6}
           axisLine={false}
-          tickFormatter={(value: number) => `${value}`}
         />
-        {/* Expected (background - dashed) */}
+        {/* Expected (background - gray, solid thin) */}
         <Radar
           name={expectedLabel}
           dataKey="expected"
           stroke={c.expected}
           fill="url(#expectedGradient)"
           strokeWidth={1.5}
-          strokeDasharray="6 3"
           dot={false}
           activeDot={{ r: 4, fill: c.expected, stroke: '#fff', strokeWidth: 2 }}
         />
-        {/* Actual (primary with glow) */}
+        {/* Actual (primary - violet bold, eLamp style) */}
         <Radar
           name={actualLabel}
           dataKey="actual"
           stroke={c.actual}
           fill="url(#actualGradient)"
           strokeWidth={2.5}
-          dot={{ r: 3.5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
-          filter="url(#glow)"
+          dot={false}
+          activeDot={{ r: 5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
         />
         <Legend content={<CustomLegend />} />
         <Tooltip content={<CustomTooltip />} />
