@@ -57,7 +57,8 @@ export async function PUT(request: NextRequest) {
     )
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Settings API error:', error.message)
+    return NextResponse.json({ error: 'Erreur lors de la sauvegarde' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

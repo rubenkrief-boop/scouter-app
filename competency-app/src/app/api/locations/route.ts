@@ -17,7 +17,8 @@ export async function GET() {
     .order('name', { ascending: true })
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    console.error('Locations API error:', error.message)
+    return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
   return NextResponse.json({ locations })
@@ -54,7 +55,8 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    console.error('Locations API error:', error.message)
+    return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
   return NextResponse.json({ location })
@@ -90,7 +92,8 @@ export async function PATCH(request: Request) {
     .eq('id', locationId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    console.error('Locations API error:', error.message)
+    return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
   return NextResponse.json({ success: true })
@@ -130,7 +133,8 @@ export async function DELETE(request: Request) {
     .eq('id', locationId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    console.error('Locations API error:', error.message)
+    return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
   return NextResponse.json({ success: true })
