@@ -165,8 +165,8 @@ export function CompetencyRadarChart({
         </defs>
         <PolarGrid
           stroke="var(--border)"
-          strokeOpacity={0.3}
-          gridType="circle"
+          strokeOpacity={0.2}
+          gridType="polygon"
         />
         <PolarAngleAxis
           dataKey="label"
