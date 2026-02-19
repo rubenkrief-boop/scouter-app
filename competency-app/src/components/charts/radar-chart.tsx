@@ -27,6 +27,8 @@ interface CompetencyRadarChartProps {
   expectedLabel?: string
   actualLabel?: string
   colors?: ChartColors
+  /** Show full-size chart (for dedicated pages) */
+  fullSize?: boolean
 }
 
 function CustomTooltip({ active, payload, label }: any) {
@@ -58,7 +60,7 @@ function CustomLegend({ payload }: any) {
   if (!payload?.length) return null
 
   return (
-    <div className="flex justify-center gap-6 mt-4">
+    <div className="flex justify-center gap-6 mt-2">
       {payload.map((entry: any, index: number) => (
         <div key={index} className="flex items-center gap-2 text-sm">
           <span
@@ -77,15 +79,13 @@ function CustomLegend({ payload }: any) {
 
 function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
   const label: string = payload.value
-
-  // Position text based on angle relative to center
   const dx = x - cx
   const dy = y - cy
   const angle = Math.atan2(dy, dx)
-  const dist = 12
+  const dist = 14
 
   let textAnchor: 'start' | 'middle' | 'end' = 'middle'
-  let xOff = Math.cos(angle) * dist
+  const xOff = Math.cos(angle) * dist
   let yOff = Math.sin(angle) * dist
 
   if (Math.cos(angle) > 0.3) {
@@ -94,12 +94,8 @@ function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
     textAnchor = 'end'
   }
 
-  // For top labels, shift up more; for bottom labels, shift down
-  if (Math.sin(angle) < -0.5) {
-    yOff -= 4
-  } else if (Math.sin(angle) > 0.5) {
-    yOff += 4
-  }
+  if (Math.sin(angle) < -0.5) yOff -= 4
+  else if (Math.sin(angle) > 0.5) yOff += 4
 
   return (
     <text
@@ -108,7 +104,7 @@ function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
       textAnchor={textAnchor}
       dominantBaseline="central"
       className="fill-gray-600 dark:fill-gray-400"
-      fontSize={11}
+      fontSize={12}
       fontWeight={600}
     >
       {label}
@@ -121,6 +117,7 @@ export function CompetencyRadarChart({
   expectedLabel = 'Attendu',
   actualLabel = 'Niveau actuel',
   colors,
+  fullSize = false,
 }: CompetencyRadarChartProps) {
   const c = { ...DEFAULT_COLORS, ...colors }
 
@@ -132,35 +129,34 @@ export function CompetencyRadarChart({
     )
   }
 
-  // Use module CODE only (e.g. "M1", "M2") for clean labels on the radar
+  // Use module CODE only (e.g. "M1", "M2") for clean labels
   const chartData = data.map(d => {
     const parts = d.module.split(' - ')
     const code = parts[0]?.trim() || d.module
-    return {
-      ...d,
-      label: code,
-    }
+    return { ...d, label: code }
   })
 
-  // Adjust outer radius based on data count to avoid overlapping
   const count = chartData.length
-  const outerRadius = count > 15 ? '62%' : count > 10 ? '68%' : '72%'
-  const chartHeight = count > 15 ? 480 : 440
+  // Full size: much bigger chart for dedicated views
+  const chartHeight = fullSize ? 620 : (count > 15 ? 480 : 440)
+  const outerRadius = fullSize
+    ? (count > 15 ? '70%' : '75%')
+    : (count > 15 ? '60%' : '68%')
 
   return (
     <ResponsiveContainer width="100%" height={chartHeight}>
       <RadarChart cx="50%" cy="50%" outerRadius={outerRadius} data={chartData}>
         <defs>
           <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.actual} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={c.actual} stopOpacity={0.05} />
+            <stop offset="0%" stopColor={c.actual} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={c.actual} stopOpacity={0.08} />
           </linearGradient>
           <linearGradient id="expectedGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={c.expected} stopOpacity={0.15} />
             <stop offset="100%" stopColor={c.expected} stopOpacity={0.02} />
           </linearGradient>
           <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
             <feMerge>
               <feMergeNode in="coloredBlur"/>
               <feMergeNode in="SourceGraphic"/>
@@ -170,7 +166,7 @@ export function CompetencyRadarChart({
         <PolarGrid
           stroke="var(--border)"
           strokeOpacity={0.3}
-          gridType="polygon"
+          gridType="circle"
         />
         <PolarAngleAxis
           dataKey="label"
@@ -184,7 +180,7 @@ export function CompetencyRadarChart({
           axisLine={false}
           tickFormatter={(value: number) => `${value}`}
         />
-        {/* Expected (background area - dashed) */}
+        {/* Expected (background - dashed) */}
         <Radar
           name={expectedLabel}
           dataKey="expected"
@@ -195,15 +191,15 @@ export function CompetencyRadarChart({
           dot={false}
           activeDot={{ r: 4, fill: c.expected, stroke: '#fff', strokeWidth: 2 }}
         />
-        {/* Actual (primary area with glow) */}
+        {/* Actual (primary with glow) */}
         <Radar
           name={actualLabel}
           dataKey="actual"
           stroke={c.actual}
           fill="url(#actualGradient)"
-          strokeWidth={2}
-          dot={{ r: 3, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+          strokeWidth={2.5}
+          dot={{ r: 3.5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
           filter="url(#glow)"
         />
         <Legend content={<CustomLegend />} />

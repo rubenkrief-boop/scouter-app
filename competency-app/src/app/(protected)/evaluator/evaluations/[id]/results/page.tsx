@@ -125,6 +125,7 @@ export default async function EvaluationResultsPage({
                 expectedLabel="Attendu"
                 actualLabel="Niveau actuel"
                 colors={chartColors}
+                fullSize
               />
               {/* Code legend */}
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">

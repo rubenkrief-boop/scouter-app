@@ -82,6 +82,13 @@ const navItems: NavItem[] = [
   },
   // Évaluations
   {
+    label: 'Collaborateurs',
+    href: '/workers',
+    icon: <Users className="h-5 w-5" />,
+    roles: ['super_admin', 'manager', 'skill_master'],
+    section: 'Évaluation',
+  },
+  {
     label: 'Évaluations',
     href: '/evaluator/evaluations',
     icon: <ClipboardCheck className="h-5 w-5" />,
