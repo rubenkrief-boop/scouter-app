@@ -22,6 +22,7 @@ export function QualifierList({ qualifiers }: QualifierListProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingQualifier, setEditingQualifier] = useState<QualifierWithOptions | null>(null)
   const [loading, setLoading] = useState(false)
+  const [createType, setCreateType] = useState<string>('single_choice')
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -31,14 +32,17 @@ export function QualifierList({ qualifiers }: QualifierListProps) {
 
     const { error } = await supabase.from('qualifiers').insert({
       name: formData.get('name') as string,
-      qualifier_type: (formData.get('qualifier_type') as string) || 'single_choice',
+      qualifier_type: createType,
       sort_order: parseInt(formData.get('sort_order') as string) || 0,
       is_active: true,
     })
 
     if (!error) {
       setIsCreateOpen(false)
+      setCreateType('single_choice')
       router.refresh()
+    } else {
+      console.error('Qualifier creation failed:', error.message)
     }
     setLoading(false)
   }
@@ -71,7 +75,7 @@ export function QualifierList({ qualifiers }: QualifierListProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="qualifier_type">Type</Label>
-                <Select name="qualifier_type" defaultValue="single_choice">
+                <Select value={createType} onValueChange={setCreateType}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

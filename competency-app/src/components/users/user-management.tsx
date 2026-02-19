@@ -28,6 +28,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
+  // Controlled state for create form
+  const [createRole, setCreateRole] = useState<string>('worker')
+  const [createManagerId, setCreateManagerId] = useState<string>('none')
+  const [createLocationId, setCreateLocationId] = useState<string>('none')
+
   // Controlled state for edit form
   const [editRole, setEditRole] = useState<string>('worker')
   const [editJobTitle, setEditJobTitle] = useState<string>('')
@@ -56,15 +61,18 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
         password: formData.get('password'),
         first_name: formData.get('first_name'),
         last_name: formData.get('last_name'),
-        role: formData.get('role'),
+        role: createRole,
         job_title: formData.get('job_title') || null,
-        manager_id: formData.get('manager_id') === 'none' ? null : formData.get('manager_id') || null,
-        location_id: formData.get('location_id') === 'none' ? null : formData.get('location_id') || null,
+        manager_id: createManagerId === 'none' ? null : createManagerId,
+        location_id: createLocationId === 'none' ? null : createLocationId,
       }),
     })
 
     if (res.ok) {
       setIsOpen(false)
+      setCreateRole('worker')
+      setCreateManagerId('none')
+      setCreateLocationId('none')
       router.refresh()
     }
     setLoading(false)
@@ -184,7 +192,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Role *</Label>
-                <Select name="role" defaultValue="worker">
+                <Select value={createRole} onValueChange={setCreateRole}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -198,11 +206,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Emploi / Poste</Label>
-                <Input name="job_title" placeholder="Ex: Audioprothésiste, Assistante technique..." />
+                <Input name="job_title" placeholder="Ex: Audioprothesiste, Assistante technique..." />
               </div>
               <div className="space-y-2">
                 <Label>Manager</Label>
-                <Select name="manager_id">
+                <Select value={createManagerId} onValueChange={setCreateManagerId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun manager" />
                   </SelectTrigger>
@@ -218,7 +226,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Lieu d'exercice</Label>
-                <Select name="location_id">
+                <Select value={createLocationId} onValueChange={setCreateLocationId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun lieu" />
                   </SelectTrigger>

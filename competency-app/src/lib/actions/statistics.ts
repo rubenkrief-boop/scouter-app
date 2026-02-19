@@ -104,26 +104,31 @@ export async function getGlobalStatistics(): Promise<{
     }
   } else {
     // Fallback: parallel individual calls (if batch function not yet deployed)
-    const scorePromises = evaluations.map(evaluation =>
-      supabase.rpc('get_module_scores', { p_evaluation_id: evaluation.id })
-        .then(({ data: scores }) => {
-          if (!scores) return
-          const audio = evaluation.audioprothesiste as any
-          for (const ms of scores) {
-            allScores.push({
-              user_id: evaluation.audioprothesiste_id,
-              first_name: audio?.first_name ?? '',
-              last_name: audio?.last_name ?? '',
-              email: audio?.email ?? '',
-              location_name: audio?.location?.name ?? null,
-              module_id: ms.module_id,
-              module_code: ms.module_code,
-              module_name: ms.module_name,
-              score: parseFloat(ms.completion_pct) || 0,
-            })
-          }
-        })
-    )
+    const scorePromises = evaluations.map(async (evaluation) => {
+      try {
+        const { data: scores, error } = await supabase.rpc('get_module_scores', { p_evaluation_id: evaluation.id })
+        if (error || !scores) {
+          console.warn(`Score fetch failed for evaluation ${evaluation.id}:`, error?.message)
+          return
+        }
+        const audio = evaluation.audioprothesiste as any
+        for (const ms of scores) {
+          allScores.push({
+            user_id: evaluation.audioprothesiste_id,
+            first_name: audio?.first_name ?? '',
+            last_name: audio?.last_name ?? '',
+            email: audio?.email ?? '',
+            location_name: audio?.location?.name ?? null,
+            module_id: ms.module_id,
+            module_code: ms.module_code,
+            module_name: ms.module_name,
+            score: parseFloat(ms.completion_pct) || 0,
+          })
+        }
+      } catch (err) {
+        console.warn(`Score fetch error for evaluation ${evaluation.id}:`, err)
+      }
+    })
     await Promise.all(scorePromises)
   }
 
