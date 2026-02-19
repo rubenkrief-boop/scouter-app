@@ -136,8 +136,8 @@ export default async function EvaluationDetailPage({
                   {radarData.length > 0 && radarData.some(d => d.actual > 0) ? (
                     <CompetencyRadarChart
                       data={radarData}
-                      expectedLabel={evaluation.job_profile?.name ?? 'Attendu'}
-                      actualLabel={audioName}
+                      expectedLabel="Attendu"
+                      actualLabel="Niveau actuel"
                       colors={chartColors}
                     />
                   ) : (

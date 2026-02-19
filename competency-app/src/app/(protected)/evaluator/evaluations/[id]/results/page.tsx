@@ -117,15 +117,31 @@ export default async function EvaluationResultsPage({
           {/* Radar Chart */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base">Détails du matching</CardTitle>
+              <CardTitle className="text-base">Bilan de compétences</CardTitle>
             </CardHeader>
             <CardContent>
               <CompetencyRadarChart
                 data={radarData}
-                expectedLabel={evaluation.job_profile?.name ?? 'Attendu'}
-                actualLabel={audioName}
+                expectedLabel="Attendu"
+                actualLabel="Niveau actuel"
                 colors={chartColors}
               />
+              {/* Code legend */}
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
+                  {radarData.map((d, i) => {
+                    const parts = d.module.split(' - ')
+                    const code = parts[0]?.trim() || ''
+                    const name = parts[1]?.trim() || d.module
+                    return (
+                      <div key={i} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">{code}</span>
+                        <span className="truncate">{name}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
 

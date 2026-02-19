@@ -14,7 +14,7 @@ import type { RadarDataPoint } from '@/lib/types'
 
 const DEFAULT_COLORS = {
   actual: '#6366f1',
-  expected: '#e2e8f0',
+  expected: '#94a3b8',
 }
 
 interface ChartColors {
@@ -33,14 +33,14 @@ function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
   return (
-    <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 min-w-[200px]">
+    <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 min-w-[180px]">
       <p className="font-semibold text-sm mb-2 text-gray-800 dark:text-white">{label}</p>
       {payload.map((entry: any, index: number) => {
         const isActual = entry.dataKey === 'actual'
         return (
-          <div key={index} className="flex items-center gap-2.5 text-sm py-1">
+          <div key={index} className="flex items-center gap-2 text-sm py-0.5">
             <span
-              className="inline-block w-3 h-3 rounded-full"
+              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: entry.color }}
             />
             <span className="text-gray-500 dark:text-gray-400">{entry.name}</span>
@@ -58,12 +58,15 @@ function CustomLegend({ payload }: any) {
   if (!payload?.length) return null
 
   return (
-    <div className="flex justify-center gap-8 mt-6">
+    <div className="flex justify-center gap-6 mt-4">
       {payload.map((entry: any, index: number) => (
-        <div key={index} className="flex items-center gap-2.5 text-sm">
+        <div key={index} className="flex items-center gap-2 text-sm">
           <span
-            className="inline-block w-3 h-3 rounded-full ring-2 ring-offset-2"
-            style={{ backgroundColor: entry.color, boxShadow: `0 0 0 2px white, 0 0 0 4px ${entry.color}40` }}
+            className="inline-block w-3 h-3 rounded-full"
+            style={{
+              backgroundColor: entry.color,
+              boxShadow: `0 0 0 2px white, 0 0 0 3px ${entry.color}50`,
+            }}
           />
           <span className="font-medium text-gray-600 dark:text-gray-300">{entry.value}</span>
         </div>
@@ -73,43 +76,42 @@ function CustomLegend({ payload }: any) {
 }
 
 function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
-  const label = payload.value
-  const maxLen = 18
-  const display = label.length > maxLen ? label.slice(0, maxLen - 1) + '…' : label
+  const label: string = payload.value
 
   // Position text based on angle relative to center
   const dx = x - cx
   const dy = y - cy
   const angle = Math.atan2(dy, dx)
+  const dist = 12
 
   let textAnchor: 'start' | 'middle' | 'end' = 'middle'
-  let xOffset = 0
-  let yOffset = 0
+  let xOff = Math.cos(angle) * dist
+  let yOff = Math.sin(angle) * dist
 
   if (Math.cos(angle) > 0.3) {
     textAnchor = 'start'
-    xOffset = 6
   } else if (Math.cos(angle) < -0.3) {
     textAnchor = 'end'
-    xOffset = -6
   }
 
-  if (Math.sin(angle) > 0.3) {
-    yOffset = 12
-  } else if (Math.sin(angle) < -0.3) {
-    yOffset = -6
+  // For top labels, shift up more; for bottom labels, shift down
+  if (Math.sin(angle) < -0.5) {
+    yOff -= 4
+  } else if (Math.sin(angle) > 0.5) {
+    yOff += 4
   }
 
   return (
     <text
-      x={x + xOffset}
-      y={y + yOffset}
+      x={x + xOff}
+      y={y + yOff}
       textAnchor={textAnchor}
-      className="fill-gray-500 dark:fill-gray-400"
+      dominantBaseline="central"
+      className="fill-gray-600 dark:fill-gray-400"
       fontSize={11}
-      fontWeight={500}
+      fontWeight={600}
     >
-      {display}
+      {label}
     </text>
   )
 }
@@ -124,32 +126,38 @@ export function CompetencyRadarChart({
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[500px] text-muted-foreground">
-        Aucune donnee disponible
+      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+        Aucune donnée disponible
       </div>
     )
   }
 
-  // Use just module code for short labels
+  // Use module CODE only (e.g. "M1", "M2") for clean labels on the radar
   const chartData = data.map(d => {
     const parts = d.module.split(' - ')
+    const code = parts[0]?.trim() || d.module
     return {
       ...d,
-      shortModule: parts.length > 1 ? parts[1] : d.module,
+      label: code,
     }
   })
 
+  // Adjust outer radius based on data count to avoid overlapping
+  const count = chartData.length
+  const outerRadius = count > 15 ? '62%' : count > 10 ? '68%' : '72%'
+  const chartHeight = count > 15 ? 480 : 440
+
   return (
-    <ResponsiveContainer width="100%" height={520}>
-      <RadarChart cx="50%" cy="48%" outerRadius="72%" data={chartData}>
+    <ResponsiveContainer width="100%" height={chartHeight}>
+      <RadarChart cx="50%" cy="50%" outerRadius={outerRadius} data={chartData}>
         <defs>
           <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.actual} stopOpacity={0.35} />
+            <stop offset="0%" stopColor={c.actual} stopOpacity={0.3} />
             <stop offset="100%" stopColor={c.actual} stopOpacity={0.05} />
           </linearGradient>
           <linearGradient id="expectedGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={c.expected} stopOpacity={0.2} />
-            <stop offset="100%" stopColor={c.expected} stopOpacity={0.05} />
+            <stop offset="0%" stopColor={c.expected} stopOpacity={0.15} />
+            <stop offset="100%" stopColor={c.expected} stopOpacity={0.02} />
           </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -161,11 +169,11 @@ export function CompetencyRadarChart({
         </defs>
         <PolarGrid
           stroke="var(--border)"
-          strokeOpacity={0.25}
-          gridType="circle"
+          strokeOpacity={0.3}
+          gridType="polygon"
         />
         <PolarAngleAxis
-          dataKey="shortModule"
+          dataKey="label"
           tick={(props: any) => <CustomAngleAxisTick {...props} />}
         />
         <PolarRadiusAxis
@@ -176,7 +184,7 @@ export function CompetencyRadarChart({
           axisLine={false}
           tickFormatter={(value: number) => `${value}`}
         />
-        {/* Expected (background area) */}
+        {/* Expected (background area - dashed) */}
         <Radar
           name={expectedLabel}
           dataKey="expected"
@@ -193,9 +201,9 @@ export function CompetencyRadarChart({
           dataKey="actual"
           stroke={c.actual}
           fill="url(#actualGradient)"
-          strokeWidth={2.5}
+          strokeWidth={2}
           dot={{ r: 3, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 6, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
           filter="url(#glow)"
         />
         <Legend content={<CustomLegend />} />
