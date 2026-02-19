@@ -13,8 +13,8 @@ import {
 import type { RadarDataPoint } from '@/lib/types'
 
 const DEFAULT_COLORS = {
-  actual: '#8b5cf6',
-  expected: '#9ca3af',
+  actual: '#6366f1',
+  expected: '#e2e8f0',
 }
 
 interface ChartColors {
@@ -29,80 +29,27 @@ interface CompetencyRadarChartProps {
   colors?: ChartColors
 }
 
-/**
- * Catmull-Rom spline interpolation for smooth radar curves
- */
-function catmullRomSpline(points: { x: number; y: number }[], tension = 0.5): string {
-  if (points.length < 3) return ''
-
-  // Close the loop
-  const pts = [...points, points[0], points[1]]
-
-  let path = `M ${points[0].x},${points[0].y}`
-
-  for (let i = 0; i < pts.length - 3; i++) {
-    const p0 = pts[i]
-    const p1 = pts[i + 1]
-    const p2 = pts[i + 2]
-    const p3 = pts[i + 3]
-
-    const cp1x = p1.x + (p2.x - p0.x) * tension / 3
-    const cp1y = p1.y + (p2.y - p0.y) * tension / 3
-    const cp2x = p2.x - (p3.x - p1.x) * tension / 3
-    const cp2y = p2.y - (p3.y - p1.y) * tension / 3
-
-    path += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`
-  }
-
-  return path + ' Z'
-}
-
-/**
- * Custom smooth radar shape using Catmull-Rom splines
- */
-function SmoothRadarShape({
-  points,
-  stroke,
-  fill,
-  fillOpacity,
-  strokeWidth,
-}: {
-  points: { x: number; y: number }[]
-  stroke: string
-  fill: string
-  fillOpacity: number
-  strokeWidth: number
-}) {
-  if (!points || points.length < 3) return null
-  const path = catmullRomSpline(points, 0.5)
-  return (
-    <path
-      d={path}
-      fill={fill}
-      fillOpacity={fillOpacity}
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinejoin="round"
-    />
-  )
-}
-
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
   return (
-    <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-xl border border-gray-700 min-w-[180px]">
-      <p className="font-semibold text-sm mb-2 border-b border-gray-600 pb-1.5">{label}</p>
-      {payload.map((entry: any, index: number) => (
-        <div key={index} className="flex items-center gap-2 text-sm py-0.5">
-          <span
-            className="inline-block w-3 h-3 rounded-sm"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-gray-300">{entry.name}:</span>
-          <span className="font-semibold ml-auto">{Number(entry.value).toFixed(2)}</span>
-        </div>
-      ))}
+    <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 min-w-[200px]">
+      <p className="font-semibold text-sm mb-2 text-gray-800 dark:text-white">{label}</p>
+      {payload.map((entry: any, index: number) => {
+        const isActual = entry.dataKey === 'actual'
+        return (
+          <div key={index} className="flex items-center gap-2.5 text-sm py-1">
+            <span
+              className="inline-block w-3 h-3 rounded-full"
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-gray-500 dark:text-gray-400">{entry.name}</span>
+            <span className={`font-bold ml-auto ${isActual ? 'text-indigo-600' : 'text-gray-400'}`}>
+              {Math.round(Number(entry.value))}%
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -111,24 +58,66 @@ function CustomLegend({ payload }: any) {
   if (!payload?.length) return null
 
   return (
-    <div className="flex justify-center gap-6 mt-4">
+    <div className="flex justify-center gap-8 mt-6">
       {payload.map((entry: any, index: number) => (
-        <div key={index} className="flex items-center gap-2 text-sm">
+        <div key={index} className="flex items-center gap-2.5 text-sm">
           <span
-            className="inline-block w-3 h-3 rounded-full"
-            style={{ backgroundColor: entry.color }}
+            className="inline-block w-3 h-3 rounded-full ring-2 ring-offset-2"
+            style={{ backgroundColor: entry.color, boxShadow: `0 0 0 2px white, 0 0 0 4px ${entry.color}40` }}
           />
-          <span className="text-muted-foreground">{entry.value}</span>
+          <span className="font-medium text-gray-600 dark:text-gray-300">{entry.value}</span>
         </div>
       ))}
     </div>
   )
 }
 
+function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
+  const label = payload.value
+  const maxLen = 18
+  const display = label.length > maxLen ? label.slice(0, maxLen - 1) + '…' : label
+
+  // Position text based on angle relative to center
+  const dx = x - cx
+  const dy = y - cy
+  const angle = Math.atan2(dy, dx)
+
+  let textAnchor: 'start' | 'middle' | 'end' = 'middle'
+  let xOffset = 0
+  let yOffset = 0
+
+  if (Math.cos(angle) > 0.3) {
+    textAnchor = 'start'
+    xOffset = 6
+  } else if (Math.cos(angle) < -0.3) {
+    textAnchor = 'end'
+    xOffset = -6
+  }
+
+  if (Math.sin(angle) > 0.3) {
+    yOffset = 12
+  } else if (Math.sin(angle) < -0.3) {
+    yOffset = -6
+  }
+
+  return (
+    <text
+      x={x + xOffset}
+      y={y + yOffset}
+      textAnchor={textAnchor}
+      className="fill-gray-500 dark:fill-gray-400"
+      fontSize={11}
+      fontWeight={500}
+    >
+      {display}
+    </text>
+  )
+}
+
 export function CompetencyRadarChart({
   data,
   expectedLabel = 'Attendu',
-  actualLabel = 'Actuel',
+  actualLabel = 'Niveau actuel',
   colors,
 }: CompetencyRadarChartProps) {
   const c = { ...DEFAULT_COLORS, ...colors }
@@ -136,75 +125,78 @@ export function CompetencyRadarChart({
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[500px] text-muted-foreground">
-        Aucune donnée disponible
+        Aucune donnee disponible
       </div>
     )
   }
 
-  // Shorten module labels for display
-  const chartData = data.map(d => ({
-    ...d,
-    shortModule: d.module.length > 25 ? d.module.slice(0, 22) + '...' : d.module,
-  }))
+  // Use just module code for short labels
+  const chartData = data.map(d => {
+    const parts = d.module.split(' - ')
+    return {
+      ...d,
+      shortModule: parts.length > 1 ? parts[1] : d.module,
+    }
+  })
 
   return (
-    <ResponsiveContainer width="100%" height={500}>
-      <RadarChart cx="50%" cy="50%" outerRadius="75%" data={chartData}>
+    <ResponsiveContainer width="100%" height={520}>
+      <RadarChart cx="50%" cy="48%" outerRadius="72%" data={chartData}>
+        <defs>
+          <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.actual} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={c.actual} stopOpacity={0.05} />
+          </linearGradient>
+          <linearGradient id="expectedGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={c.expected} stopOpacity={0.2} />
+            <stop offset="100%" stopColor={c.expected} stopOpacity={0.05} />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
         <PolarGrid
           stroke="var(--border)"
-          strokeOpacity={0.4}
+          strokeOpacity={0.25}
           gridType="circle"
         />
         <PolarAngleAxis
           dataKey="shortModule"
-          tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+          tick={(props: any) => <CustomAngleAxisTick {...props} />}
         />
         <PolarRadiusAxis
           angle={90}
           domain={[0, 100]}
-          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-          tickCount={6}
+          tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }}
+          tickCount={5}
           axisLine={false}
+          tickFormatter={(value: number) => `${value}`}
         />
-        {/* Expected (background) */}
+        {/* Expected (background area) */}
         <Radar
           name={expectedLabel}
           dataKey="expected"
           stroke={c.expected}
-          fill={c.expected}
-          fillOpacity={0.12}
+          fill="url(#expectedGradient)"
           strokeWidth={1.5}
+          strokeDasharray="6 3"
           dot={false}
           activeDot={{ r: 4, fill: c.expected, stroke: '#fff', strokeWidth: 2 }}
-          shape={(props: any) => (
-            <SmoothRadarShape
-              points={props.points}
-              stroke={c.expected}
-              fill={c.expected}
-              fillOpacity={0.12}
-              strokeWidth={1.5}
-            />
-          )}
         />
-        {/* Actual (primary) */}
+        {/* Actual (primary area with glow) */}
         <Radar
           name={actualLabel}
           dataKey="actual"
           stroke={c.actual}
-          fill={c.actual}
-          fillOpacity={0.2}
+          fill="url(#actualGradient)"
           strokeWidth={2.5}
-          dot={false}
-          activeDot={{ r: 5, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
-          shape={(props: any) => (
-            <SmoothRadarShape
-              points={props.points}
-              stroke={c.actual}
-              fill={c.actual}
-              fillOpacity={0.2}
-              strokeWidth={2.5}
-            />
-          )}
+          dot={{ r: 3, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+          filter="url(#glow)"
         />
         <Legend content={<CustomLegend />} />
         <Tooltip content={<CustomTooltip />} />

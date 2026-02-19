@@ -68,61 +68,87 @@ export default async function MyProfilePage() {
     .eq('id', user.id)
     .single()
 
+  const avgScore = radarData.length > 0
+    ? Math.round(radarData.reduce((sum, d) => sum + d.actual, 0) / radarData.length)
+    : 0
+
+  const modulesAboveExpected = radarData.filter(d => d.actual >= d.expected).length
+  const jobProfileName = (latestEval?.job_profile as any)?.name
+
   return (
     <div>
       <Header
-        title="Mon profil de compétences"
-        description="Visualisez vos évaluations et votre progression"
+        title="Mon profil de competences"
+        description="Visualisez vos evaluations et votre progression"
       />
       <div className="p-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-bold text-rose-600">{evalCount ?? 0}</p>
-              <p className="text-sm text-muted-foreground">Évaluations</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-bold text-blue-600">
-                {radarData.length > 0 ? Math.round(radarData.reduce((sum, d) => sum + d.actual, 0) / radarData.length) : 0}%
-              </p>
-              <p className="text-sm text-muted-foreground">Score moyen</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Badge variant="secondary" className="text-lg px-4 py-1">
-                {profile?.job_title ?? 'Non défini'}
-              </Badge>
-              <p className="text-sm text-muted-foreground mt-2">Emploi</p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Profile header card */}
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 p-6 text-white">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
+                {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{profile?.first_name} {profile?.last_name}</h2>
+                <p className="text-white/80">{profile?.job_title ?? 'Poste non defini'}</p>
+                {jobProfileName && (
+                  <Badge className="mt-1 bg-white/20 text-white border-white/30 hover:bg-white/30">
+                    Profil : {jobProfileName}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-3 divide-x">
+              <div className="p-4 text-center">
+                <p className="text-2xl font-bold text-indigo-600">{evalCount ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Evaluations</p>
+              </div>
+              <div className="p-4 text-center">
+                <p className="text-2xl font-bold text-indigo-600">{avgScore}%</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Score moyen</p>
+              </div>
+              <div className="p-4 text-center">
+                <p className="text-2xl font-bold text-emerald-600">
+                  {modulesAboveExpected}/{radarData.length}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Modules valides</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Radar + Progress */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">Matching compétences</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <Card className="lg:col-span-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Bilan de competences</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Comparaison entre votre niveau actuel et le niveau attendu pour votre profil metier
+              </p>
             </CardHeader>
             <CardContent>
               {radarData.length > 0 ? (
                 <CompetencyRadarChart data={radarData} colors={chartColors} />
               ) : (
-                <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-                  Aucune évaluation disponible. Contactez votre manager.
+                <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground gap-2">
+                  <p className="text-lg font-medium">Pas encore d&apos;evaluation</p>
+                  <p className="text-sm">Contactez votre manager pour planifier votre premiere evaluation.</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Progression par module</CardTitle>
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold">Detail par module</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Trie par ecart avec l&apos;attendu
+              </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="max-h-[520px] overflow-y-auto">
               <ModuleProgressList data={radarData} />
             </CardContent>
           </Card>
