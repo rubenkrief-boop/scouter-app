@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import type { JobProfile, Module, Competency, JobProfileCompetency, JobProfileCompetencySetting } from '@/lib/types'
+import type { JobProfile, Module, Competency, JobProfileCompetency, JobProfileCompetencySetting, QualifierWithOptions } from '@/lib/types'
 
 interface JobProfileEditorProps {
   jobProfile: JobProfile
@@ -21,6 +21,8 @@ interface JobProfileEditorProps {
   competencies: Competency[]
   expectedScores: JobProfileCompetency[]
   competencySettings: JobProfileCompetencySetting[]
+  qualifiers?: QualifierWithOptions[]
+  linkedQualifierIds?: string[]
 }
 
 interface CompetencySetting {
@@ -34,6 +36,8 @@ export function JobProfileEditor({
   competencies,
   expectedScores,
   competencySettings,
+  qualifiers = [],
+  linkedQualifierIds = [],
 }: JobProfileEditorProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
@@ -41,6 +45,11 @@ export function JobProfileEditor({
   // Selected modules (included in this job profile)
   const [selectedModules, setSelectedModules] = useState<Set<string>>(() => {
     return new Set(expectedScores.map(es => es.module_id))
+  })
+
+  // Selected qualifiers for this job profile
+  const [selectedQualifiers, setSelectedQualifiers] = useState<Set<string>>(() => {
+    return new Set(linkedQualifierIds)
   })
 
   // Per-competency settings
@@ -66,6 +75,16 @@ export function JobProfileEditor({
     }
     return map
   }, [competencies])
+
+  // Qualifier selection helpers
+  function toggleQualifierSelection(qualifierId: string) {
+    setSelectedQualifiers(prev => {
+      const next = new Set(prev)
+      if (next.has(qualifierId)) next.delete(qualifierId)
+      else next.add(qualifierId)
+      return next
+    })
+  }
 
   // Module selection helpers
   function toggleModuleSelection(moduleId: string) {
@@ -194,6 +213,24 @@ export function JobProfileEditor({
           .upsert(selectedCompEntries, { onConflict: 'job_profile_id,competency_id' })
       }
 
+      // 4. Save qualifier selections
+      // Delete all existing links for this profile
+      await supabase
+        .from('job_profile_qualifiers')
+        .delete()
+        .eq('job_profile_id', jobProfile.id)
+
+      // Insert selected qualifiers
+      if (selectedQualifiers.size > 0) {
+        const qualifierEntries = Array.from(selectedQualifiers).map(qId => ({
+          job_profile_id: jobProfile.id,
+          qualifier_id: qId,
+        }))
+        await supabase
+          .from('job_profile_qualifiers')
+          .insert(qualifierEntries)
+      }
+
       toast.success('Profil metier enregistre')
       router.refresh()
     } catch {
@@ -237,6 +274,57 @@ export function JobProfileEditor({
       <div className="text-sm text-muted-foreground">
         {selectedCount} / {totalCount} modules selectionnes pour ce profil metier
       </div>
+
+      {/* Qualifier selection */}
+      {qualifiers.length > 0 && (
+        <Card>
+          <div className="px-6 py-4">
+            <h3 className="font-semibold text-sm mb-1">Qualifiers (critères d&apos;évaluation)</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Sélectionnez les qualifiers utilisés pour ce profil métier. Si aucun n&apos;est sélectionné, tous les qualifiers actifs seront utilisés.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {qualifiers.map((qualifier) => {
+                const isSelected = selectedQualifiers.has(qualifier.id)
+                const optionCount = qualifier.qualifier_options?.length ?? 0
+                return (
+                  <button
+                    key={qualifier.id}
+                    className={cn(
+                      'flex items-start gap-3 p-3 rounded-lg border text-left transition-all',
+                      isSelected
+                        ? 'border-rose-300 bg-rose-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    )}
+                    onClick={() => toggleQualifierSelection(qualifier.id)}
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Square className="h-5 w-5 text-slate-300 shrink-0 mt-0.5" />
+                    )}
+                    <div className="min-w-0">
+                      <p className={cn('font-medium text-sm', isSelected ? 'text-rose-700' : 'text-slate-700')}>
+                        {qualifier.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {optionCount} option{optionCount > 1 ? 's' : ''}
+                        {qualifier.qualifier_options?.slice(0, 3).map(o => o.label).join(', ')}
+                        {optionCount > 3 ? '...' : ''}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            {selectedQualifiers.size > 0 && (
+              <p className="text-xs text-muted-foreground mt-3">
+                {selectedQualifiers.size} / {qualifiers.length} qualifier{selectedQualifiers.size > 1 ? 's' : ''} sélectionné{selectedQualifiers.size > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Modules list */}
       <div className="space-y-3">

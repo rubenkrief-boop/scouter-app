@@ -55,12 +55,29 @@ export default async function EvaluationDetailPage({
 
   const { data: modules } = await modulesQuery
 
-  // Fetch all active qualifiers with options
-  const { data: qualifiers } = await supabase
+  // Fetch qualifiers — filtered by job profile if linked qualifiers exist
+  let profileQualifierIds: string[] | null = null
+  if (evaluation.job_profile_id) {
+    const { data: jpQualifiers } = await supabase
+      .from('job_profile_qualifiers')
+      .select('qualifier_id')
+      .eq('job_profile_id', evaluation.job_profile_id)
+    if (jpQualifiers && jpQualifiers.length > 0) {
+      profileQualifierIds = jpQualifiers.map(jpq => jpq.qualifier_id)
+    }
+  }
+
+  let qualifiersQuery = supabase
     .from('qualifiers')
     .select('*, qualifier_options(*)')
     .eq('is_active', true)
     .order('sort_order')
+
+  if (profileQualifierIds && profileQualifierIds.length > 0) {
+    qualifiersQuery = qualifiersQuery.in('id', profileQualifierIds)
+  }
+
+  const { data: qualifiers } = await qualifiersQuery
 
   // Fetch existing results
   const { data: existingResults } = await supabase

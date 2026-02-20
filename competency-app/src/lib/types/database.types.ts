@@ -123,6 +123,14 @@ export interface JobProfileCompetencySetting {
   updated_at: string
 }
 
+export interface JobProfileQualifier {
+  id: string
+  job_profile_id: string
+  qualifier_id: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Evaluation {
   id: string
   evaluator_id: string

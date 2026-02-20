@@ -46,11 +46,24 @@ export default async function JobProfileDetailPage({
     .select('*')
     .eq('job_profile_id', id)
 
+  // Fetch all active qualifiers
+  const { data: qualifiers } = await supabase
+    .from('qualifiers')
+    .select('*, qualifier_options(*)')
+    .eq('is_active', true)
+    .order('sort_order')
+
+  // Fetch qualifiers already linked to this job profile
+  const { data: linkedQualifiers } = await supabase
+    .from('job_profile_qualifiers')
+    .select('*')
+    .eq('job_profile_id', id)
+
   return (
     <div>
       <Header
         title={jobProfile.name}
-        description="Définir les niveaux de compétences attendus et la pondération"
+        description="Définir les niveaux de compétences attendus, la pondération et les qualifiers"
       />
       <div className="p-6">
         <JobProfileEditor
@@ -59,6 +72,8 @@ export default async function JobProfileDetailPage({
           competencies={competencies ?? []}
           expectedScores={expectedScores ?? []}
           competencySettings={competencySettings ?? []}
+          qualifiers={qualifiers ?? []}
+          linkedQualifierIds={(linkedQualifiers ?? []).map(lq => lq.qualifier_id)}
         />
       </div>
     </div>
