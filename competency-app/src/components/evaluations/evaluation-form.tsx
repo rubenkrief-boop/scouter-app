@@ -18,7 +18,9 @@ interface EvaluationFormProps {
   evaluationStatus: string
   modules: (Module & { competencies: Competency[] })[]
   qualifiers: QualifierWithOptions[]
+  qualifiersByModule?: Record<string, QualifierWithOptions[]>
   initialState: Record<string, Record<string, string>>
+  readOnly?: boolean
 }
 
 function EvolutionIcon({ icon }: { icon: string | null }) {
@@ -33,7 +35,9 @@ export function EvaluationForm({
   evaluationStatus,
   modules,
   qualifiers,
+  qualifiersByModule,
   initialState,
+  readOnly = false,
 }: EvaluationFormProps) {
   const router = useRouter()
   const [state, setState] = useState(initialState)
@@ -127,15 +131,20 @@ export function EvaluationForm({
             Voir les résultats
           </Button>
         </Link>
-        <Button onClick={handleSave} disabled={saving} className="bg-rose-600 hover:bg-rose-700">
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Enregistrement...' : 'Enregistrer'}
-        </Button>
+        {!readOnly && (
+          <Button onClick={handleSave} disabled={saving} className="bg-rose-600 hover:bg-rose-700">
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </Button>
+        )}
       </div>
 
       {/* Competencies grouped by module */}
       {modules.map((module) => {
         if (!module.competencies || module.competencies.length === 0) return null
+
+        // Utiliser les qualifiers specifiques au module si disponibles, sinon fallback global
+        const moduleQualifiers = qualifiersByModule?.[module.id] ?? qualifiers
 
         return (
           <Card key={module.id}>
@@ -154,7 +163,7 @@ export function EvaluationForm({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[200px]">Compétence</TableHead>
-                      {qualifiers.map((q) => (
+                      {moduleQualifiers.map((q) => (
                         <TableHead key={q.id} className="min-w-[140px] text-center">
                           {q.name}
                         </TableHead>
@@ -167,7 +176,7 @@ export function EvaluationForm({
                       .map((comp) => (
                         <TableRow key={comp.id}>
                           <TableCell className="font-medium text-sm">{comp.name}</TableCell>
-                          {qualifiers.map((qualifier) => {
+                          {moduleQualifiers.map((qualifier) => {
                             const currentValue = state[comp.id]?.[qualifier.id] ?? ''
                             const selectedOption = qualifier.qualifier_options?.find(o => o.id === currentValue)
 
@@ -176,8 +185,9 @@ export function EvaluationForm({
                                 <Select
                                   value={currentValue}
                                   onValueChange={(v) => handleChange(comp.id, qualifier.id, v)}
+                                  disabled={readOnly}
                                 >
-                                  <SelectTrigger className="text-xs h-8">
+                                  <SelectTrigger className={`text-xs h-8 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}>
                                     <SelectValue placeholder="-">
                                       {selectedOption && (
                                         <span className="flex items-center gap-1">

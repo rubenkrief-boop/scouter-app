@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
   },
   {
     label: 'Statistiques',
-    href: '/admin/statistics',
+    href: '/statistics',
     icon: <PieChart className="h-5 w-5" />,
     roles: ['super_admin', 'manager'],
     section: 'Administration',
@@ -107,6 +107,13 @@ const navItems: NavItem[] = [
     label: 'Mes évaluations',
     href: '/my-profile/evaluations',
     icon: <Layers className="h-5 w-5" />,
+    roles: ['worker'],
+    section: 'Mon espace',
+  },
+  {
+    label: 'Collègues',
+    href: '/colleagues',
+    icon: <Users className="h-5 w-5" />,
     roles: ['worker'],
     section: 'Mon espace',
   },

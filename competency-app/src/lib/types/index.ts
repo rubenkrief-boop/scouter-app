@@ -15,6 +15,7 @@ export type {
   JobProfileCompetency,
   JobProfileCompetencySetting,
   JobProfileQualifier,
+  ModuleQualifier,
   Evaluation,
   EvaluationWithRelations,
   EvaluationResult,

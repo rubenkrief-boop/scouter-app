@@ -1,18 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Users, MapPin, BarChart3, ChevronRight } from 'lucide-react'
+import { Users, MapPin, BarChart3, ChevronRight } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
+import { WorkerFilters } from '@/components/workers/worker-filters'
 
 export default async function WorkersListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; location?: string }>
 }) {
-  const { q } = await searchParams
+  const { q, location } = await searchParams
   const { user, profile: currentProfile } = await getAuthProfile()
 
   if (!user || !currentProfile) redirect('/auth/login')
@@ -25,20 +26,33 @@ export default async function WorkersListPage({
 
   const supabase = await createClient()
 
-  // Get all active workers with their location and job profile
-  let query = supabase
+  // Get all active locations for filter dropdown
+  const { data: locations } = await supabase
+    .from('locations')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
+
+  // Get all active workers with their location
+  let workersQuery = supabase
     .from('profiles')
     .select(`
       id, first_name, last_name, email, job_title, role,
-      location:locations(name)
+      location:locations(name),
+      location_id
     `)
     .eq('role', 'worker')
     .eq('is_active', true)
     .order('last_name', { ascending: true })
 
-  const { data: workers } = await query
+  // Filter by location server-side
+  if (location) {
+    workersQuery = workersQuery.eq('location_id', location)
+  }
 
-  // Filter by search query client-side (simple approach)
+  const { data: workers } = await workersQuery
+
+  // Filter by search query
   let filteredWorkers = workers ?? []
   if (q) {
     const search = q.toLowerCase()
@@ -95,23 +109,24 @@ export default async function WorkersListPage({
         description="Recherchez un collaborateur et consultez son bilan de compétences"
       />
       <div className="p-6 space-y-6">
-        {/* Search bar */}
-        <form className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            name="q"
-            defaultValue={q ?? ''}
-            placeholder="Rechercher par nom, email ou poste..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </form>
+        {/* Filters: search + location */}
+        <WorkerFilters
+          locations={locations ?? []}
+          currentQuery={q}
+          currentLocation={location}
+        />
 
         {/* Results count */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
           <span>{workersWithStats.length} collaborateur{workersWithStats.length !== 1 ? 's' : ''}</span>
           {q && <Badge variant="secondary" className="text-xs">{q}</Badge>}
+          {location && locations && (
+            <Badge variant="outline" className="text-xs">
+              <MapPin className="h-3 w-3 mr-1" />
+              {locations.find(l => l.id === location)?.name ?? 'Centre'}
+            </Badge>
+          )}
         </div>
 
         {/* Worker cards */}

@@ -131,6 +131,14 @@ export interface JobProfileQualifier {
   updated_at: string
 }
 
+export interface ModuleQualifier {
+  id: string
+  module_id: string
+  qualifier_id: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Evaluation {
   id: string
   evaluator_id: string
@@ -279,6 +287,11 @@ export type Database = {
         Row: EvaluationComment
         Insert: Omit<EvaluationComment, 'id' | 'created_at'>
         Update: never // Immutable
+      }
+      module_qualifiers: {
+        Row: ModuleQualifier
+        Insert: Omit<ModuleQualifier, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<ModuleQualifier, 'id' | 'created_at'>>
       }
     }
     Functions: {

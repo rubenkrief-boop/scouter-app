@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { Module, ModuleWithChildren } from '@/lib/types'
+import type { Module, ModuleWithChildren, QualifierWithOptions } from '@/lib/types'
 
 export async function getModules(): Promise<ModuleWithChildren[]> {
   const supabase = await createClient()
@@ -213,4 +213,124 @@ export async function deleteModule(id: string) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/modules')
+}
+
+// ============================================
+// Module Qualifiers — Attribution par module
+// ============================================
+
+/**
+ * Retourne un map module_id -> qualifier_ids[] pour tous les modules
+ */
+export async function getModuleQualifiersMap(): Promise<Record<string, string[]>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('module_qualifiers')
+    .select('module_id, qualifier_id')
+
+  if (error) {
+    console.error('Error fetching module_qualifiers:', error)
+    return {}
+  }
+
+  const map: Record<string, string[]> = {}
+  for (const row of data ?? []) {
+    if (!map[row.module_id]) {
+      map[row.module_id] = []
+    }
+    map[row.module_id].push(row.qualifier_id)
+  }
+  return map
+}
+
+/**
+ * Retourne les qualifier_ids assignes a un module specifique
+ */
+export async function getModuleQualifierIds(moduleId: string): Promise<string[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('module_qualifiers')
+    .select('qualifier_id')
+    .eq('module_id', moduleId)
+
+  if (error) {
+    console.error('Error fetching module qualifier IDs:', error)
+    return []
+  }
+
+  return (data ?? []).map(r => r.qualifier_id)
+}
+
+/**
+ * Definit les qualifiers pour un module (delete + insert)
+ */
+export async function setModuleQualifiers(moduleId: string, qualifierIds: string[]) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifie' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || (profile.role !== 'skill_master' && profile.role !== 'super_admin')) {
+    return { error: 'Acces refuse. Role skill_master ou super_admin requis.' }
+  }
+
+  // Supprimer les liens existants
+  const { error: deleteError } = await supabase
+    .from('module_qualifiers')
+    .delete()
+    .eq('module_id', moduleId)
+
+  if (deleteError) {
+    return { error: deleteError.message }
+  }
+
+  // Inserer les nouveaux liens
+  if (qualifierIds.length > 0) {
+    const rows = qualifierIds.map(qId => ({
+      module_id: moduleId,
+      qualifier_id: qId,
+    }))
+
+    const { error: insertError } = await supabase
+      .from('module_qualifiers')
+      .insert(rows)
+
+    if (insertError) {
+      return { error: insertError.message }
+    }
+  }
+
+  revalidatePath('/skill-master/library')
+  return { success: true }
+}
+
+/**
+ * Charge les qualifiers avec options, groupes par module.
+ * Si un module n'a aucun qualifier assigne, retourne tous les qualifiers actifs (fallback).
+ */
+export async function getQualifiersByModule(
+  moduleIds: string[],
+  allQualifiers: QualifierWithOptions[]
+): Promise<Record<string, QualifierWithOptions[]>> {
+  const mqMap = await getModuleQualifiersMap()
+  const result: Record<string, QualifierWithOptions[]> = {}
+
+  for (const moduleId of moduleIds) {
+    const assignedIds = mqMap[moduleId]
+    if (assignedIds && assignedIds.length > 0) {
+      result[moduleId] = allQualifiers.filter(q => assignedIds.includes(q.id))
+    } else {
+      result[moduleId] = allQualifiers
+    }
+  }
+
+  return result
 }

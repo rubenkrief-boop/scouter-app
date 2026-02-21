@@ -1,12 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
-import { BarChart3 } from 'lucide-react'
+import { notFound, redirect } from 'next/navigation'
+import { BarChart3, Lock } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { EvaluationForm } from '@/components/evaluations/evaluation-form'
 import { CompetencyRadarChart } from '@/components/charts/radar-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { RadarDataPoint } from '@/lib/types'
+import { Badge } from '@/components/ui/badge'
+import type { RadarDataPoint, QualifierWithOptions } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
+import { getQualifiersByModule } from '@/lib/actions/modules'
+import { getAuthProfile } from '@/lib/supabase/auth-cache'
 
 export default async function EvaluationDetailPage({
   params,
@@ -14,6 +17,9 @@ export default async function EvaluationDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const { user, profile: currentProfile } = await getAuthProfile()
+  if (!user || !currentProfile) redirect('/auth/login')
+
   const supabase = await createClient()
 
   const { data: evaluation } = await supabase
@@ -78,6 +84,28 @@ export default async function EvaluationDetailPage({
   }
 
   const { data: qualifiers } = await qualifiersQuery
+
+  // Build qualifiers par module
+  const moduleIds = (modules ?? []).map((m: any) => m.id)
+  const qualifiersByModule = await getQualifiersByModule(
+    moduleIds,
+    (qualifiers ?? []) as QualifierWithOptions[]
+  )
+
+  // Determiner si le manager est en lecture seule (evaluation hors equipe)
+  let isReadOnly = false
+  if (currentProfile.role === 'manager') {
+    // Verifier si le collaborateur evalue fait partie de l'equipe du manager
+    const { data: workerProfile } = await supabase
+      .from('profiles')
+      .select('manager_id')
+      .eq('id', evaluation.audioprothesiste_id)
+      .single()
+
+    if (workerProfile?.manager_id !== currentProfile.id) {
+      isReadOnly = true
+    }
+  }
 
   // Fetch existing results
   const { data: existingResults } = await supabase
@@ -144,12 +172,20 @@ export default async function EvaluationDetailPage({
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Form — 2/3 */}
           <div className="xl:col-span-2">
+            {isReadOnly && (
+              <div className="flex items-center gap-2 p-3 mb-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300">
+                <Lock className="h-4 w-4 flex-shrink-0" />
+                <span>Lecture seule — ce collaborateur ne fait pas partie de votre équipe</span>
+              </div>
+            )}
             <EvaluationForm
               evaluationId={evaluation.id}
               evaluationStatus={evaluation.status}
               modules={modules ?? []}
               qualifiers={qualifiers ?? []}
+              qualifiersByModule={qualifiersByModule}
               initialState={initialState}
+              readOnly={isReadOnly}
             />
           </div>
 

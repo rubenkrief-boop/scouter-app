@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { EmojiPickerField } from '@/components/ui/emoji-picker'
 import type { Module, Competency } from '@/lib/types'
+import { ModuleQualifierEditor } from '@/components/modules/module-qualifier-editor'
 
 interface ModuleNode extends Module {
   children: ModuleNode[]
@@ -536,6 +537,15 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                     )}
                   </TableBody>
                 </Table>
+              )}
+
+              {/* Module Qualifier Attribution */}
+              {selectedModuleId && !selectedModule?.parent_id && (
+                <ModuleQualifierEditor
+                  key={selectedModuleId}
+                  moduleId={selectedModuleId}
+                  moduleName={selectedModule?.name ?? ''}
+                />
               )}
             </CardContent>
           </Card>

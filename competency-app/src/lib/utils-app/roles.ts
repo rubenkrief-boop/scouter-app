@@ -15,7 +15,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
 }
 
 export function canAccessAdmin(role: UserRole): boolean {
-  return role === 'super_admin' || role === 'manager'
+  return role === 'super_admin'
 }
 
 export function canAccessSkillMaster(role: UserRole): boolean {
