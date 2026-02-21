@@ -193,6 +193,8 @@ export interface RadarDataPoint {
   actual: number
   expected: number
   fullMark: number
+  moduleColor?: string
+  moduleIcon?: string
 }
 
 export interface ModuleScore {

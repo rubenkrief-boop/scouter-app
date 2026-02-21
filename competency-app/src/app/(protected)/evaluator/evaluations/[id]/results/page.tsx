@@ -1,13 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { Header } from '@/components/layout/header'
+import { ArrowLeft, Pencil, CheckCircle2, AlertTriangle, User } from 'lucide-react'
 import { CompetencyRadarChart } from '@/components/charts/radar-chart'
-import { ModuleProgressList } from '@/components/dashboard/module-progress-list'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ModuleSidebar } from '@/components/dashboard/module-sidebar'
 import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 
@@ -23,7 +21,7 @@ export default async function EvaluationResultsPage({
     .from('evaluations')
     .select(`
       *,
-      audioprothesiste:profiles!audioprothesiste_id(first_name, last_name),
+      audioprothesiste:profiles!audioprothesiste_id(first_name, last_name, job_title, avatar_url),
       job_profile:job_profiles(name)
     `)
     .eq('id', id)
@@ -48,12 +46,30 @@ export default async function EvaluationResultsPage({
     })
   }
 
+  // Get module colors from modules table
+  const moduleIds = (moduleScores ?? []).map((ms: any) => ms.module_id)
+  let moduleColors: Record<string, string> = {}
+  let moduleIcons: Record<string, string> = {}
+  if (moduleIds.length > 0) {
+    const { data: modulesData } = await supabase
+      .from('modules')
+      .select('id, color, icon')
+      .in('id', moduleIds)
+
+    modulesData?.forEach((m) => {
+      if (m.color) moduleColors[m.id] = m.color
+      if (m.icon) moduleIcons[m.id] = m.icon
+    })
+  }
+
   // Transform to radar data
   const radarData: RadarDataPoint[] = (moduleScores ?? []).map((ms: any) => ({
     module: `${ms.module_code} - ${ms.module_name}`,
     actual: parseFloat(ms.completion_pct) || 0,
     expected: expectedScores[ms.module_id] ?? 0,
     fullMark: 100,
+    moduleColor: moduleColors[ms.module_id] || '#6366f1',
+    moduleIcon: moduleIcons[ms.module_id] || '',
   }))
 
   // Calculate overall stats
@@ -65,117 +81,121 @@ export default async function EvaluationResultsPage({
     : 0
 
   const chartColors = await getChartColors()
-  const audioName = `${evaluation.audioprothesiste?.first_name ?? ''} ${evaluation.audioprothesiste?.last_name ?? ''}`
+  const audioFirstName = evaluation.audioprothesiste?.first_name ?? ''
+  const audioLastName = evaluation.audioprothesiste?.last_name ?? ''
+  const audioName = `${audioFirstName} ${audioLastName}`.trim()
+  const jobTitle = evaluation.audioprothesiste?.job_title || evaluation.job_profile?.name || 'Audioprothésiste'
 
   return (
-    <div>
-      <Header
-        title={`Bilan de compétences`}
-        description={`${audioName} — ${evaluation.job_profile?.name ?? 'Aucun profil métier'}`}
-      />
-      <div className="p-6 space-y-6">
-        {/* Navigation bar */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Top bar — Nom + fonction bien visible */}
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/evaluator/evaluations"
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour aux évaluations
+              Retour
             </Link>
+            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
+            {/* Avatar + Name + Job Title — PROMINENT */}
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center flex-shrink-0">
+                {evaluation.audioprothesiste?.avatar_url ? (
+                  <img
+                    src={evaluation.audioprothesiste.avatar_url}
+                    alt={audioName}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                  {audioName}
+                </h1>
+                <p className="text-sm text-violet-600 dark:text-violet-400 font-medium">
+                  {jobTitle}
+                </p>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {evaluation.evaluated_at && (
               <span className="text-xs text-muted-foreground">
-                Mis à jour le {new Date(evaluation.evaluated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(evaluation.evaluated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
               </span>
             )}
             <Link href={`/evaluator/evaluations/${id}`}>
-              <Button className="bg-rose-600 hover:bg-rose-700">
+              <Button className="bg-violet-600 hover:bg-violet-700">
                 <Pencil className="h-4 w-4 mr-2" />
                 Modifier les scores
               </Button>
             </Link>
           </div>
         </div>
+      </div>
 
-        {/* Stats summary cards */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-bold text-violet-600">{overallAvg}%</p>
-              <p className="text-xs text-muted-foreground mt-1">Score global</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-3xl font-bold text-gray-700">{totalModules}</p>
-              <p className="text-xs text-muted-foreground mt-1">Modules évalués</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              {modulesWithExpected > 0 ? (
-                modulesAboveExpected === modulesWithExpected ? (
+      {/* Main content — 2 columns: huge radar left + module list right */}
+      <div className="flex">
+        {/* LEFT — Giant radar chart */}
+        <div className="flex-1 p-6">
+          {/* Mini stats row */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-violet-600">{overallAvg}%</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Score global</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{totalModules}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Modules évalués</p>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-3 text-center">
+                {modulesWithExpected > 0 ? (
                   <>
-                    <p className="text-3xl font-bold text-emerald-600 flex items-center justify-center gap-2">
-                      <CheckCircle2 className="h-6 w-6" />
+                    <p className={`text-2xl font-bold flex items-center justify-center gap-1 ${modulesAboveExpected === modulesWithExpected ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {modulesAboveExpected === modulesWithExpected && <CheckCircle2 className="h-5 w-5" />}
+                      {modulesAboveExpected !== modulesWithExpected && <AlertTriangle className="h-5 w-5" />}
                       {modulesAboveExpected}/{modulesWithExpected}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Modules validés</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Modules validés</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-3xl font-bold text-amber-600 flex items-center justify-center gap-2">
-                      <AlertTriangle className="h-6 w-6" />
-                      {modulesAboveExpected}/{modulesWithExpected}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">Modules validés</p>
+                    <p className="text-2xl font-bold text-gray-400">-</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Aucun attendu</p>
                   </>
-                )
-              ) : (
-                <>
-                  <p className="text-3xl font-bold text-gray-400">-</p>
-                  <p className="text-xs text-muted-foreground mt-1">Aucun attendu défini</p>
-                </>
-              )}
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* HUGE Radar */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-2 pt-4">
+              <CompetencyRadarChart
+                data={radarData}
+                expectedLabel="Attendu"
+                actualLabel="Niveau actuel"
+                colors={chartColors}
+                fullSize
+              />
             </CardContent>
           </Card>
         </div>
 
-        {/* FULL WIDTH Radar Chart — the main attraction */}
-        <Card>
-          <CardHeader className="pb-0">
-            <CardTitle className="text-lg font-semibold">Bilan de compétences</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Comparaison entre le niveau actuel et le niveau attendu
-              {evaluation.job_profile?.name ? ` pour le profil « ${evaluation.job_profile.name} »` : ''}
-            </p>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <CompetencyRadarChart
-              data={radarData}
-              expectedLabel="Attendu"
-              actualLabel="Niveau actuel"
-              colors={chartColors}
-              fullSize
-            />
-          </CardContent>
-        </Card>
-
-        {/* Module detail list below */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Détail par module</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Trié par écart avec l&apos;attendu — les modules nécessitant le plus de progression apparaissent en premier
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ModuleProgressList data={radarData} />
-          </CardContent>
-        </Card>
+        {/* RIGHT — Module list sidebar (collapsible) */}
+        <div className="w-[340px] flex-shrink-0 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <ModuleSidebar data={radarData} />
+        </div>
       </div>
     </div>
   )

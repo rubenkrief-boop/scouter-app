@@ -110,11 +110,25 @@ export default async function EvaluationDetailPage({
     })
   }
 
+  // Get module colors for radar labels
+  const scoreModuleIds = (moduleScores ?? []).map((ms: any) => ms.module_id)
+  let moduleColorMap: Record<string, string> = {}
+  if (scoreModuleIds.length > 0) {
+    const { data: modColors } = await supabase
+      .from('modules')
+      .select('id, color')
+      .in('id', scoreModuleIds)
+    modColors?.forEach((m) => {
+      if (m.color) moduleColorMap[m.id] = m.color
+    })
+  }
+
   const radarData: RadarDataPoint[] = (moduleScores ?? []).map((ms: any) => ({
     module: `${ms.module_code} - ${ms.module_name}`,
     actual: parseFloat(ms.completion_pct) || 0,
     expected: expectedScores[ms.module_id] ?? 70,
     fullMark: 100,
+    moduleColor: moduleColorMap[ms.module_id] || '#6366f1',
   }))
 
   const chartColors = await getChartColors()
