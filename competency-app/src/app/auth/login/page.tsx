@@ -48,11 +48,11 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="text-center space-y-4">
-        <div className="flex justify-center">
-          <img src="/logo-full.png" alt="SCOUTER - Mesure des compétences" className="h-16 object-contain" />
-        </div>
+    <Card className="w-full max-w-md overflow-hidden">
+      <div className="bg-slate-800 px-6 py-8 flex justify-center">
+        <img src="/logo-full.png" alt="SCOUTER - Mesure des compétences" className="h-14 object-contain" />
+      </div>
+      <CardHeader className="text-center pt-4">
         <CardDescription>Connectez-vous avec votre compte VivaSon</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -97,11 +97,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img src="/logo-full.png" alt="SCOUTER" className="h-16 object-contain" />
-          </div>
+      <Card className="w-full max-w-md overflow-hidden">
+        <div className="bg-slate-800 px-6 py-8 flex justify-center">
+          <img src="/logo-full.png" alt="SCOUTER" className="h-14 object-contain" />
+        </div>
+        <CardHeader className="text-center pt-4">
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
       </Card>
