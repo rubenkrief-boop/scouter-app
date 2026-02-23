@@ -4,8 +4,7 @@ import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
-import { ScouterLogo } from '@/components/ui/scouter-logo'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 function LoginForm() {
   const [loading, setLoading] = useState(false)
@@ -40,7 +39,6 @@ function LoginForm() {
         setLoginError(oauthError.message)
         setLoading(false)
       }
-      // Si pas d'erreur, le SDK redirige automatiquement vers Google
     } catch (err) {
       console.error('OAuth error:', err)
       setLoginError('Erreur de connexion. Veuillez réessayer.')
@@ -50,10 +48,8 @@ function LoginForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="text-center space-y-4 pb-2">
-        <div className="flex justify-center">
-          <ScouterLogo variant="full" size="lg" />
-        </div>
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold tracking-wider">SCOUTER</CardTitle>
         <CardDescription>Connectez-vous avec votre compte VivaSon</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -99,10 +95,8 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4 pb-2">
-          <div className="flex justify-center">
-            <ScouterLogo variant="full" size="lg" />
-          </div>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold tracking-wider">SCOUTER</CardTitle>
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
       </Card>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: Request) {
@@ -8,7 +9,29 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/dashboard'
 
   if (code) {
-    const supabase = await createClient()
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, { ...options, path: '/' })
+              )
+            } catch {
+              // Ignore errors from Server Components
+            }
+          },
+        },
+      }
+    )
+
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
@@ -35,7 +58,6 @@ export async function GET(request: Request) {
           .single()
 
         if (!existingProfile) {
-          // No profile for this Auth ID yet.
           // Check if a profile was pre-imported via Excel with the same email
           const { data: preImportedProfile } = await adminClient
             .from('profiles')
@@ -45,12 +67,6 @@ export async function GET(request: Request) {
             .single()
 
           if (preImportedProfile) {
-            // A profile was pre-imported with a different Auth ID (from Excel import).
-            // We need to transfer the data to the new Google Auth user ID.
-            //
-            // Strategy: delete the old profile, then create a new one with the
-            // Google Auth ID but keeping all the pre-imported data (role, manager, etc.)
-
             const oldId = preImportedProfile.id
 
             // 1. Delete the old auth user (created by Excel import with random password)
@@ -60,8 +76,7 @@ export async function GET(request: Request) {
               // Old auth user may already be gone
             }
 
-            // 2. Delete the old profile (FK CASCADE will clean up related records)
-            // Since this is a brand-new import with no evaluations yet, this is safe
+            // 2. Delete the old profile
             await adminClient
               .from('profiles')
               .delete()
@@ -80,10 +95,8 @@ export async function GET(request: Request) {
               avatar_url: user.user_metadata?.avatar_url || preImportedProfile.avatar_url,
               is_active: preImportedProfile.is_active,
             })
-
-            // Role, manager, location, job_title are all preserved from the import!
           } else {
-            // Completely new user (not pre-imported) - create a fresh profile
+            // Completely new user - create a fresh profile
             const meta = user.user_metadata || {}
             await adminClient.from('profiles').upsert({
               id: user.id,
