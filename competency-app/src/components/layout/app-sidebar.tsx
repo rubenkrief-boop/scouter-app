@@ -13,7 +13,7 @@ import { logout } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { ScouterLogo } from '@/components/ui/scouter-logo'
+import Image from 'next/image'
 
 interface NavItem {
   label: string
@@ -140,8 +140,15 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
   return (
     <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
       {/* Logo */}
-      <div className="p-4">
-        <ScouterLogo variant="full" size="md" />
+      <div className="p-4 flex items-center gap-3">
+        <Image
+          src="/logo-icon.png"
+          alt="SCOUTER"
+          width={40}
+          height={40}
+          className="object-contain"
+        />
+        <span className="text-lg font-bold tracking-wider">SCOUTER</span>
       </div>
 
       <Separator />

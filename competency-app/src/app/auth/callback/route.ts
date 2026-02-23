@@ -10,11 +10,6 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies()
-    const allCookies = cookieStore.getAll()
-    console.log('Callback received code:', code.substring(0, 10) + '...')
-    console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30))
-    console.log('ANON_KEY starts with:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20))
-    console.log('ANON_KEY length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length)
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,8 +24,8 @@ export async function GET(request: Request) {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, { ...options, path: '/' })
               )
-            } catch (e) {
-              console.error('Cookie set error:', e)
+            } catch {
+              // Cookie set from Server Component context - safe to ignore
             }
           },
         },
@@ -38,10 +33,6 @@ export async function GET(request: Request) {
     )
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (error) {
-      console.error('OAuth exchange error:', error.message, error.status)
-    }
 
     if (!error) {
       // Verify the user's email domain is @vivason.fr

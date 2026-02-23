@@ -2,9 +2,10 @@
 
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 
 function LoginForm() {
   const [loading, setLoading] = useState(false)
@@ -48,9 +49,16 @@ function LoginForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-wider">SCOUTER</CardTitle>
-        <CardDescription>Connectez-vous avec votre compte VivaSon</CardDescription>
+      <CardHeader className="flex flex-col items-center pt-8 pb-2">
+        <Image
+          src="/logo-full.png"
+          alt="SCOUTER - Mesure des compétences"
+          width={320}
+          height={160}
+          priority
+          className="object-contain"
+        />
+        <CardDescription className="mt-2">Connectez-vous avec votre compte VivaSon</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
@@ -95,8 +103,14 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-wider">SCOUTER</CardTitle>
+        <CardHeader className="flex flex-col items-center pt-8 pb-2">
+          <Image
+            src="/logo-full.png"
+            alt="SCOUTER"
+            width={320}
+            height={160}
+            className="object-contain"
+          />
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
       </Card>
