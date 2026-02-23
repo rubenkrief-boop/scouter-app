@@ -140,8 +140,8 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
     <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
       {/* Logo */}
       <div className="p-6">
-        <h1 className="text-xl font-bold text-primary">CompétencesPro</h1>
-        <p className="text-xs text-sidebar-foreground/60 mt-1">Évaluation des compétences</p>
+        <h1 className="text-xl font-bold text-primary tracking-wider">SCOUTER</h1>
+        <p className="text-xs text-sidebar-foreground/60 mt-1">Mesure des compétences</p>
       </div>
 
       <Separator />

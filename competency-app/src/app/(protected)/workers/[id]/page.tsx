@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
+import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 
 export default async function WorkerProfilePage({
   params,
@@ -100,12 +101,18 @@ export default async function WorkerProfilePage({
     : 0
   const modulesAboveExpected = radarData.filter(d => d.actual >= d.expected && d.expected > 0).length
   const modulesWithExpected = radarData.filter(d => d.expected > 0).length
+  const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || avgScore >= 90
 
   const chartColors = await getChartColors()
   const fullName = `${worker.first_name} ${worker.last_name}`
 
   return (
     <div>
+      <ScouterTrigger
+        score={avgScore}
+        triggered={shouldTriggerScouter}
+        storageKey={`scouter-worker-${id}`}
+      />
       <Header
         title={fullName}
         description={worker.job_title ?? 'Collaborateur'}

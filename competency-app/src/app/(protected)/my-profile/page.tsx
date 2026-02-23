@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
+import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 
 export default async function MyProfilePage() {
   const supabase = await createClient()
@@ -73,10 +74,17 @@ export default async function MyProfilePage() {
     : 0
 
   const modulesAboveExpected = radarData.filter(d => d.actual >= d.expected).length
+  const modulesWithExpected = radarData.filter(d => d.expected > 0).length
+  const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || avgScore >= 90
   const jobProfileName = (latestEval?.job_profile as any)?.name
 
   return (
     <div>
+      <ScouterTrigger
+        score={avgScore}
+        triggered={shouldTriggerScouter}
+        storageKey="scouter-my-profile"
+      />
       <Header
         title="Mon profil de competences"
         description="Visualisez vos evaluations et votre progression"

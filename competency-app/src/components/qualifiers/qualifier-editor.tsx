@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { createClient } from '@/lib/supabase/client'
 import type { QualifierWithOptions, QualifierOption } from '@/lib/types'
+import { IconPicker } from '@/components/ui/icon-picker'
 import Link from 'next/link'
 
 interface QualifierEditorProps {
@@ -159,10 +160,9 @@ export function QualifierEditor({ qualifier }: QualifierEditorProps) {
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      defaultValue={option.icon ?? ''}
-                      placeholder="arrow-up"
-                      onBlur={(e) => handleUpdateOption(option.id, 'icon', e.target.value)}
+                    <IconPicker
+                      value={option.icon ?? null}
+                      onChange={(icon) => handleUpdateOption(option.id, 'icon', icon ?? '')}
                     />
                   </TableCell>
                   <TableCell>
@@ -204,10 +204,9 @@ export function QualifierEditor({ qualifier }: QualifierEditorProps) {
                   />
                 </TableCell>
                 <TableCell>
-                  <Input
-                    placeholder="icône"
-                    value={newOption.icon}
-                    onChange={(e) => setNewOption({ ...newOption, icon: e.target.value })}
+                  <IconPicker
+                    value={newOption.icon || null}
+                    onChange={(icon) => setNewOption({ ...newOption, icon: icon ?? '' })}
                   />
                 </TableCell>
                 <TableCell>

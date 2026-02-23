@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ModuleSidebar } from '@/components/dashboard/module-sidebar'
 import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
+import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 
 export default async function EvaluationResultsPage({
   params,
@@ -80,6 +81,9 @@ export default async function EvaluationResultsPage({
     ? Math.round(radarData.reduce((sum, d) => sum + d.actual, 0) / totalModules)
     : 0
 
+  // Scouter explosion trigger: 90%+ overall OR all modules at expected
+  const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || overallAvg >= 90
+
   const chartColors = await getChartColors()
   const audioFirstName = evaluation.audioprothesiste?.first_name ?? ''
   const audioLastName = evaluation.audioprothesiste?.last_name ?? ''
@@ -88,6 +92,11 @@ export default async function EvaluationResultsPage({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <ScouterTrigger
+        score={overallAvg}
+        triggered={shouldTriggerScouter}
+        storageKey={`scouter-eval-${id}`}
+      />
       {/* Top bar — Nom + fonction bien visible */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
         <div className="flex items-center justify-between">

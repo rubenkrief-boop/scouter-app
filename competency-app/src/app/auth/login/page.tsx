@@ -50,7 +50,7 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-rose-600">CompétencesPro</CardTitle>
+        <CardTitle className="text-2xl font-bold text-rose-600 tracking-wider">SCOUTER</CardTitle>
         <CardDescription>Connectez-vous avec votre compte VivaSon</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -97,7 +97,7 @@ export default function LoginPage() {
     <Suspense fallback={
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-rose-600">CompétencesPro</CardTitle>
+          <CardTitle className="text-2xl font-bold text-rose-600 tracking-wider">SCOUTER</CardTitle>
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
       </Card>

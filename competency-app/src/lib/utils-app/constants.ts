@@ -1,5 +1,5 @@
-export const APP_NAME = 'CompétencesPro'
-export const APP_DESCRIPTION = 'Plateforme d\'évaluation des compétences audioprothésistes'
+export const APP_NAME = 'SCOUTER'
+export const APP_DESCRIPTION = 'Mesure des compétences'
 
 export const MODULE_ICONS: Record<string, string> = {
   '01': '🔊',

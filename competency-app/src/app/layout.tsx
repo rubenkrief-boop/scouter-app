@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'CompétencesPro - Évaluation Audioprothésistes',
-  description: 'Plateforme d\'évaluation des compétences pour audioprothésistes',
+  title: 'SCOUTER - Mesure des compétences',
+  description: 'Plateforme de mesure des compétences professionnelles',
 }
 
 export default function RootLayout({

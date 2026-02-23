@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Save, BarChart3, ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import { Save, BarChart3 } from 'lucide-react'
+import { getIconOption } from '@/lib/utils-app/qualifier-icons'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -23,11 +24,11 @@ interface EvaluationFormProps {
   readOnly?: boolean
 }
 
-function EvolutionIcon({ icon }: { icon: string | null }) {
-  if (icon === 'arrow-up') return <ArrowUp className="h-4 w-4 text-green-600" />
-  if (icon === 'arrow-down') return <ArrowDown className="h-4 w-4 text-red-600" />
-  if (icon === 'equal') return <Minus className="h-4 w-4 text-muted-foreground" />
-  return null
+function QualifierIcon({ icon }: { icon: string | null }) {
+  const iconOption = getIconOption(icon)
+  if (!iconOption) return null
+  const IconComp = iconOption.icon
+  return <IconComp className={`h-4 w-4 ${iconOption.color ?? 'text-gray-500'}`} />
 }
 
 export function EvaluationForm({
@@ -191,7 +192,7 @@ export function EvaluationForm({
                                     <SelectValue placeholder="-">
                                       {selectedOption && (
                                         <span className="flex items-center gap-1">
-                                          {selectedOption.icon && <EvolutionIcon icon={selectedOption.icon} />}
+                                          {selectedOption.icon && <QualifierIcon icon={selectedOption.icon} />}
                                           {selectedOption.label}
                                         </span>
                                       )}
@@ -203,7 +204,7 @@ export function EvaluationForm({
                                       .map((option) => (
                                         <SelectItem key={option.id} value={option.id}>
                                           <span className="flex items-center gap-2">
-                                            {option.icon && <EvolutionIcon icon={option.icon} />}
+                                            {option.icon && <QualifierIcon icon={option.icon} />}
                                             {option.label}
                                           </span>
                                         </SelectItem>

@@ -7,13 +7,13 @@ export default function CGUPage() {
       <h2>1. Objet</h2>
       <p>
         Les presentes Conditions Generales d'Utilisation (CGU) regissent l'acces et l'utilisation
-        de la plateforme CompetencesPro, un outil d'evaluation des competences professionnelles
+        de la plateforme SCOUTER, un outil d'evaluation des competences professionnelles
         destine aux audioprothesistes et aux professionnels de l'audioprothese.
       </p>
 
       <h2>2. Acces au service</h2>
       <p>
-        L'acces a CompetencesPro est reserve aux utilisateurs disposant d'un compte
+        L'acces a SCOUTER est reserve aux utilisateurs disposant d'un compte
         cree par un administrateur de l'organisation. L'utilisation du service est
         strictement limitee au cadre professionnel.
       </p>
@@ -38,7 +38,7 @@ export default function CGUPage() {
 
       <h2>4. Propriete intellectuelle</h2>
       <p>
-        La plateforme CompetencesPro, son code source, son architecture, ses bases de donnees,
+        La plateforme SCOUTER, son code source, son architecture, ses bases de donnees,
         ses interfaces graphiques et l'ensemble de ses contenus sont la propriete exclusive
         de l'editeur et sont proteges par le droit de la propriete intellectuelle.
       </p>

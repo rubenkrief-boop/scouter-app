@@ -15,7 +15,7 @@ export default function ConfidentialitePage() {
       </div>
 
       <h2>2. Donnees collectees</h2>
-      <p>Dans le cadre de l'utilisation de CompetencesPro, nous collectons les donnees suivantes :</p>
+      <p>Dans le cadre de l'utilisation de SCOUTER, nous collectons les donnees suivantes :</p>
 
       <h3>Donnees d'identification</h3>
       <ul>

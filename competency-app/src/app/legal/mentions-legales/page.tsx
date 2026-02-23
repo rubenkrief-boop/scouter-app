@@ -38,7 +38,7 @@ export default function MentionsLegalesPage() {
 
       <h2>3. Propriete intellectuelle</h2>
       <p>
-        L'ensemble du contenu du site CompetencesPro (textes, graphismes, logiciels, images,
+        L'ensemble du contenu du site SCOUTER (textes, graphismes, logiciels, images,
         base de donnees, structure) est protege par le droit d'auteur et le droit des bases de donnees
         conformement aux dispositions du Code de la propriete intellectuelle.
       </p>
@@ -64,7 +64,7 @@ export default function MentionsLegalesPage() {
       <h2>6. Limitation de responsabilite</h2>
       <p>
         L'editeur ne pourra etre tenu responsable des dommages directs et indirects causes
-        au materiel de l'utilisateur lors de l'acces au site CompetencesPro.
+        au materiel de l'utilisateur lors de l'acces au site SCOUTER.
       </p>
       <p>
         L'editeur decline toute responsabilite quant a l'utilisation qui pourrait etre faite
