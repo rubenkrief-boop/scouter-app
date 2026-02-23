@@ -18,6 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'SCOUTER - Mesure des compétences',
   description: 'Plateforme de mesure des compétences professionnelles',
+  icons: {
+    icon: '/favicon-32.png',
+    apple: '/apple-icon.png',
+  },
 }
 
 export default function RootLayout({
