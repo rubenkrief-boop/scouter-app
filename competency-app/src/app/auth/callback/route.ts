@@ -10,6 +10,10 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies()
+    const allCookies = cookieStore.getAll()
+    console.log('Callback received code:', code.substring(0, 10) + '...')
+    console.log('Cookies available:', allCookies.map(c => c.name).join(', '))
+    console.log('Code verifier cookie exists:', allCookies.some(c => c.name.includes('code_verifier')))
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,8 +28,8 @@ export async function GET(request: Request) {
               cookiesToSet.forEach(({ name, value, options }) =>
                 cookieStore.set(name, value, { ...options, path: '/' })
               )
-            } catch {
-              // Ignore errors from Server Components
+            } catch (e) {
+              console.error('Cookie set error:', e)
             }
           },
         },
@@ -35,7 +39,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
-      console.error('OAuth exchange error:', error.message, error.status, JSON.stringify(error))
+      console.error('OAuth exchange error:', error.message, error.status)
     }
 
     if (!error) {
