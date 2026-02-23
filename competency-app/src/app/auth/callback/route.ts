@@ -12,8 +12,9 @@ export async function GET(request: Request) {
     const cookieStore = await cookies()
     const allCookies = cookieStore.getAll()
     console.log('Callback received code:', code.substring(0, 10) + '...')
-    console.log('Cookies available:', allCookies.map(c => c.name).join(', '))
-    console.log('Code verifier cookie exists:', allCookies.some(c => c.name.includes('code_verifier')))
+    console.log('SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30))
+    console.log('ANON_KEY starts with:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20))
+    console.log('ANON_KEY length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length)
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
