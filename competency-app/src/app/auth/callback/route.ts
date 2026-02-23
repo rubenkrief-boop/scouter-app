@@ -34,6 +34,10 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
+    if (error) {
+      console.error('OAuth exchange error:', error.message, error.status, JSON.stringify(error))
+    }
+
     if (!error) {
       // Verify the user's email domain is @vivason.fr
       const { data: { user } } = await supabase.auth.getUser()
