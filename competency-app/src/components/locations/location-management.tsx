@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import type { Location } from '@/lib/types'
+import { LocationExcelImportDialog } from '@/components/locations/location-excel-import-dialog'
 
 interface LocationManagementProps {
   locations: Location[]
@@ -90,7 +91,8 @@ export function LocationManagement({ locations }: LocationManagementProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <LocationExcelImportDialog existingLocationNames={locations.map(l => l.name)} />
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button className="bg-rose-600 hover:bg-rose-700">
