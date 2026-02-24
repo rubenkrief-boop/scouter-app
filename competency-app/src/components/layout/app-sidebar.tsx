@@ -140,15 +140,14 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
   return (
     <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
       {/* Logo */}
-      <div className="p-4 flex items-center gap-3">
+      <div className="p-4 flex items-center justify-center">
         <Image
-          src="/logo-icon.png"
+          src="/logo-full.png"
           alt="SCOUTER"
-          width={40}
-          height={40}
+          width={200}
+          height={100}
           className="object-contain"
         />
-        <span className="text-lg font-bold tracking-wider">SCOUTER</span>
       </div>
 
       <Separator />

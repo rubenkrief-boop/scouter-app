@@ -53,8 +53,8 @@ function LoginForm() {
         <Image
           src="/logo-full.png"
           alt="SCOUTER - Mesure des compétences"
-          width={320}
-          height={160}
+          width={400}
+          height={200}
           priority
           className="object-contain"
         />
@@ -107,8 +107,8 @@ export default function LoginPage() {
           <Image
             src="/logo-full.png"
             alt="SCOUTER"
-            width={320}
-            height={160}
+            width={400}
+            height={200}
             className="object-contain"
           />
           <CardDescription>Chargement...</CardDescription>
