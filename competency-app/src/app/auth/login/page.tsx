@@ -6,11 +6,13 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
+import { useBranding } from '@/components/providers/branding-provider'
 
 function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const searchParams = useSearchParams()
+  const branding = useBranding()
   const errorParam = searchParams.get('error')
 
   const errorMessages: Record<string, string> = {
@@ -48,16 +50,31 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card
+      className="w-full max-w-md"
+      style={branding.accentColor ? { borderTop: `3px solid ${branding.accentColor}` } : undefined}
+    >
       <CardHeader className="flex flex-col items-center pt-8 pb-2">
-        <Image
-          src="/logo-full.png"
-          alt="SCOUTER - Mesure des compétences"
-          width={400}
-          height={200}
-          priority
-          className="object-contain"
-        />
+        {branding.logoUrl ? (
+          <div className="flex flex-col items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={branding.logoUrl}
+              alt="Logo entreprise"
+              className="max-w-[300px] max-h-[150px] object-contain"
+            />
+            <Image src="/logo-full.png" alt="SCOUTER" width={120} height={60} className="object-contain opacity-40" />
+          </div>
+        ) : (
+          <Image
+            src="/logo-full.png"
+            alt="SCOUTER - Mesure des compétences"
+            width={400}
+            height={200}
+            priority
+            className="object-contain"
+          />
+        )}
         <CardDescription className="mt-2">Connectez-vous avec votre compte VivaSon</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -13,6 +13,7 @@ import { logout } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { useBranding } from '@/components/providers/branding-provider'
 import Image from 'next/image'
 
 interface NavItem {
@@ -128,6 +129,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
   const pathname = usePathname()
+  const branding = useBranding()
 
   // Super admin sees ALL items, others see only their role's items
   const filteredItems = navItems.filter(item =>
@@ -140,14 +142,29 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
   return (
     <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
       {/* Logo */}
-      <div className="p-4 flex items-center justify-center">
-        <Image
-          src="/logo-full.png"
-          alt="SCOUTER"
-          width={200}
-          height={100}
-          className="object-contain"
-        />
+      <div className="p-4 flex flex-col items-center gap-2">
+        {branding.logoUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={branding.logoUrl}
+              alt="Logo entreprise"
+              className="max-w-[180px] max-h-[80px] object-contain"
+            />
+            <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
+              <span>propulsé par</span>
+              <Image src="/logo-full.png" alt="SCOUTER" width={60} height={30} className="object-contain opacity-40" />
+            </div>
+          </>
+        ) : (
+          <Image
+            src="/logo-full.png"
+            alt="SCOUTER"
+            width={200}
+            height={100}
+            className="object-contain"
+          />
+        )}
       </div>
 
       <Separator />
@@ -174,6 +191,10 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
                 )}
+                style={isActive && branding.accentColor ? {
+                  backgroundColor: branding.accentColor + '15',
+                  borderLeft: `3px solid ${branding.accentColor}`,
+                } : undefined}
               >
                 {item.icon}
                 {item.label}

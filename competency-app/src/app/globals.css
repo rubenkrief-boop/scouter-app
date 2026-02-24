@@ -83,6 +83,8 @@
   --sidebar-ring: oklch(0.708 0 0);
   --color-scouter-red: oklch(0.55 0.22 25);
   --color-scouter-red-light: oklch(0.92 0.04 25);
+  --company-accent: transparent;
+  --company-accent-light: transparent;
 }
 
 .dark {
