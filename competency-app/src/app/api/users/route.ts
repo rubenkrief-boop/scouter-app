@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    console.error('Create user error:', error.message)
-    return NextResponse.json({ error: 'Impossible de créer cet utilisateur' }, { status: 400 })
+    console.error('Create user error:', error.message, error.status)
+    return NextResponse.json({ error: `Impossible de créer cet utilisateur: ${error.message}` }, { status: 400 })
   }
 
   // Update the profile with manager_id, location_id, and job_title if provided
@@ -99,8 +99,8 @@ export async function PATCH(request: Request) {
     .eq('id', userId)
 
   if (error) {
-    console.error('Update user error:', error.message)
-    return NextResponse.json({ error: 'Impossible de mettre à jour cet utilisateur' }, { status: 400 })
+    console.error('Update user error:', error.message, error.code)
+    return NextResponse.json({ error: `Impossible de mettre à jour: ${error.message}` }, { status: 400 })
   }
 
   return NextResponse.json({ success: true })
