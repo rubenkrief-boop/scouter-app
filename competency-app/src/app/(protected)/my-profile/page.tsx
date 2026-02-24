@@ -156,7 +156,7 @@ export default async function MyProfilePage() {
                 Trie par ecart avec l&apos;attendu
               </p>
             </CardHeader>
-            <CardContent className="max-h-[520px] overflow-y-auto">
+            <CardContent className="max-h-[620px] overflow-y-auto">
               <ModuleProgressList data={radarData} />
             </CardContent>
           </Card>

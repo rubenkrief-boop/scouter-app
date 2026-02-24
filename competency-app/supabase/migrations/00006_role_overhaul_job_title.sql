@@ -25,8 +25,14 @@ SET role = 'skill_master'
 WHERE role = 'evaluator';
 
 -- 4. Update handle_new_user() trigger: default to 'worker'
+-- NOTE: Must use public.user_role (schema-qualified) because GoTrue runs
+-- with a different search_path that doesn't include the public schema.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, first_name, last_name, role, avatar_url)
   VALUES (
@@ -44,7 +50,7 @@ BEGIN
       split_part(COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''), ' ', 2),
       ''
     ),
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'worker'),
+    COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'worker'::public.user_role),
     NEW.raw_user_meta_data->>'avatar_url'
   )
   ON CONFLICT (id) DO UPDATE SET
@@ -55,7 +61,7 @@ BEGIN
     updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5. Update evaluations policies: replace 'evaluator' with 'skill_master'
 DROP POLICY IF EXISTS "evaluations_insert" ON public.evaluations;

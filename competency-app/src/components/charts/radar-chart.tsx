@@ -84,21 +84,14 @@ function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
 
   return (
     <g>
-      {/* Colored dot before label */}
-      <circle
-        cx={x + xOff + (textAnchor === 'start' ? -8 : textAnchor === 'end' ? 8 : 0)}
-        cy={y + yOff}
-        r={4}
-        fill={color}
-      />
       <text
-        x={x + xOff + (textAnchor === 'start' ? 2 : textAnchor === 'end' ? -2 : 0)}
+        x={x + xOff}
         y={y + yOff}
         textAnchor={textAnchor}
         dominantBaseline="central"
-        className="fill-gray-700 dark:fill-gray-200"
+        fill={color}
         fontSize={11}
-        fontWeight={600}
+        fontWeight={700}
       >
         {label}
       </text>
@@ -133,10 +126,10 @@ export function CompetencyRadarChart({
 
   const count = chartData.length
   // Full size: massive chart filling the space
-  const chartHeight = fullSize ? 820 : (count > 15 ? 520 : 480)
+  const chartHeight = fullSize ? 920 : (count > 15 ? 620 : 580)
   const outerRadius = fullSize
-    ? (count > 15 ? '75%' : '78%')
-    : (count > 15 ? '62%' : '68%')
+    ? (count > 15 ? '78%' : '82%')
+    : (count > 15 ? '68%' : '74%')
 
   return (
     <div className="relative">
