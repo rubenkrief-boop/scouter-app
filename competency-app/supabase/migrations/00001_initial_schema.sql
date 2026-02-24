@@ -211,14 +211,11 @@ BEGIN
     m.code AS module_code,
     m.name AS module_name,
     COALESCE(SUM(qo.value), 0) AS actual_score,
-    CASE
-      WHEN COUNT(DISTINCT erq.id) = 0 THEN COUNT(DISTINCT c.id) * 1.0
-      ELSE COUNT(DISTINCT erq.id) * 1.0
-    END AS total_possible,
+    COALESCE(SUM(max_qo.max_value), GREATEST(COUNT(DISTINCT c.id), 1) * 1.0) AS total_possible,
     CASE
       WHEN COUNT(DISTINCT c.id) = 0 THEN 0
       ELSE ROUND(
-        (COALESCE(SUM(qo.value), 0) / GREATEST(COUNT(DISTINCT erq.id) * 1.0, 1)) * 100,
+        (COALESCE(SUM(qo.value), 0) / GREATEST(COALESCE(SUM(max_qo.max_value), 1), 1)) * 100,
         1
       )
     END AS completion_pct
@@ -230,6 +227,11 @@ BEGIN
     ON erq.evaluation_result_id = er.id
   LEFT JOIN public.qualifier_options qo
     ON qo.id = erq.qualifier_option_id
+  LEFT JOIN LATERAL (
+    SELECT MAX(qo2.value) AS max_value
+    FROM public.qualifier_options qo2
+    WHERE qo2.qualifier_id = erq.qualifier_id
+  ) max_qo ON true
   WHERE m.parent_id IS NULL AND m.is_active = true
   GROUP BY m.id, m.code, m.name
   ORDER BY m.sort_order;
