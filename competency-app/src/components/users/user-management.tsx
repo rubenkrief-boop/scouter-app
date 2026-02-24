@@ -27,6 +27,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
 
   // Controlled state for create form
   const [createRole, setCreateRole] = useState<string>('worker')
@@ -51,29 +52,38 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   async function handleCreateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
+    setFormError(null)
     const formData = new FormData(e.currentTarget)
 
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: formData.get('email'),
-        password: formData.get('password'),
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
-        role: createRole,
-        job_title: formData.get('job_title') || null,
-        manager_id: createManagerId === 'none' ? null : createManagerId,
-        location_id: createLocationId === 'none' ? null : createLocationId,
-      }),
-    })
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.get('email'),
+          password: formData.get('password'),
+          first_name: formData.get('first_name'),
+          last_name: formData.get('last_name'),
+          role: createRole,
+          job_title: formData.get('job_title') || null,
+          manager_id: createManagerId === 'none' ? null : createManagerId,
+          location_id: createLocationId === 'none' ? null : createLocationId,
+        }),
+      })
 
-    if (res.ok) {
-      setIsOpen(false)
-      setCreateRole('worker')
-      setCreateManagerId('none')
-      setCreateLocationId('none')
-      router.refresh()
+      if (res.ok) {
+        setIsOpen(false)
+        setCreateRole('worker')
+        setCreateManagerId('none')
+        setCreateLocationId('none')
+        setFormError(null)
+        router.refresh()
+      } else {
+        const err = await res.json().catch(() => null)
+        setFormError(err?.error || `Erreur ${res.status}: impossible de créer l'utilisateur`)
+      }
+    } catch {
+      setFormError('Erreur réseau. Vérifiez votre connexion.')
     }
     setLoading(false)
   }
@@ -84,31 +94,38 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
     setEditJobTitle(user.job_title || '')
     setEditManagerId(user.manager_id || 'none')
     setEditLocationId(user.location_id || 'none')
+    setFormError(null)
   }
 
   async function handleUpdateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!editingUser) return
     setLoading(true)
+    setFormError(null)
 
-    const res = await fetch('/api/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: editingUser.id,
-        role: editRole,
-        job_title: editJobTitle || null,
-        manager_id: editManagerId === 'none' ? null : editManagerId,
-        location_id: editLocationId === 'none' ? null : editLocationId,
-      }),
-    })
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          role: editRole,
+          job_title: editJobTitle || null,
+          manager_id: editManagerId === 'none' ? null : editManagerId,
+          location_id: editLocationId === 'none' ? null : editLocationId,
+        }),
+      })
 
-    if (res.ok) {
-      setEditingUser(null)
-      router.refresh()
-    } else {
-      const err = await res.json().catch(() => null)
-      console.error('Update failed:', err)
+      if (res.ok) {
+        setEditingUser(null)
+        setFormError(null)
+        router.refresh()
+      } else {
+        const err = await res.json().catch(() => null)
+        setFormError(err?.error || `Erreur ${res.status}: impossible de modifier l'utilisateur`)
+      }
+    } catch {
+      setFormError('Erreur réseau. Vérifiez votre connexion.')
     }
     setLoading(false)
   }
@@ -240,6 +257,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                   </SelectContent>
                 </Select>
               </div>
+              {formError && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">
+                  {formError}
+                </div>
+              )}
               <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={loading}>
                 {loading ? 'Creation...' : 'Creer'}
               </Button>
@@ -311,6 +333,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                   </SelectContent>
                 </Select>
               </div>
+              {formError && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">
+                  {formError}
+                </div>
+              )}
               <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={loading}>
                 {loading ? 'Enregistrement...' : 'Enregistrer'}
               </Button>
