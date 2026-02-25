@@ -316,13 +316,13 @@ export function CompanyBrandingEditor() {
                       alt="Logo entreprise"
                       className="max-w-[160px] max-h-[70px] object-contain"
                     />
-                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
                       <span>propulsé par</span>
-                      <Image src="/logo-full.png" alt="SCOUTER" width={50} height={25} className="object-contain opacity-40" />
+                      <Image src="/logo-full.png" alt="SCOUTER" width={75} height={38} className="object-contain opacity-50" />
                     </div>
                   </>
                 ) : (
-                  <Image src="/logo-full.png" alt="SCOUTER" width={160} height={80} className="object-contain" />
+                  <Image src="/logo-full.png" alt="SCOUTER" width={200} height={100} className="object-contain" />
                 )}
               </div>
 

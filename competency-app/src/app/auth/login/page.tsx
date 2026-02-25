@@ -63,14 +63,14 @@ function LoginForm() {
               alt="Logo entreprise"
               className="max-w-[300px] max-h-[150px] object-contain"
             />
-            <Image src="/logo-full.png" alt="SCOUTER" width={120} height={60} className="object-contain opacity-40" />
+            <Image src="/logo-full.png" alt="SCOUTER" width={160} height={80} className="object-contain opacity-50" />
           </div>
         ) : (
           <Image
             src="/logo-full.png"
             alt="SCOUTER - Mesure des compétences"
-            width={400}
-            height={200}
+            width={450}
+            height={225}
             priority
             className="object-contain"
           />
@@ -124,8 +124,8 @@ export default function LoginPage() {
           <Image
             src="/logo-full.png"
             alt="SCOUTER"
-            width={400}
-            height={200}
+            width={450}
+            height={225}
             className="object-contain"
           />
           <CardDescription>Chargement...</CardDescription>

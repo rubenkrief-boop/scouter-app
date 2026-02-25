@@ -151,17 +151,17 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
               alt="Logo entreprise"
               className="max-w-[180px] max-h-[80px] object-contain"
             />
-            <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
               <span>propulsé par</span>
-              <Image src="/logo-full.png" alt="SCOUTER" width={60} height={30} className="object-contain opacity-40" />
+              <Image src="/logo-full.png" alt="SCOUTER" width={90} height={45} className="object-contain opacity-50" />
             </div>
           </>
         ) : (
           <Image
             src="/logo-full.png"
             alt="SCOUTER"
-            width={200}
-            height={100}
+            width={240}
+            height={120}
             className="object-contain"
           />
         )}
