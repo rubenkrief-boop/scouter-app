@@ -6,6 +6,7 @@ import type {
   EvaluationWithRelations,
   EvaluationResult,
   EvaluationResultQualifier,
+  SnapshotHistoryEntry,
 } from '@/lib/types'
 
 export async function getEvaluations(): Promise<EvaluationWithRelations[]> {
@@ -347,4 +348,288 @@ export async function completeEvaluation(id: string) {
 
   revalidatePath('/evaluator/evaluations')
   revalidatePath(`/evaluator/evaluations/${id}`)
+}
+
+// ============================================================
+// Evaluation continue
+// ============================================================
+
+/**
+ * Trouve ou crée l'évaluation continue d'un collaborateur.
+ * S'il n'en existe pas, en crée une et pré-remplit depuis la dernière évaluation.
+ */
+export async function getOrCreateContinuousEvaluation(
+  workerId: string,
+  jobProfileId?: string | null
+): Promise<{ evaluationId: string } | { error: string }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifie' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['skill_master', 'manager', 'super_admin'].includes(profile.role)) {
+    return { error: 'Acces refuse.' }
+  }
+
+  // Manager : vérifier que le collaborateur fait partie de son équipe
+  if (profile.role === 'manager') {
+    const { data: teamMember } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', workerId)
+      .eq('manager_id', user.id)
+      .single()
+
+    if (!teamMember) {
+      return { error: 'Acces refuse. Ce collaborateur ne fait pas partie de votre equipe.' }
+    }
+  }
+
+  // 1. Chercher une évaluation continue existante
+  let query = supabase
+    .from('evaluations')
+    .select('id')
+    .eq('audioprothesiste_id', workerId)
+    .eq('is_continuous', true)
+
+  if (jobProfileId) {
+    query = query.eq('job_profile_id', jobProfileId)
+  } else {
+    query = query.is('job_profile_id', null)
+  }
+
+  const { data: existing } = await query.limit(1).single()
+
+  if (existing) {
+    return { evaluationId: existing.id }
+  }
+
+  // 2. Créer une nouvelle évaluation continue
+  const { data: newEval, error: createError } = await supabase
+    .from('evaluations')
+    .insert({
+      evaluator_id: user.id,
+      audioprothesiste_id: workerId,
+      job_profile_id: jobProfileId || null,
+      title: null,
+      notes: null,
+      status: 'in_progress' as const,
+      is_continuous: true,
+      evaluated_at: null,
+    })
+    .select('id')
+    .single()
+
+  if (createError || !newEval) {
+    return { error: createError?.message || 'Erreur lors de la creation' }
+  }
+
+  // 3. Pré-remplir depuis la dernière évaluation (complétée ou non)
+  try {
+    let prevQuery = supabase
+      .from('evaluations')
+      .select('id')
+      .eq('audioprothesiste_id', workerId)
+      .neq('id', newEval.id)
+      .order('evaluated_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (jobProfileId) {
+      prevQuery = prevQuery.eq('job_profile_id', jobProfileId)
+    }
+
+    const { data: prevEvals } = await prevQuery
+
+    if (prevEvals && prevEvals.length > 0) {
+      const prevEvalId = prevEvals[0].id
+
+      const { data: prevResults } = await supabase
+        .from('evaluation_results')
+        .select('*, evaluation_result_qualifiers(*)')
+        .eq('evaluation_id', prevEvalId)
+
+      if (prevResults && prevResults.length > 0) {
+        const resultRows = prevResults.map(pr => ({
+          evaluation_id: newEval.id,
+          competency_id: pr.competency_id,
+        }))
+
+        const { data: newResults } = await supabase
+          .from('evaluation_results')
+          .insert(resultRows)
+          .select('id, competency_id')
+
+        if (newResults && newResults.length > 0) {
+          const resultMap = new Map(newResults.map(r => [r.competency_id, r.id]))
+
+          const allQualifierRows: {
+            evaluation_result_id: string
+            qualifier_id: string
+            qualifier_option_id: string
+          }[] = []
+
+          for (const prevResult of prevResults) {
+            const newResultId = resultMap.get(prevResult.competency_id)
+            if (!newResultId) continue
+            const qualifiers = prevResult.evaluation_result_qualifiers as any[]
+            if (qualifiers && qualifiers.length > 0) {
+              for (const erq of qualifiers) {
+                allQualifierRows.push({
+                  evaluation_result_id: newResultId,
+                  qualifier_id: erq.qualifier_id,
+                  qualifier_option_id: erq.qualifier_option_id,
+                })
+              }
+            }
+          }
+
+          if (allQualifierRows.length > 0) {
+            await supabase
+              .from('evaluation_result_qualifiers')
+              .insert(allQualifierRows)
+          }
+        }
+      }
+    }
+  } catch {
+    // Pas grave si le pré-remplissage échoue
+    console.warn('Pre-fill from previous evaluation failed')
+  }
+
+  return { evaluationId: newEval.id }
+}
+
+/**
+ * Sauvegarde les scores ET crée un snapshot automatiquement.
+ */
+export async function saveEvaluationWithSnapshot(
+  evaluationId: string,
+  scores: Record<string, Record<string, string>>
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifie' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['skill_master', 'manager', 'super_admin'].includes(profile.role)) {
+    return { error: 'Acces refuse.' }
+  }
+
+  // Vérifier que l'évaluation existe
+  const { data: evaluation } = await supabase
+    .from('evaluations')
+    .select('evaluator_id, is_continuous')
+    .eq('id', evaluationId)
+    .single()
+
+  if (!evaluation) {
+    return { error: 'Evaluation introuvable.' }
+  }
+
+  // 1. Upsert les scores (même logique que updateEvaluationResults)
+  for (const [competencyId, qualifierMap] of Object.entries(scores)) {
+    const { data: existingResult } = await supabase
+      .from('evaluation_results')
+      .select('id')
+      .eq('evaluation_id', evaluationId)
+      .eq('competency_id', competencyId)
+      .single()
+
+    let resultId: string
+
+    if (existingResult) {
+      resultId = existingResult.id
+    } else {
+      const { data: newResult, error: insertError } = await supabase
+        .from('evaluation_results')
+        .insert({ evaluation_id: evaluationId, competency_id: competencyId })
+        .select('id')
+        .single()
+
+      if (insertError || !newResult) {
+        return { error: `Erreur: ${insertError?.message}` }
+      }
+      resultId = newResult.id
+    }
+
+    await supabase
+      .from('evaluation_result_qualifiers')
+      .delete()
+      .eq('evaluation_result_id', resultId)
+
+    const qualifierInserts = Object.entries(qualifierMap).map(
+      ([qualifierId, optionId]) => ({
+        evaluation_result_id: resultId,
+        qualifier_id: qualifierId,
+        qualifier_option_id: optionId,
+      })
+    )
+
+    if (qualifierInserts.length > 0) {
+      const { error: insertError } = await supabase
+        .from('evaluation_result_qualifiers')
+        .insert(qualifierInserts)
+
+      if (insertError) {
+        return { error: `Erreur: ${insertError.message}` }
+      }
+    }
+  }
+
+  // 2. Mettre à jour evaluated_at
+  await supabase
+    .from('evaluations')
+    .update({ evaluated_at: new Date().toISOString(), status: 'in_progress' as const })
+    .eq('id', evaluationId)
+
+  // 3. Calculer les scores par module via RPC
+  const { data: moduleScores } = await supabase
+    .rpc('get_module_scores', { p_evaluation_id: evaluationId })
+
+  // 4. Créer le snapshot
+  await supabase
+    .from('evaluation_snapshots')
+    .insert({
+      evaluation_id: evaluationId,
+      snapshot_by: user.id,
+      scores: scores as any,
+      module_scores: moduleScores ? JSON.parse(JSON.stringify(moduleScores)) : null,
+    })
+
+  revalidatePath(`/evaluator/evaluations/${evaluationId}`)
+  revalidatePath('/workers')
+
+  return { success: true }
+}
+
+/**
+ * Récupère l'historique des snapshots d'une évaluation.
+ */
+export async function getSnapshotHistory(
+  evaluationId: string
+): Promise<SnapshotHistoryEntry[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .rpc('get_snapshot_history', { p_evaluation_id: evaluationId })
+
+  if (error) {
+    console.error('Error fetching snapshot history:', error)
+    return []
+  }
+
+  return (data ?? []) as SnapshotHistoryEntry[]
 }

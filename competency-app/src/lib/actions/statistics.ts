@@ -59,7 +59,7 @@ export async function getGlobalStatistics(): Promise<{
         location:locations(name)
       )
     `)
-    .eq('status', 'completed')
+    .or('status.eq.completed,is_continuous.eq.true')
 
   if (!evaluations || evaluations.length === 0) {
     return { moduleStats: [], userSummaries: [] }

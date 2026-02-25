@@ -155,6 +155,7 @@ export interface Evaluation {
   title: string | null
   notes: string | null
   status: EvaluationStatus
+  is_continuous: boolean
   evaluated_at: string | null
   created_at: string
   updated_at: string
@@ -180,6 +181,26 @@ export interface EvaluationResultQualifier {
   qualifier_id: string
   qualifier_option_id: string
   created_at: string
+}
+
+export interface EvaluationSnapshot {
+  id: string
+  evaluation_id: string
+  snapshot_by: string
+  scores: Record<string, Record<string, string>>
+  module_scores: ModuleScore[] | null
+  created_at: string
+}
+
+export interface EvaluationSnapshotWithAuthor extends EvaluationSnapshot {
+  author?: { first_name: string; last_name: string }
+}
+
+export interface SnapshotHistoryEntry {
+  snapshot_id: string
+  snapshot_date: string
+  snapshot_by_name: string
+  module_scores: ModuleScore[] | null
 }
 
 export interface EvaluationComment {
@@ -306,6 +327,11 @@ export type Database = {
         Insert: Omit<CompetencyQualifier, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<CompetencyQualifier, 'id' | 'created_at'>>
       }
+      evaluation_snapshots: {
+        Row: EvaluationSnapshot
+        Insert: Omit<EvaluationSnapshot, 'id' | 'created_at'>
+        Update: never // Immutable
+      }
     }
     Functions: {
       get_user_role: {
@@ -319,6 +345,10 @@ export type Database = {
       get_batch_module_scores: {
         Args: { p_evaluation_ids: string[] }
         Returns: (ModuleScore & { evaluation_id: string })[]
+      }
+      get_snapshot_history: {
+        Args: { p_evaluation_id: string }
+        Returns: SnapshotHistoryEntry[]
       }
     }
     Enums: {

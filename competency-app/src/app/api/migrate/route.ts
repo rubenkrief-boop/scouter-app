@@ -81,5 +81,116 @@ export async function POST(request: Request) {
     results.push('Deduplicate error: ' + e.message)
   }
 
+  // Migration 00013: Continuous evaluation — create snapshots + mark latest as continuous
+  try {
+    // Step 1: Get all completed evaluations
+    const { data: completedEvals, error: evalErr } = await supabase
+      .from('evaluations')
+      .select('id, audioprothesiste_id, evaluator_id, evaluated_at, job_profile_id')
+      .eq('status', 'completed')
+      .order('evaluated_at', { ascending: false })
+
+    if (evalErr) {
+      results.push(`Migration 00013: Error fetching evaluations: ${evalErr.message}`)
+    } else if (!completedEvals || completedEvals.length === 0) {
+      results.push('Migration 00013: No completed evaluations found')
+    } else {
+      // Step 2: Check if snapshots already exist (idempotent)
+      const { count: existingSnapshots } = await supabase
+        .from('evaluation_snapshots')
+        .select('*', { count: 'exact', head: true })
+
+      if ((existingSnapshots ?? 0) > 0) {
+        results.push(`Migration 00013: ${existingSnapshots} snapshots already exist — skipping snapshot creation`)
+      } else {
+        // Create a snapshot for each completed evaluation
+        let snapshotCount = 0
+
+        for (const evaluation of completedEvals) {
+          try {
+            // Get the evaluation results and qualifier answers
+            const { data: evalResults } = await supabase
+              .from('evaluation_results')
+              .select('id, competency_id')
+              .eq('evaluation_id', evaluation.id)
+
+            if (!evalResults || evalResults.length === 0) continue
+
+            const resultIds = evalResults.map(r => r.id)
+            const { data: qualifierAnswers } = await supabase
+              .from('evaluation_result_qualifiers')
+              .select('evaluation_result_id, qualifier_id, qualifier_option_id')
+              .in('evaluation_result_id', resultIds)
+
+            // Build scores JSON: { competency_id: { qualifier_id: option_id } }
+            const scores: Record<string, Record<string, string>> = {}
+            const resultToCompetency = new Map(evalResults.map(r => [r.id, r.competency_id]))
+
+            for (const qa of (qualifierAnswers ?? [])) {
+              const compId = resultToCompetency.get(qa.evaluation_result_id)
+              if (!compId) continue
+              if (!scores[compId]) scores[compId] = {}
+              scores[compId][qa.qualifier_id] = qa.qualifier_option_id
+            }
+
+            // Get module scores via RPC
+            const { data: moduleScores } = await supabase
+              .rpc('get_module_scores', { p_evaluation_id: evaluation.id })
+
+            // Insert snapshot
+            const { error: snapErr } = await supabase
+              .from('evaluation_snapshots')
+              .insert({
+                evaluation_id: evaluation.id,
+                snapshot_by: evaluation.evaluator_id,
+                scores,
+                module_scores: moduleScores ? JSON.parse(JSON.stringify(moduleScores)) : null,
+                created_at: evaluation.evaluated_at || new Date().toISOString(),
+              })
+
+            if (!snapErr) snapshotCount++
+          } catch (err: any) {
+            results.push(`Migration 00013: Snapshot error for eval ${evaluation.id}: ${err.message}`)
+          }
+        }
+
+        results.push(`Migration 00013: Created ${snapshotCount} snapshots from ${completedEvals.length} completed evaluations`)
+      }
+
+      // Step 3: Mark the most recent evaluation per worker as is_continuous
+      const workerLatest = new Map<string, { id: string; evaluated_at: string | null }>()
+
+      for (const evaluation of completedEvals) {
+        const key = `${evaluation.audioprothesiste_id}|${evaluation.job_profile_id ?? 'null'}`
+        if (!workerLatest.has(key)) {
+          workerLatest.set(key, { id: evaluation.id, evaluated_at: evaluation.evaluated_at })
+        }
+      }
+
+      // Check if any continuous evaluations already exist
+      const { count: continuousCount } = await supabase
+        .from('evaluations')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_continuous', true)
+
+      if ((continuousCount ?? 0) > 0) {
+        results.push(`Migration 00013: ${continuousCount} continuous evaluations already exist — skipping conversion`)
+      } else {
+        let convertedCount = 0
+        for (const [, latest] of workerLatest) {
+          const { error: updateErr } = await supabase
+            .from('evaluations')
+            .update({ is_continuous: true, status: 'in_progress' })
+            .eq('id', latest.id)
+
+          if (!updateErr) convertedCount++
+        }
+        results.push(`Migration 00013: Converted ${convertedCount} evaluations to continuous`)
+      }
+    }
+  } catch (e: any) {
+    results.push(`Migration 00013 error: ${e.message}`)
+  }
+
   return NextResponse.json({ results })
 }

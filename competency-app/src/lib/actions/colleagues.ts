@@ -42,15 +42,15 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
       .from('evaluations')
       .select('*', { count: 'exact', head: true })
       .eq('audioprothesiste_id', p.id)
-      .eq('status', 'completed')
+      .or('status.eq.completed,is_continuous.eq.true')
 
-    // Get latest completed evaluation for avg score
+    // Get latest completed/continuous evaluation for avg score
     let avg_score: number | null = null
     const { data: latestEval } = await supabase
       .from('evaluations')
       .select('id')
       .eq('audioprothesiste_id', p.id)
-      .eq('status', 'completed')
+      .or('status.eq.completed,is_continuous.eq.true')
       .order('evaluated_at', { ascending: false })
       .limit(1)
       .single()
@@ -111,7 +111,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
     .from('evaluations')
     .select(`*, job_profile:job_profiles(name)`)
     .eq('audioprothesiste_id', colleagueId)
-    .eq('status', 'completed')
+    .or('status.eq.completed,is_continuous.eq.true')
     .order('evaluated_at', { ascending: false })
     .limit(1)
     .single()

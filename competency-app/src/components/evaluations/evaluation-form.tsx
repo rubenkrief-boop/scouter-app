@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { saveEvaluationWithSnapshot } from '@/lib/actions/evaluations'
 import type { Module, Competency, QualifierWithOptions } from '@/lib/types'
 
 interface EvaluationFormProps {
@@ -58,64 +58,15 @@ export function EvaluationForm({
 
   async function handleSave() {
     setSaving(true)
-    const supabase = createClient()
 
     try {
-      // 1. Update evaluation status
-      await supabase
-        .from('evaluations')
-        .update({
-          status: 'in_progress',
-          evaluated_at: new Date().toISOString(),
-        })
-        .eq('id', evaluationId)
+      const result = await saveEvaluationWithSnapshot(evaluationId, state)
 
-      // 2. Batch upsert all evaluation_results at once
-      const competencyIds = Object.keys(state)
-      const resultRows = competencyIds.map(cid => ({
-        evaluation_id: evaluationId,
-        competency_id: cid,
-      }))
-
-      if (resultRows.length > 0) {
-        const { data: upsertedResults } = await supabase
-          .from('evaluation_results')
-          .upsert(resultRows, { onConflict: 'evaluation_id,competency_id' })
-          .select('id, competency_id')
-
-        if (upsertedResults) {
-          // Build map: competency_id -> result_id
-          const resultMap = new Map(upsertedResults.map(r => [r.competency_id, r.id]))
-
-          // 3. Batch upsert all qualifier answers at once
-          const qualifierRows: {
-            evaluation_result_id: string
-            qualifier_id: string
-            qualifier_option_id: string
-          }[] = []
-
-          for (const [competencyId, qualifierAnswers] of Object.entries(state)) {
-            const resultId = resultMap.get(competencyId)
-            if (!resultId) continue
-            for (const [qualifierId, optionId] of Object.entries(qualifierAnswers)) {
-              if (!optionId) continue
-              qualifierRows.push({
-                evaluation_result_id: resultId,
-                qualifier_id: qualifierId,
-                qualifier_option_id: optionId,
-              })
-            }
-          }
-
-          if (qualifierRows.length > 0) {
-            await supabase
-              .from('evaluation_result_qualifiers')
-              .upsert(qualifierRows, { onConflict: 'evaluation_result_id,qualifier_id' })
-          }
-        }
+      if ('error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Scores enregistrés')
       }
-
-      toast.success('Evaluation enregistree')
     } catch {
       toast.error("Erreur lors de l'enregistrement")
     }

@@ -11,6 +11,8 @@ import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { ScouterTrigger } from '@/components/animations/scouter-trigger'
+import { StartEvaluationButton } from '@/components/evaluations/start-evaluation-button'
+import { EvaluationHistory } from '@/components/evaluations/evaluation-history'
 
 export default async function WorkerProfilePage({
   params,
@@ -47,8 +49,11 @@ export default async function WorkerProfilePage({
   const loc = worker.location as any
   const mgr = worker.manager as any
 
-  // Get latest completed evaluation with job profile
-  const { data: latestEval } = await supabase
+  // Chercher d'abord l'évaluation continue, sinon la dernière complétée
+  let latestEval: any = null
+
+  // 1. Evaluation continue (nouveau modèle)
+  const { data: continuousEval } = await supabase
     .from('evaluations')
     .select(`
       *,
@@ -56,10 +61,29 @@ export default async function WorkerProfilePage({
       evaluator:profiles!evaluator_id(first_name, last_name)
     `)
     .eq('audioprothesiste_id', id)
-    .eq('status', 'completed')
-    .order('evaluated_at', { ascending: false })
+    .eq('is_continuous', true)
     .limit(1)
     .single()
+
+  if (continuousEval) {
+    latestEval = continuousEval
+  } else {
+    // 2. Fallback : dernière évaluation complétée (ancien modèle)
+    const { data: completedEval } = await supabase
+      .from('evaluations')
+      .select(`
+        *,
+        job_profile:job_profiles(id, name),
+        evaluator:profiles!evaluator_id(first_name, last_name)
+      `)
+      .eq('audioprothesiste_id', id)
+      .eq('status', 'completed')
+      .order('evaluated_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    latestEval = completedEval
+  }
 
   let radarData: RadarDataPoint[] = []
   let jobProfileName: string | null = null
@@ -146,15 +170,13 @@ export default async function WorkerProfilePage({
                   )}
                 </div>
               </div>
-              {latestEval && (
-                <Link
-                  href={`/evaluator/evaluations/${latestEval.id}/results`}
-                  className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <ClipboardCheck className="h-3.5 w-3.5" />
-                  Voir l&apos;évaluation
-                </Link>
-              )}
+              <StartEvaluationButton
+                workerId={id}
+                jobProfileId={latestEval?.job_profile_id}
+                variant="ghost"
+                size="sm"
+                className="text-xs bg-white/20 hover:bg-white/30 text-white"
+              />
             </div>
 
             {/* Info row */}
@@ -261,22 +283,25 @@ export default async function WorkerProfilePage({
                 <ModuleProgressList data={radarData} />
               </CardContent>
             </Card>
+            {/* Historique des évaluations */}
+            {latestEval && (
+              <EvaluationHistory evaluationId={latestEval.id} />
+            )}
           </>
         ) : (
           <Card>
             <CardContent className="py-16 text-center">
               <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-              <p className="text-lg font-medium text-muted-foreground">Aucune évaluation terminée</p>
+              <p className="text-lg font-medium text-muted-foreground">Aucune évaluation</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Ce collaborateur n&apos;a pas encore été évalué.
               </p>
-              <Link
-                href={`/evaluator/evaluations/new?worker=${id}`}
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-              >
-                <ClipboardCheck className="h-4 w-4" />
-                Lancer une évaluation
-              </Link>
+              <div className="mt-4">
+                <StartEvaluationButton
+                  workerId={id}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                />
+              </div>
             </CardContent>
           </Card>
         )}
