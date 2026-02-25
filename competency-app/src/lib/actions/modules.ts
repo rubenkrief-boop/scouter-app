@@ -315,22 +315,133 @@ export async function setModuleQualifiers(moduleId: string, qualifierIds: string
 /**
  * Charge les qualifiers avec options, groupes par module.
  * Si un module n'a aucun qualifier assigne, retourne tous les qualifiers actifs (fallback).
+ * Retourne aussi les overrides par competence (byCompetency).
  */
 export async function getQualifiersByModule(
   moduleIds: string[],
   allQualifiers: QualifierWithOptions[]
-): Promise<Record<string, QualifierWithOptions[]>> {
+): Promise<{
+  byModule: Record<string, QualifierWithOptions[]>
+  byCompetency: Record<string, QualifierWithOptions[]>
+}> {
   const mqMap = await getModuleQualifiersMap()
-  const result: Record<string, QualifierWithOptions[]> = {}
+  const cqMap = await getCompetencyQualifiersMap()
+  const byModule: Record<string, QualifierWithOptions[]> = {}
+  const byCompetency: Record<string, QualifierWithOptions[]> = {}
 
   for (const moduleId of moduleIds) {
     const assignedIds = mqMap[moduleId]
     if (assignedIds && assignedIds.length > 0) {
-      result[moduleId] = allQualifiers.filter(q => assignedIds.includes(q.id))
+      byModule[moduleId] = allQualifiers.filter(q => assignedIds.includes(q.id))
     } else {
-      result[moduleId] = allQualifiers
+      byModule[moduleId] = allQualifiers
     }
   }
 
-  return result
+  // Remplir les overrides par competence
+  for (const [competencyId, qualifierIds] of Object.entries(cqMap)) {
+    if (qualifierIds.length > 0) {
+      byCompetency[competencyId] = allQualifiers.filter(q => qualifierIds.includes(q.id))
+    }
+  }
+
+  return { byModule, byCompetency }
+}
+
+// ============================================
+// Competency Qualifiers — Override par competence
+// ============================================
+
+/**
+ * Retourne un map competency_id -> qualifier_ids[] pour toutes les competences qui ont un override
+ */
+export async function getCompetencyQualifiersMap(): Promise<Record<string, string[]>> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('competency_qualifiers')
+    .select('competency_id, qualifier_id')
+
+  if (error) {
+    console.error('Error fetching competency_qualifiers:', error)
+    return {}
+  }
+
+  const map: Record<string, string[]> = {}
+  for (const row of data ?? []) {
+    if (!map[row.competency_id]) {
+      map[row.competency_id] = []
+    }
+    map[row.competency_id].push(row.qualifier_id)
+  }
+  return map
+}
+
+/**
+ * Retourne les qualifier_ids assignes a une competence specifique
+ */
+export async function getCompetencyQualifierIds(competencyId: string): Promise<string[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('competency_qualifiers')
+    .select('qualifier_id')
+    .eq('competency_id', competencyId)
+
+  if (error) {
+    console.error('Error fetching competency qualifier IDs:', error)
+    return []
+  }
+
+  return (data ?? []).map(r => r.qualifier_id)
+}
+
+/**
+ * Definit les qualifiers pour une competence (delete + insert)
+ * Si qualifierIds est vide, supprime l'override (retour au comportement du module)
+ */
+export async function setCompetencyQualifiers(competencyId: string, qualifierIds: string[]) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifie' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || (profile.role !== 'skill_master' && profile.role !== 'super_admin')) {
+    return { error: 'Acces refuse. Role skill_master ou super_admin requis.' }
+  }
+
+  // Supprimer les liens existants
+  const { error: deleteError } = await supabase
+    .from('competency_qualifiers')
+    .delete()
+    .eq('competency_id', competencyId)
+
+  if (deleteError) {
+    return { error: deleteError.message }
+  }
+
+  // Inserer les nouveaux liens (si vide = retour au comportement module)
+  if (qualifierIds.length > 0) {
+    const rows = qualifierIds.map(qId => ({
+      competency_id: competencyId,
+      qualifier_id: qId,
+    }))
+
+    const { error: insertError } = await supabase
+      .from('competency_qualifiers')
+      .insert(rows)
+
+    if (insertError) {
+      return { error: insertError.message }
+    }
+  }
+
+  revalidatePath('/skill-master/library')
+  return { success: true }
 }

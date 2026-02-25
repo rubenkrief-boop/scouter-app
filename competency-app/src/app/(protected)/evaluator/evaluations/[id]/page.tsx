@@ -85,9 +85,9 @@ export default async function EvaluationDetailPage({
 
   const { data: qualifiers } = await qualifiersQuery
 
-  // Build qualifiers par module
+  // Build qualifiers par module et par competence
   const moduleIds = (modules ?? []).map((m: any) => m.id)
-  const qualifiersByModule = await getQualifiersByModule(
+  const { byModule: qualifiersByModule, byCompetency: qualifiersByCompetency } = await getQualifiersByModule(
     moduleIds,
     (qualifiers ?? []) as QualifierWithOptions[]
   )
@@ -184,6 +184,7 @@ export default async function EvaluationDetailPage({
               modules={modules ?? []}
               qualifiers={qualifiers ?? []}
               qualifiersByModule={qualifiersByModule}
+              qualifiersByCompetency={qualifiersByCompetency}
               initialState={initialState}
               readOnly={isReadOnly}
             />

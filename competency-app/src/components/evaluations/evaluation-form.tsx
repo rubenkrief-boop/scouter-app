@@ -20,6 +20,7 @@ interface EvaluationFormProps {
   modules: (Module & { competencies: Competency[] })[]
   qualifiers: QualifierWithOptions[]
   qualifiersByModule?: Record<string, QualifierWithOptions[]>
+  qualifiersByCompetency?: Record<string, QualifierWithOptions[]>
   initialState: Record<string, Record<string, string>>
   readOnly?: boolean
 }
@@ -37,6 +38,7 @@ export function EvaluationForm({
   modules,
   qualifiers,
   qualifiersByModule,
+  qualifiersByCompetency,
   initialState,
   readOnly = false,
 }: EvaluationFormProps) {
@@ -144,8 +146,34 @@ export function EvaluationForm({
       {modules.map((module) => {
         if (!module.competencies || module.competencies.length === 0) return null
 
-        // Utiliser les qualifiers specifiques au module si disponibles, sinon fallback global
+        // Qualifiers du module (fallback global si aucun assigne)
         const moduleQualifiers = qualifiersByModule?.[module.id] ?? qualifiers
+
+        // Calculer l'union de tous les qualifiers utilises dans ce module
+        // (module-level + overrides competence-level)
+        const hasCompetencyOverrides = module.competencies.some(
+          comp => qualifiersByCompetency?.[comp.id] && qualifiersByCompetency[comp.id].length > 0
+        )
+
+        let effectiveQualifiers: QualifierWithOptions[]
+        if (hasCompetencyOverrides) {
+          // Union des qualifiers du module + ceux des competences overridees
+          const qualifierMap = new Map<string, QualifierWithOptions>()
+          for (const q of moduleQualifiers) {
+            qualifierMap.set(q.id, q)
+          }
+          for (const comp of module.competencies) {
+            const compQuals = qualifiersByCompetency?.[comp.id]
+            if (compQuals) {
+              for (const q of compQuals) {
+                qualifierMap.set(q.id, q)
+              }
+            }
+          }
+          effectiveQualifiers = Array.from(qualifierMap.values()).sort((a, b) => a.sort_order - b.sort_order)
+        } else {
+          effectiveQualifiers = moduleQualifiers
+        }
 
         return (
           <Card key={module.id}>
@@ -164,7 +192,7 @@ export function EvaluationForm({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[200px]">Compétence</TableHead>
-                      {moduleQualifiers.map((q) => (
+                      {effectiveQualifiers.map((q) => (
                         <TableHead key={q.id} className="min-w-[140px] text-center">
                           {q.name}
                         </TableHead>
@@ -174,48 +202,63 @@ export function EvaluationForm({
                   <TableBody>
                     {module.competencies
                       .sort((a, b) => a.sort_order - b.sort_order)
-                      .map((comp) => (
-                        <TableRow key={comp.id}>
-                          <TableCell className="font-medium text-sm">{comp.name}</TableCell>
-                          {moduleQualifiers.map((qualifier) => {
-                            const currentValue = state[comp.id]?.[qualifier.id] ?? ''
-                            const selectedOption = qualifier.qualifier_options?.find(o => o.id === currentValue)
+                      .map((comp) => {
+                        // Qualifiers effectifs pour cette competence
+                        const compQualifiers = qualifiersByCompetency?.[comp.id] ?? moduleQualifiers
+                        const compQualifierIds = new Set(compQualifiers.map(q => q.id))
 
-                            return (
-                              <TableCell key={qualifier.id} className="text-center">
-                                <Select
-                                  value={currentValue}
-                                  onValueChange={(v) => handleChange(comp.id, qualifier.id, v)}
-                                  disabled={readOnly}
-                                >
-                                  <SelectTrigger className={`text-xs h-8 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                                    <SelectValue placeholder="-">
-                                      {selectedOption && (
-                                        <span className="flex items-center gap-1">
-                                          {selectedOption.icon && <QualifierIcon icon={selectedOption.icon} />}
-                                          {selectedOption.label}
-                                        </span>
-                                      )}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {qualifier.qualifier_options
-                                      ?.sort((a, b) => a.sort_order - b.sort_order)
-                                      .map((option) => (
-                                        <SelectItem key={option.id} value={option.id}>
-                                          <span className="flex items-center gap-2">
-                                            {option.icon && <QualifierIcon icon={option.icon} />}
-                                            {option.label}
+                        return (
+                          <TableRow key={comp.id}>
+                            <TableCell className="font-medium text-sm">{comp.name}</TableCell>
+                            {effectiveQualifiers.map((qualifier) => {
+                              // Si ce qualifier ne s'applique pas a cette competence
+                              if (!compQualifierIds.has(qualifier.id)) {
+                                return (
+                                  <TableCell key={qualifier.id} className="text-center text-muted-foreground text-xs">
+                                    —
+                                  </TableCell>
+                                )
+                              }
+
+                              const currentValue = state[comp.id]?.[qualifier.id] ?? ''
+                              const selectedOption = qualifier.qualifier_options?.find(o => o.id === currentValue)
+
+                              return (
+                                <TableCell key={qualifier.id} className="text-center">
+                                  <Select
+                                    value={currentValue}
+                                    onValueChange={(v) => handleChange(comp.id, qualifier.id, v)}
+                                    disabled={readOnly}
+                                  >
+                                    <SelectTrigger className={`text-xs h-8 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}>
+                                      <SelectValue placeholder="-">
+                                        {selectedOption && (
+                                          <span className="flex items-center gap-1">
+                                            {selectedOption.icon && <QualifierIcon icon={selectedOption.icon} />}
+                                            {selectedOption.label}
                                           </span>
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                            )
-                          })}
-                        </TableRow>
-                      ))}
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {qualifier.qualifier_options
+                                        ?.sort((a, b) => a.sort_order - b.sort_order)
+                                        .map((option) => (
+                                          <SelectItem key={option.id} value={option.id}>
+                                            <span className="flex items-center gap-2">
+                                              {option.icon && <QualifierIcon icon={option.icon} />}
+                                              {option.label}
+                                            </span>
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        )
+                      })}
                   </TableBody>
                 </Table>
               </div>

@@ -2,19 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, ChevronRight, ChevronDown, Pencil, Trash2, EyeOff } from 'lucide-react'
+import { Plus, ChevronRight, ChevronDown, Pencil, Trash2, EyeOff, Sliders, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { EmojiPickerField } from '@/components/ui/emoji-picker'
 import type { Module, Competency } from '@/lib/types'
 import { ModuleQualifierEditor } from '@/components/modules/module-qualifier-editor'
+import { setCompetencyQualifiers } from '@/lib/actions/modules'
 
 interface ModuleNode extends Module {
   children: ModuleNode[]
@@ -103,6 +105,14 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
   const [newModuleIcon, setNewModuleIcon] = useState('')
   const [editModuleIcon, setEditModuleIcon] = useState('')
 
+  // Competency qualifier override state
+  const [compQualifierMap, setCompQualifierMap] = useState<Record<string, string[]>>({})
+  const [allQualifiers, setAllQualifiers] = useState<{ id: string; name: string; sort_order: number }[]>([])
+  const [editCompQualifierIds, setEditCompQualifierIds] = useState<Set<string>>(new Set())
+  const [editCompQualifierInitialIds, setEditCompQualifierInitialIds] = useState<Set<string>>(new Set())
+  const [savingQualifiers, setSavingQualifiers] = useState(false)
+  const [loadingQualifiers, setLoadingQualifiers] = useState(false)
+
   const tree = buildTree(modules)
   const selectedModule = modules.find(m => m.id === selectedModuleId)
 
@@ -110,16 +120,57 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
     if (!selectedModuleId) return
     setLoadingComps(true)
     const supabase = createClient()
-    supabase
-      .from('competencies')
-      .select('*')
-      .eq('module_id', selectedModuleId)
-      .order('sort_order')
-      .then(({ data }) => {
-        setCompetencies(data ?? [])
-        setLoadingComps(false)
-      })
+
+    // Charger les competences + les overrides de qualifiers pour ce module
+    Promise.all([
+      supabase
+        .from('competencies')
+        .select('*')
+        .eq('module_id', selectedModuleId)
+        .order('sort_order'),
+      supabase
+        .from('competency_qualifiers')
+        .select('competency_id, qualifier_id'),
+    ]).then(([compResult, cqResult]) => {
+      setCompetencies(compResult.data ?? [])
+      // Construire la map competency_id -> qualifier_ids
+      const map: Record<string, string[]> = {}
+      for (const row of cqResult.data ?? []) {
+        if (!map[row.competency_id]) map[row.competency_id] = []
+        map[row.competency_id].push(row.qualifier_id)
+      }
+      setCompQualifierMap(map)
+      setLoadingComps(false)
+    })
   }, [selectedModuleId])
+
+  // Charger la liste de tous les qualifiers actifs (une seule fois)
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('qualifiers')
+      .select('id, name, sort_order')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => setAllQualifiers(data ?? []))
+  }, [])
+
+  // Quand on ouvre l'edition d'une competence, charger ses qualifiers
+  useEffect(() => {
+    if (!editingComp) return
+    setLoadingQualifiers(true)
+    const supabase = createClient()
+    supabase
+      .from('competency_qualifiers')
+      .select('qualifier_id')
+      .eq('competency_id', editingComp.id)
+      .then(({ data }) => {
+        const ids = new Set((data ?? []).map(r => r.qualifier_id))
+        setEditCompQualifierIds(ids)
+        setEditCompQualifierInitialIds(new Set(ids))
+        setLoadingQualifiers(false)
+      })
+  }, [editingComp])
 
   // ========== MODULE HANDLERS ==========
 
@@ -236,6 +287,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
   async function handleEditCompetency(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!editingComp) return
+    setSavingQualifiers(true)
     const formData = new FormData(e.currentTarget)
     const supabase = createClient()
 
@@ -248,23 +300,65 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
 
     if (error) {
       toast.error('Erreur lors de la modification')
-    } else {
-      setCompetencies(competencies.map(c =>
-        c.id === editingComp.id
-          ? {
-              ...c,
-              name: formData.get('name') as string,
-              description: formData.get('description') as string || null,
-              external_id: formData.get('external_id') as string || null,
-              sort_order: parseInt(formData.get('sort_order') as string) || 0,
-            }
-          : c
-      ))
-      toast.success('Competence modifiee')
+      setSavingQualifiers(false)
+      return
     }
 
+    // Sauvegarder les qualifiers si modifies
+    const qualifiersChanged = (() => {
+      if (editCompQualifierIds.size !== editCompQualifierInitialIds.size) return true
+      for (const id of editCompQualifierIds) {
+        if (!editCompQualifierInitialIds.has(id)) return true
+      }
+      return false
+    })()
+
+    if (qualifiersChanged) {
+      const result = await setCompetencyQualifiers(editingComp.id, Array.from(editCompQualifierIds))
+      if (result?.error) {
+        toast.error(result.error)
+        setSavingQualifiers(false)
+        return
+      }
+      // Mettre a jour la map locale
+      setCompQualifierMap(prev => {
+        const next = { ...prev }
+        if (editCompQualifierIds.size === 0) {
+          delete next[editingComp!.id]
+        } else {
+          next[editingComp!.id] = Array.from(editCompQualifierIds)
+        }
+        return next
+      })
+    }
+
+    setCompetencies(competencies.map(c =>
+      c.id === editingComp.id
+        ? {
+            ...c,
+            name: formData.get('name') as string,
+            description: formData.get('description') as string || null,
+            external_id: formData.get('external_id') as string || null,
+            sort_order: parseInt(formData.get('sort_order') as string) || 0,
+          }
+        : c
+    ))
+    toast.success('Competence modifiee')
+    setSavingQualifiers(false)
     setIsEditCompOpen(false)
     setEditingComp(null)
+  }
+
+  function toggleEditCompQualifier(qId: string) {
+    setEditCompQualifierIds(prev => {
+      const next = new Set(prev)
+      if (next.has(qId)) {
+        next.delete(qId)
+      } else {
+        next.add(qId)
+      }
+      return next
+    })
   }
 
   async function handleDeleteCompetency(id: string) {
@@ -498,7 +592,17 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                     {competencies.map((comp) => (
                       <TableRow key={comp.id}>
                         <TableCell className="text-muted-foreground">{comp.sort_order}</TableCell>
-                        <TableCell className="font-medium">{comp.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {comp.name}
+                            {compQualifierMap[comp.id] && compQualifierMap[comp.id].length > 0 && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-violet-600 border-violet-300 bg-violet-50">
+                                <Sliders className="h-2.5 w-2.5 mr-0.5" />
+                                Qualifiers
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-xs">{comp.external_id ?? '-'}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           {new Date(comp.updated_at).toLocaleDateString('fr-FR')}
@@ -585,8 +689,59 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                   <Input name="sort_order" type="number" defaultValue={editingComp.sort_order} />
                 </div>
               </div>
-              <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700">
-                Enregistrer
+
+              {/* Section Qualifiers specifiques (optionnel) */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sliders className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-semibold">Qualifiers specifiques (optionnel)</Label>
+                  {editCompQualifierIds.size === 0 && (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                      Module par defaut
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Laissez vide pour utiliser les qualifiers du module. Selectionnez pour personnaliser cette competence.
+                </p>
+                {loadingQualifiers ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Chargement...
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {allQualifiers.map(q => {
+                      const isSelected = editCompQualifierIds.has(q.id)
+                      return (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => toggleEditCompQualifier(q.id)}
+                          className={`
+                            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                            transition-all duration-150 border cursor-pointer
+                            ${isSelected
+                              ? 'bg-violet-50 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-700'
+                              : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-400 dark:border-gray-700 dark:hover:bg-gray-800'
+                            }
+                          `}
+                        >
+                          {isSelected && <Check className="h-3 w-3" />}
+                          {q.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={savingQualifiers}>
+                {savingQualifiers ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Enregistrement...</>
+                ) : (
+                  'Enregistrer'
+                )}
               </Button>
             </form>
           )}
