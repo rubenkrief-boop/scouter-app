@@ -25,17 +25,19 @@ function cardinalSplinePath(points: { x: number; y: number }[], tension = 0.35):
   }
 
   const n = points.length
-  // On duplique les premier/dernier points pour gérer la fermeture
-  const pts = [...points, points[0], points[1], points[2]]
+  // Wrap-around : [dernier, ...tous, premier, deuxième] pour fermer la courbe
+  const pts = [points[n - 1], ...points, points[0], points[1]]
   const t = 1 - tension
 
+  // Commence au premier point (pts[1] = points[0])
   let d = `M${points[0].x},${points[0].y}`
 
+  // Chaque itération trace un segment de pts[i+1] → pts[i+2]
   for (let i = 0; i < n; i++) {
-    const p0 = pts[i]
-    const p1 = pts[i + 1]
-    const p2 = pts[i + 2]
-    const p3 = pts[i + 3]
+    const p0 = pts[i]       // point précédent (pour la tangente)
+    const p1 = pts[i + 1]   // point de départ du segment
+    const p2 = pts[i + 2]   // point d'arrivée du segment
+    const p3 = pts[i + 3]   // point suivant (pour la tangente)
 
     const cp1x = p1.x + (p2.x - p0.x) * t / 6
     const cp1y = p1.y + (p2.y - p0.y) * t / 6
