@@ -14,12 +14,13 @@ import type { Profile, JobProfile } from '@/lib/types'
 interface NewEvaluationFormProps {
   workers: Profile[]
   jobProfiles: JobProfile[]
+  preselectedWorkerId?: string
 }
 
-export function NewEvaluationForm({ workers, jobProfiles }: NewEvaluationFormProps) {
+export function NewEvaluationForm({ workers, jobProfiles, preselectedWorkerId }: NewEvaluationFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [audioId, setAudioId] = useState('')
+  const [audioId, setAudioId] = useState(preselectedWorkerId ?? '')
   const [jobProfileId, setJobProfileId] = useState('')
   const [title, setTitle] = useState('')
 

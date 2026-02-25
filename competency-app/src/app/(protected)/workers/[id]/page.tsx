@@ -271,7 +271,7 @@ export default async function WorkerProfilePage({
                 Ce collaborateur n&apos;a pas encore été évalué.
               </p>
               <Link
-                href={`/evaluator/evaluations/new`}
+                href={`/evaluator/evaluations/new?worker=${id}`}
                 className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
               >
                 <ClipboardCheck className="h-4 w-4" />

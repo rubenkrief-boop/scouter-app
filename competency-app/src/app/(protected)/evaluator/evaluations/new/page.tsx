@@ -3,7 +3,12 @@ import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { Header } from '@/components/layout/header'
 import { NewEvaluationForm } from '@/components/evaluations/new-evaluation-form'
 
-export default async function NewEvaluationPage() {
+export default async function NewEvaluationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ worker?: string }>
+}) {
+  const { worker: preselectedWorkerId } = await searchParams
   const supabase = await createClient()
   const { user, profile } = await getAuthProfile()
 
@@ -36,6 +41,7 @@ export default async function NewEvaluationPage() {
         <NewEvaluationForm
           workers={workers ?? []}
           jobProfiles={jobProfiles ?? []}
+          preselectedWorkerId={preselectedWorkerId}
         />
       </div>
     </div>
