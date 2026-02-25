@@ -7,8 +7,14 @@ import {
   type LocationImportResult,
   type LocationImportResponse,
 } from '@/lib/utils-app/location-excel-import'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
 
 export async function POST(request: Request) {
+  // Rate limit: 5 imports par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`locations-import:${ip}`, { maxRequests: 5, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   // Auth check - super_admin only
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

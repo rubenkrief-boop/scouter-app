@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp']
 const MAX_SIZE = 2 * 1024 * 1024 // 2MB
 
 // POST /api/settings/logo — Upload company logo
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 uploads par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`logo-upload:${ip}`, { maxRequests: 5, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
 
   // Auth check

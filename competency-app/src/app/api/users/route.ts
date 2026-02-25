@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
 
 // POST - Create user (admin only)
 export async function POST(request: Request) {
+  // Rate limit: 10 créations par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`users-create:${ip}`, { maxRequests: 10, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

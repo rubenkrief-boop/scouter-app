@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
 
 // Temporary migration endpoint — DELETE after use
 export async function POST(request: Request) {
+  // Rate limit: 3 appels par minute par IP (route très sensible)
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`migrate:${ip}`, { maxRequests: 3, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const { secret } = await request.json()
 
   // Simple secret to prevent accidental calls

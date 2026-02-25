@@ -3,8 +3,14 @@ import crypto from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { importRowSchema, type ImportRow, type ImportResult, type ImportResponse } from '@/lib/utils-app/excel-import'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
 
 export async function POST(request: Request) {
+  // Rate limit: 5 imports par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`users-import:${ip}`, { maxRequests: 5, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   // Auth check - super_admin only
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
