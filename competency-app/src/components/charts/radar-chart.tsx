@@ -17,6 +17,70 @@ const DEFAULT_COLORS = {
   expected: '#9ca3af',
 }
 
+// ---------- Cardinal spline (courbe lisse fermée) ----------
+// Génère un path SVG lisse qui passe par tous les points du radar
+function cardinalSplinePath(points: { x: number; y: number }[], tension = 0.35): string {
+  if (points.length < 3) {
+    return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z'
+  }
+
+  const n = points.length
+  // On duplique les premier/dernier points pour gérer la fermeture
+  const pts = [...points, points[0], points[1], points[2]]
+  const t = 1 - tension
+
+  let d = `M${points[0].x},${points[0].y}`
+
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i]
+    const p1 = pts[i + 1]
+    const p2 = pts[i + 2]
+    const p3 = pts[i + 3]
+
+    const cp1x = p1.x + (p2.x - p0.x) * t / 6
+    const cp1y = p1.y + (p2.y - p0.y) * t / 6
+    const cp2x = p2.x - (p3.x - p1.x) * t / 6
+    const cp2y = p2.y - (p3.y - p1.y) * t / 6
+
+    d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`
+  }
+
+  return d
+}
+
+// Shape custom pour le Radar "actual" (rempli + stroke épais + dots)
+function SmoothRadarActual(props: any) {
+  const { points, stroke, strokeWidth, fill } = props
+  if (!points || points.length === 0) return null
+
+  const d = cardinalSplinePath(points)
+
+  return (
+    <g>
+      <path d={d} fill={fill} stroke="none" />
+      <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
+      {points.map((p: any, i: number) => (
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill={stroke} stroke="#fff" strokeWidth={2} />
+      ))}
+    </g>
+  )
+}
+
+// Shape custom pour le Radar "expected" (rempli + stroke dashed, pas de dots)
+function SmoothRadarExpected(props: any) {
+  const { points, stroke, strokeWidth, fill } = props
+  if (!points || points.length === 0) return null
+
+  const d = cardinalSplinePath(points)
+
+  return (
+    <g>
+      <path d={d} fill={fill} stroke="none" />
+      <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray="6 3" />
+    </g>
+  )
+}
+
 interface ChartColors {
   actual: string
   expected: string
@@ -163,18 +227,18 @@ export function CompetencyRadarChart({
             tickCount={6}
             axisLine={false}
           />
-          {/* Expected (background — thin dashed gray) */}
+          {/* Expected (background — thin dashed gray, courbe lisse) */}
           <Radar
             name={expectedLabel}
             dataKey="expected"
             stroke={c.expected}
             fill="url(#expectedGradient)"
             strokeWidth={1.5}
-            strokeDasharray="6 3"
             dot={false}
             activeDot={{ r: 4, fill: c.expected, stroke: '#fff', strokeWidth: 2 }}
+            shape={<SmoothRadarExpected />}
           />
-          {/* Actual (primary — bold violet, strong fill) */}
+          {/* Actual (primary — bold violet, courbe lisse avec dots) */}
           <Radar
             name={actualLabel}
             dataKey="actual"
@@ -183,6 +247,7 @@ export function CompetencyRadarChart({
             strokeWidth={2.5}
             dot={{ r: 3, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
             activeDot={{ r: 6, fill: c.actual, stroke: '#fff', strokeWidth: 2 }}
+            shape={<SmoothRadarActual />}
           />
           <Tooltip content={<CustomTooltip />} />
         </RadarChart>
