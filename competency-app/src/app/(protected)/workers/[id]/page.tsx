@@ -37,9 +37,10 @@ export default async function WorkerProfilePage({
   const { data: worker } = await supabase
     .from('profiles')
     .select(`
-      id, first_name, last_name, email, job_title, role, created_at, avatar_url,
+      id, first_name, last_name, email, job_title, job_profile_id, role, created_at, avatar_url,
       location:locations(name),
-      manager:profiles!manager_id(first_name, last_name)
+      manager:profiles!manager_id(first_name, last_name),
+      job_profile:job_profiles(id, name)
     `)
     .eq('id', id)
     .eq('is_active', true)
@@ -49,6 +50,8 @@ export default async function WorkerProfilePage({
 
   const loc = worker.location as any
   const mgr = worker.manager as any
+  const workerJobProfile = worker.job_profile as any
+  const workerJobProfileId: string | null = (worker as any).job_profile_id ?? null
 
   // Chercher d'abord l'évaluation continue, sinon la dernière complétée
   let latestEval: any = null
@@ -87,20 +90,22 @@ export default async function WorkerProfilePage({
   }
 
   let radarData: RadarDataPoint[] = []
-  let jobProfileName: string | null = null
+  // Nom du profil métier : priorité au profil du collaborateur, fallback sur l'évaluation
+  const jobProfileName: string | null = workerJobProfile?.name ?? null
 
   if (latestEval) {
-    jobProfileName = (latestEval.job_profile as any)?.name ?? null
 
     const { data: moduleScores } = await supabase
       .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
 
     let expectedScores: Record<string, number> = {}
-    if (latestEval.job_profile_id) {
+    // Utiliser le job_profile_id du profil collaborateur (source de verite)
+    const effectiveJobProfileId = workerJobProfileId ?? latestEval.job_profile_id
+    if (effectiveJobProfileId) {
       const { data: jpComps } = await supabase
         .from('job_profile_competencies')
         .select('*')
-        .eq('job_profile_id', latestEval.job_profile_id)
+        .eq('job_profile_id', effectiveJobProfileId)
 
       jpComps?.forEach((jpc) => {
         expectedScores[jpc.module_id] = jpc.expected_score
@@ -175,13 +180,19 @@ export default async function WorkerProfilePage({
                   )}
                 </div>
               </div>
-              <StartEvaluationButton
-                workerId={id}
-                jobProfileId={latestEval?.job_profile_id}
-                variant="ghost"
-                size="sm"
-                className="text-xs bg-white/20 hover:bg-white/30 text-white"
-              />
+              {workerJobProfileId ? (
+                <StartEvaluationButton
+                  workerId={id}
+                  jobProfileId={workerJobProfileId}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs bg-white/20 hover:bg-white/30 text-white"
+                />
+              ) : (
+                <Badge className="bg-white/20 text-white border-white/30 text-xs">
+                  Aucun profil métier attribué
+                </Badge>
+              )}
             </div>
 
             {/* Info row */}
@@ -302,10 +313,17 @@ export default async function WorkerProfilePage({
                 Ce collaborateur n&apos;a pas encore été évalué.
               </p>
               <div className="mt-4">
-                <StartEvaluationButton
-                  workerId={id}
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                />
+                {workerJobProfileId ? (
+                  <StartEvaluationButton
+                    workerId={id}
+                    jobProfileId={workerJobProfileId}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  />
+                ) : (
+                  <p className="text-sm text-amber-600 font-medium">
+                    Attribuez d&apos;abord un profil métier pour pouvoir évaluer ce collaborateur.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -72,6 +72,7 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
           first_name: formData.get('first_name'),
           last_name: formData.get('last_name'),
           role: createRole,
+          job_profile_id: createJobTitle === 'none' ? null : createJobTitle,
           job_title: createJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === createJobTitle)?.name || null,
           manager_id: createManagerId === 'none' ? null : createManagerId,
           location_id: createLocationId === 'none' ? null : createLocationId,
@@ -99,9 +100,8 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
   function openEditDialog(user: Profile) {
     setEditingUser(user)
     setEditRole(user.role || 'worker')
-    // Trouver le profil métier correspondant au job_title actuel
-    const matchingProfile = jobProfiles.find(jp => jp.name === user.job_title)
-    setEditJobTitle(matchingProfile?.id || 'none')
+    // Utiliser job_profile_id directement (FK)
+    setEditJobTitle(user.job_profile_id || 'none')
     setEditManagerId(user.manager_id || 'none')
     setEditLocationId(user.location_id || 'none')
     setFormError(null)
@@ -120,6 +120,7 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
         body: JSON.stringify({
           userId: editingUser.id,
           role: editRole,
+          job_profile_id: editJobTitle === 'none' ? null : editJobTitle,
           job_title: editJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === editJobTitle)?.name || null,
           manager_id: editManagerId === 'none' ? null : editManagerId,
           location_id: editLocationId === 'none' ? null : editLocationId,

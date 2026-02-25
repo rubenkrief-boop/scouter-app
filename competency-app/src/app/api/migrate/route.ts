@@ -192,5 +192,43 @@ export async function POST(request: Request) {
     results.push(`Migration 00013 error: ${e.message}`)
   }
 
+  // Migration 00014: Backfill job_profile_id on profiles from job_title text
+  try {
+    const { data: jobProfilesList } = await supabase
+      .from('job_profiles')
+      .select('id, name')
+      .eq('is_active', true)
+
+    const { data: profilesWithJobTitle } = await supabase
+      .from('profiles')
+      .select('id, job_title, job_profile_id')
+      .not('job_title', 'is', null)
+      .is('job_profile_id', null)
+
+    let backfilledCount = 0
+    if (jobProfilesList && profilesWithJobTitle) {
+      const jpMap = new Map<string, string>()
+      for (const jp of jobProfilesList) {
+        jpMap.set(jp.name.toLowerCase().trim(), jp.id)
+      }
+
+      for (const p of profilesWithJobTitle) {
+        const jpId = jpMap.get((p.job_title ?? '').toLowerCase().trim())
+        if (jpId) {
+          const { error: updateErr } = await supabase
+            .from('profiles')
+            .update({ job_profile_id: jpId })
+            .eq('id', p.id)
+
+          if (!updateErr) backfilledCount++
+        }
+      }
+    }
+
+    results.push(`Migration 00014: Backfilled ${backfilledCount} profiles with job_profile_id`)
+  } catch (e: any) {
+    results.push(`Migration 00014 error: ${e.message}`)
+  }
+
   return NextResponse.json({ results })
 }

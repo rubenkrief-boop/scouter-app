@@ -25,7 +25,10 @@ export function StartEvaluationButton({
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
+  const isDisabled = !jobProfileId
+
   async function handleClick() {
+    if (isDisabled) return
     setLoading(true)
 
     try {
@@ -42,6 +45,21 @@ export function StartEvaluationButton({
       toast.error('Erreur lors du chargement')
       setLoading(false)
     }
+  }
+
+  if (isDisabled) {
+    return (
+      <Button
+        disabled
+        variant={variant}
+        size={size}
+        className={className}
+        title="Attribuez d'abord un profil métier à ce collaborateur"
+      >
+        <Pencil className="h-4 w-4 mr-2" />
+        Modifier les scores
+      </Button>
+    )
   }
 
   return (

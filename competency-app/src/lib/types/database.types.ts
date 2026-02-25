@@ -11,6 +11,7 @@ export interface Profile {
   last_name: string
   role: UserRole
   job_title: string | null
+  job_profile_id: string | null
   avatar_url: string | null
   is_active: boolean
   manager_id: string | null
