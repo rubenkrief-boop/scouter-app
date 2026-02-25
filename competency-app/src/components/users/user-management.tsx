@@ -15,13 +15,19 @@ import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils-app/roles'
 import type { Profile, UserRole, Location } from '@/lib/types'
 import { ExcelImportDialog } from '@/components/users/excel-import-dialog'
 
+interface JobProfileOption {
+  id: string
+  name: string
+}
+
 interface UserManagementProps {
   users: Profile[]
   locations: Location[]
   managers: Profile[]
+  jobProfiles: JobProfileOption[]
 }
 
-export function UserManagement({ users, locations, managers }: UserManagementProps) {
+export function UserManagement({ users, locations, managers, jobProfiles }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
@@ -31,12 +37,13 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
 
   // Controlled state for create form
   const [createRole, setCreateRole] = useState<string>('worker')
+  const [createJobTitle, setCreateJobTitle] = useState<string>('none')
   const [createManagerId, setCreateManagerId] = useState<string>('none')
   const [createLocationId, setCreateLocationId] = useState<string>('none')
 
   // Controlled state for edit form
   const [editRole, setEditRole] = useState<string>('worker')
-  const [editJobTitle, setEditJobTitle] = useState<string>('')
+  const [editJobTitle, setEditJobTitle] = useState<string>('none')
   const [editManagerId, setEditManagerId] = useState<string>('none')
   const [editLocationId, setEditLocationId] = useState<string>('none')
 
@@ -65,7 +72,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
           first_name: formData.get('first_name'),
           last_name: formData.get('last_name'),
           role: createRole,
-          job_title: formData.get('job_title') || null,
+          job_title: createJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === createJobTitle)?.name || null,
           manager_id: createManagerId === 'none' ? null : createManagerId,
           location_id: createLocationId === 'none' ? null : createLocationId,
         }),
@@ -74,6 +81,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
       if (res.ok) {
         setIsOpen(false)
         setCreateRole('worker')
+        setCreateJobTitle('none')
         setCreateManagerId('none')
         setCreateLocationId('none')
         setFormError(null)
@@ -91,7 +99,9 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   function openEditDialog(user: Profile) {
     setEditingUser(user)
     setEditRole(user.role || 'worker')
-    setEditJobTitle(user.job_title || '')
+    // Trouver le profil métier correspondant au job_title actuel
+    const matchingProfile = jobProfiles.find(jp => jp.name === user.job_title)
+    setEditJobTitle(matchingProfile?.id || 'none')
     setEditManagerId(user.manager_id || 'none')
     setEditLocationId(user.location_id || 'none')
     setFormError(null)
@@ -110,7 +120,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
         body: JSON.stringify({
           userId: editingUser.id,
           role: editRole,
-          job_title: editJobTitle || null,
+          job_title: editJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === editJobTitle)?.name || null,
           manager_id: editManagerId === 'none' ? null : editManagerId,
           location_id: editLocationId === 'none' ? null : editLocationId,
         }),
@@ -223,7 +233,19 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Emploi / Poste</Label>
-                <Input name="job_title" placeholder="Ex: Audioprothesiste, Assistante technique..." />
+                <Select value={createJobTitle} onValueChange={setCreateJobTitle}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un emploi..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun emploi</SelectItem>
+                    {jobProfiles.map((jp) => (
+                      <SelectItem key={jp.id} value={jp.id}>
+                        {jp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Manager</Label>
@@ -299,7 +321,19 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Emploi / Poste</Label>
-                <Input value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)} placeholder="Ex: Audioprothesiste, Assistante technique..." />
+                <Select value={editJobTitle} onValueChange={setEditJobTitle}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un emploi..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun emploi</SelectItem>
+                    {jobProfiles.map((jp) => (
+                      <SelectItem key={jp.id} value={jp.id}>
+                        {jp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Manager</Label>

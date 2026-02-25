@@ -26,6 +26,13 @@ export default async function UsersPage() {
     .eq('is_active', true)
     .order('first_name', { ascending: true })
 
+  // Fetch job profiles for the Emploi/Poste selector
+  const { data: jobProfiles } = await supabase
+    .from('job_profiles')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
   return (
     <div>
       <Header
@@ -37,6 +44,7 @@ export default async function UsersPage() {
           users={users ?? []}
           locations={locations ?? []}
           managers={managers ?? []}
+          jobProfiles={jobProfiles ?? []}
         />
       </div>
     </div>
