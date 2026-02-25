@@ -68,8 +68,16 @@ export default async function ColleaguesListPage({
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
-                      <div className="w-11 h-11 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0">
-                        {c.first_name?.[0]}{c.last_name?.[0]}
+                      <div className="w-11 h-11 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0 overflow-hidden">
+                        {c.avatar_url ? (
+                          <img
+                            src={c.avatar_url}
+                            alt={`${c.first_name} ${c.last_name}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <>{c.first_name?.[0]}{c.last_name?.[0]}</>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">

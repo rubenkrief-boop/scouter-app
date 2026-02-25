@@ -37,7 +37,7 @@ export default async function WorkersListPage({
   let workersQuery = supabase
     .from('profiles')
     .select(`
-      id, first_name, last_name, email, job_title, role,
+      id, first_name, last_name, email, job_title, role, avatar_url,
       location:locations(name),
       location_id
     `)
@@ -138,8 +138,16 @@ export default async function WorkersListPage({
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
-                      <div className="w-11 h-11 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0">
-                        {w.first_name?.[0]}{w.last_name?.[0]}
+                      <div className="w-11 h-11 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0 overflow-hidden relative">
+                        {(w as any).avatar_url ? (
+                          <img
+                            src={(w as any).avatar_url}
+                            alt={`${w.first_name} ${w.last_name}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <>{w.first_name?.[0]}{w.last_name?.[0]}</>
+                        )}
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">

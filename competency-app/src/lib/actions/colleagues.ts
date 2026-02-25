@@ -8,6 +8,7 @@ export interface ColleagueSummary {
   first_name: string
   last_name: string
   email: string
+  avatar_url: string | null
   location_name: string | null
   avg_score: number | null
   eval_count: number
@@ -23,7 +24,7 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
   const { data: profiles } = await supabase
     .from('profiles')
     .select(`
-      id, first_name, last_name, email,
+      id, first_name, last_name, email, avatar_url,
       location:locations(name)
     `)
     .eq('role', 'worker')
@@ -70,6 +71,7 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
       first_name: p.first_name,
       last_name: p.last_name,
       email: p.email,
+      avatar_url: (p as any).avatar_url ?? null,
       location_name: loc?.name ?? null,
       avg_score,
       eval_count: count ?? 0,
@@ -80,7 +82,7 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
 }
 
 export async function getColleagueProfile(colleagueId: string): Promise<{
-  profile: { first_name: string; last_name: string; email: string; location_name: string | null }
+  profile: { first_name: string; last_name: string; email: string; avatar_url: string | null; location_name: string | null }
   radarData: RadarDataPoint[]
   evalCount: number
   jobProfileName: string | null
@@ -94,7 +96,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
   const { data: profile } = await supabase
     .from('profiles')
     .select(`
-      id, first_name, last_name, email,
+      id, first_name, last_name, email, avatar_url,
       location:locations(name)
     `)
     .eq('id', colleagueId)
@@ -155,6 +157,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
       first_name: profile.first_name,
       last_name: profile.last_name,
       email: profile.email,
+      avatar_url: (profile as any).avatar_url ?? null,
       location_name: loc?.name ?? null,
     },
     radarData,

@@ -57,8 +57,16 @@ export default async function ColleagueProfilePage({
         <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 p-6 text-white">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
-                {profile.first_name?.[0]}{profile.last_name?.[0]}
+              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold overflow-hidden">
+                {profile.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <>{profile.first_name?.[0]}{profile.last_name?.[0]}</>
+                )}
               </div>
               <div>
                 <h2 className="text-xl font-bold">{fullName}</h2>

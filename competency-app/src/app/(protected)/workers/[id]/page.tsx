@@ -13,6 +13,7 @@ import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 import { StartEvaluationButton } from '@/components/evaluations/start-evaluation-button'
 import { EvaluationHistory } from '@/components/evaluations/evaluation-history'
+import { AvatarUpload } from '@/components/workers/avatar-upload'
 
 export default async function WorkerProfilePage({
   params,
@@ -36,7 +37,7 @@ export default async function WorkerProfilePage({
   const { data: worker } = await supabase
     .from('profiles')
     .select(`
-      id, first_name, last_name, email, job_title, role, created_at,
+      id, first_name, last_name, email, job_title, role, created_at, avatar_url,
       location:locations(name),
       manager:profiles!manager_id(first_name, last_name)
     `)
@@ -156,9 +157,13 @@ export default async function WorkerProfilePage({
           <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 p-6 text-white">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
-                  {worker.first_name?.[0]}{worker.last_name?.[0]}
-                </div>
+                <AvatarUpload
+                  userId={id}
+                  firstName={worker.first_name}
+                  lastName={worker.last_name}
+                  currentAvatarUrl={(worker as any).avatar_url}
+                  size="lg"
+                />
                 <div>
                   <h2 className="text-xl font-bold">{fullName}</h2>
                   <p className="text-white/80">{worker.job_title ?? 'Poste non défini'}</p>
