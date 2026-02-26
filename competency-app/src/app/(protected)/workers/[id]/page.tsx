@@ -14,6 +14,7 @@ import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 import { StartEvaluationButton } from '@/components/evaluations/start-evaluation-button'
 import { EvaluationHistory } from '@/components/evaluations/evaluation-history'
 import { AvatarUpload } from '@/components/workers/avatar-upload'
+import { AssignJobProfile } from '@/components/workers/assign-job-profile'
 
 export default async function WorkerProfilePage({
   params,
@@ -61,6 +62,13 @@ export default async function WorkerProfilePage({
       .single()
     workerJobProfileName = jp?.name ?? null
   }
+
+  // Récupérer les profils métier disponibles (pour le sélecteur d'attribution)
+  const { data: jobProfiles } = await supabase
+    .from('job_profiles')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
 
   // Chercher d'abord l'évaluation continue, sinon la dernière complétée
   let latestEval: any = null
@@ -253,18 +261,18 @@ export default async function WorkerProfilePage({
 
         {/* Contenu principal : dépend du profil métier */}
         {!workerJobProfileId ? (
-          /* Pas de profil métier → message d'avertissement, pas d'évaluation possible */
+          /* Pas de profil métier → sélecteur pour en attribuer un */
           <Card>
-            <CardContent className="py-16 text-center">
+            <CardContent className="py-12 text-center">
               <Briefcase className="h-12 w-12 mx-auto mb-4 text-amber-400" />
               <p className="text-lg font-medium text-foreground">Aucun profil métier attribué</p>
-              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                Pour pouvoir évaluer ce collaborateur, vous devez d&apos;abord lui attribuer un profil métier
-                depuis la page de gestion des utilisateurs.
+              <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-md mx-auto">
+                Attribuez un profil métier à ce collaborateur pour pouvoir l&apos;évaluer.
               </p>
-              <p className="text-xs text-muted-foreground mt-3">
-                Les modules d&apos;évaluation sont définis dans chaque profil métier.
-              </p>
+              <AssignJobProfile
+                workerId={id}
+                jobProfiles={jobProfiles ?? []}
+              />
             </CardContent>
           </Card>
         ) : radarData.length > 0 ? (
