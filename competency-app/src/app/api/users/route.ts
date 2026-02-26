@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { email, password, first_name, last_name, role, manager_id, location_id, job_title, job_profile_id } = body
+  const { email, password, first_name, last_name, role, manager_id, location_id } = body
 
   const adminClient = createAdminClient()
 
@@ -44,15 +44,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Impossible de créer cet utilisateur: ${error.message}` }, { status: 400 })
   }
 
-  // Update the profile with manager_id, location_id, and job_title if provided
-  if (newUser?.user && (manager_id || location_id || job_title || job_profile_id)) {
+  // Update the profile with manager_id and location_id if provided
+  if (newUser?.user && (manager_id || location_id)) {
     await adminClient
       .from('profiles')
       .update({
         manager_id: manager_id || null,
         location_id: location_id || null,
-        job_title: job_title || null,
-        job_profile_id: job_profile_id || null,
       })
       .eq('id', newUser.user.id)
   }
@@ -80,7 +78,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json()
-  const { userId, role, job_title, job_profile_id, manager_id, location_id, is_active } = body
+  const { userId, role, manager_id, location_id, is_active } = body
 
   if (!userId) {
     return NextResponse.json({ error: 'userId is required' }, { status: 400 })
@@ -91,8 +89,6 @@ export async function PATCH(request: Request) {
   // Build update object explicitly to avoid passing unexpected fields
   const updates: Record<string, unknown> = {}
   if (role !== undefined) updates.role = role
-  if (job_title !== undefined) updates.job_title = job_title
-  if (job_profile_id !== undefined) updates.job_profile_id = job_profile_id
   if (manager_id !== undefined) updates.manager_id = manager_id
   if (location_id !== undefined) updates.location_id = location_id
   if (is_active !== undefined) updates.is_active = is_active

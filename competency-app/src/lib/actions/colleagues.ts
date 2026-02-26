@@ -139,12 +139,16 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
       })
     }
 
-    radarData = (moduleScores ?? []).map((ms: any) => ({
-      module: `${ms.module_code} - ${ms.module_name}`,
-      actual: parseFloat(ms.completion_pct) || 0,
-      expected: expectedScores[ms.module_id] ?? 0,
-      fullMark: 100,
-    }))
+    // Ne montrer que les modules rattachés au profil métier (si défini)
+    const profileModuleIds = Object.keys(expectedScores)
+    radarData = (moduleScores ?? [])
+      .filter((ms: any) => profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
+      .map((ms: any) => ({
+        module: `${ms.module_code} - ${ms.module_name}`,
+        actual: parseFloat(ms.completion_pct) || 0,
+        expected: expectedScores[ms.module_id] ?? 0,
+        fullMark: 100,
+      }))
   }
 
   const { count } = await supabase

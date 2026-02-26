@@ -42,24 +42,31 @@ export default async function EvaluationDetailPage({
       .from('job_profile_competencies')
       .select('module_id')
       .eq('job_profile_id', evaluation.job_profile_id)
-    if (jpCompsForFilter && jpCompsForFilter.length > 0) {
-      profileModuleIds = jpCompsForFilter.map(jpc => jpc.module_id)
-    }
+    // Toujours définir profileModuleIds quand un profil existe, même si vide
+    // Cela évite d'afficher TOUS les modules quand aucun n'est rattaché au profil
+    profileModuleIds = (jpCompsForFilter ?? []).map(jpc => jpc.module_id)
   }
 
   // Fetch top-level modules with competencies (filtered by job profile if applicable)
-  let modulesQuery = supabase
-    .from('modules')
-    .select('*, competencies(*)')
-    .is('parent_id', null)
-    .eq('is_active', true)
-    .order('sort_order')
+  let modules: any[] = []
+  if (profileModuleIds !== null && profileModuleIds.length === 0) {
+    // Le profil métier existe mais n'a aucun module rattaché → 0 modules
+    modules = []
+  } else {
+    let modulesQuery = supabase
+      .from('modules')
+      .select('*, competencies(*)')
+      .is('parent_id', null)
+      .eq('is_active', true)
+      .order('sort_order')
 
-  if (profileModuleIds && profileModuleIds.length > 0) {
-    modulesQuery = modulesQuery.in('id', profileModuleIds)
+    if (profileModuleIds && profileModuleIds.length > 0) {
+      modulesQuery = modulesQuery.in('id', profileModuleIds)
+    }
+
+    const { data: modulesData } = await modulesQuery
+    modules = modulesData ?? []
   }
-
-  const { data: modules } = await modulesQuery
 
   // Fetch qualifiers — filtered by job profile if linked qualifiers exist
   let profileQualifierIds: string[] | null = null
@@ -151,16 +158,21 @@ export default async function EvaluationDetailPage({
     })
   }
 
-  const radarData: RadarDataPoint[] = (moduleScores ?? []).map((ms: any) => ({
-    module: `${ms.module_code} - ${ms.module_name}`,
-    actual: parseFloat(ms.completion_pct) || 0,
-    expected: expectedScores[ms.module_id] ?? 70,
-    fullMark: 100,
-    moduleColor: moduleColorMap[ms.module_id] || '#6366f1',
-  }))
+  const radarData: RadarDataPoint[] = (moduleScores ?? [])
+    .filter((ms: any) => !profileModuleIds || profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
+    .map((ms: any) => ({
+      module: `${ms.module_code} - ${ms.module_name}`,
+      actual: parseFloat(ms.completion_pct) || 0,
+      expected: expectedScores[ms.module_id] ?? 70,
+      fullMark: 100,
+      moduleColor: moduleColorMap[ms.module_id] || '#6366f1',
+    }))
 
   const chartColors = await getChartColors()
   const audioName = `${evaluation.audioprothesiste?.first_name ?? ''} ${evaluation.audioprothesiste?.last_name ?? ''}`
+
+  // Profil métier sans aucun module configuré
+  const hasProfileWithNoModules = profileModuleIds !== null && profileModuleIds.length === 0
 
   return (
     <div>
@@ -169,6 +181,18 @@ export default async function EvaluationDetailPage({
         description={evaluation.job_profile?.name ?? 'Aucun profil métier'}
       />
       <div className="p-6">
+        {hasProfileWithNoModules ? (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-amber-400" />
+              <p className="text-lg font-semibold">Aucun module rattaché à ce profil métier</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                Le profil « {evaluation.job_profile?.name} » n&apos;a aucun module de compétence configuré.
+                Rendez-vous dans la gestion des profils métier pour y rattacher des modules.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Form — 2/3 */}
           <div className="xl:col-span-2">
@@ -221,6 +245,7 @@ export default async function EvaluationDetailPage({
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

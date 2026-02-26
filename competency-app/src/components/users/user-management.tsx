@@ -15,19 +15,13 @@ import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils-app/roles'
 import type { Profile, UserRole, Location } from '@/lib/types'
 import { ExcelImportDialog } from '@/components/users/excel-import-dialog'
 
-interface JobProfileOption {
-  id: string
-  name: string
-}
-
 interface UserManagementProps {
   users: Profile[]
   locations: Location[]
   managers: Profile[]
-  jobProfiles: JobProfileOption[]
 }
 
-export function UserManagement({ users, locations, managers, jobProfiles }: UserManagementProps) {
+export function UserManagement({ users, locations, managers }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
@@ -37,13 +31,11 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
 
   // Controlled state for create form
   const [createRole, setCreateRole] = useState<string>('worker')
-  const [createJobTitle, setCreateJobTitle] = useState<string>('none')
   const [createManagerId, setCreateManagerId] = useState<string>('none')
   const [createLocationId, setCreateLocationId] = useState<string>('none')
 
   // Controlled state for edit form
   const [editRole, setEditRole] = useState<string>('worker')
-  const [editJobTitle, setEditJobTitle] = useState<string>('none')
   const [editManagerId, setEditManagerId] = useState<string>('none')
   const [editLocationId, setEditLocationId] = useState<string>('none')
 
@@ -72,8 +64,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
           first_name: formData.get('first_name'),
           last_name: formData.get('last_name'),
           role: createRole,
-          job_profile_id: createJobTitle === 'none' ? null : createJobTitle,
-          job_title: createJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === createJobTitle)?.name || null,
           manager_id: createManagerId === 'none' ? null : createManagerId,
           location_id: createLocationId === 'none' ? null : createLocationId,
         }),
@@ -82,7 +72,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
       if (res.ok) {
         setIsOpen(false)
         setCreateRole('worker')
-        setCreateJobTitle('none')
         setCreateManagerId('none')
         setCreateLocationId('none')
         setFormError(null)
@@ -100,8 +89,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
   function openEditDialog(user: Profile) {
     setEditingUser(user)
     setEditRole(user.role || 'worker')
-    // Utiliser job_profile_id directement (FK)
-    setEditJobTitle(user.job_profile_id || 'none')
     setEditManagerId(user.manager_id || 'none')
     setEditLocationId(user.location_id || 'none')
     setFormError(null)
@@ -120,8 +107,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
         body: JSON.stringify({
           userId: editingUser.id,
           role: editRole,
-          job_profile_id: editJobTitle === 'none' ? null : editJobTitle,
-          job_title: editJobTitle === 'none' ? null : jobProfiles.find(jp => jp.id === editJobTitle)?.name || null,
           manager_id: editManagerId === 'none' ? null : editManagerId,
           location_id: editLocationId === 'none' ? null : editLocationId,
         }),
@@ -139,15 +124,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
       setFormError('Erreur réseau. Vérifiez votre connexion.')
     }
     setLoading(false)
-  }
-
-  async function handleRoleChange(userId: string, newRole: string) {
-    await fetch('/api/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, role: newRole }),
-    })
-    router.refresh()
   }
 
   async function handleToggleActive(userId: string, isActive: boolean) {
@@ -233,22 +209,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Emploi / Poste</Label>
-                <Select value={createJobTitle} onValueChange={setCreateJobTitle}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un emploi..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun emploi</SelectItem>
-                    {jobProfiles.map((jp) => (
-                      <SelectItem key={jp.id} value={jp.id}>
-                        {jp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label>Manager</Label>
                 <Select value={createManagerId} onValueChange={setCreateManagerId}>
                   <SelectTrigger>
@@ -317,22 +277,6 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
                     <SelectItem value="skill_master">Skill Master</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="worker">Collaborateur</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Emploi / Poste</Label>
-                <Select value={editJobTitle} onValueChange={setEditJobTitle}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un emploi..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun emploi</SelectItem>
-                    {jobProfiles.map((jp) => (
-                      <SelectItem key={jp.id} value={jp.id}>
-                        {jp.name}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Briefcase, Loader2 } from 'lucide-react'
+import { Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -15,31 +15,32 @@ interface JobProfileOption {
 interface AssignJobProfileProps {
   workerId: string
   jobProfiles: JobProfileOption[]
+  assignedProfileIds: string[]
 }
 
-export function AssignJobProfile({ workerId, jobProfiles }: AssignJobProfileProps) {
+export function AssignJobProfile({ workerId, jobProfiles, assignedProfileIds }: AssignJobProfileProps) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string>('')
   const [loading, setLoading] = useState(false)
+
+  // Filtrer les profils déjà assignés
+  const availableProfiles = jobProfiles.filter(jp => !assignedProfileIds.includes(jp.id))
 
   async function handleAssign() {
     if (!selectedId) return
     setLoading(true)
 
     try {
-      const selectedProfile = jobProfiles.find(jp => jp.id === selectedId)
-      const res = await fetch('/api/users', {
-        method: 'PATCH',
+      const res = await fetch(`/api/workers/${workerId}/job-profiles`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: workerId,
-          job_profile_id: selectedId,
-          job_title: selectedProfile?.name || null,
-        }),
+        body: JSON.stringify({ jobProfileId: selectedId }),
       })
 
       if (res.ok) {
-        toast.success(`Profil métier « ${selectedProfile?.name} » attribué`)
+        const selectedProfile = jobProfiles.find(jp => jp.id === selectedId)
+        toast.success(`Profil « ${selectedProfile?.name} » attribué`)
+        setSelectedId('')
         router.refresh()
       } else {
         const err = await res.json().catch(() => null)
@@ -51,14 +52,22 @@ export function AssignJobProfile({ workerId, jobProfiles }: AssignJobProfileProp
     setLoading(false)
   }
 
+  if (availableProfiles.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Tous les profils métier sont déjà attribués.
+      </p>
+    )
+  }
+
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex items-center gap-2">
       <Select value={selectedId} onValueChange={setSelectedId}>
-        <SelectTrigger className="w-72">
+        <SelectTrigger className="w-64">
           <SelectValue placeholder="Choisir un profil métier..." />
         </SelectTrigger>
         <SelectContent>
-          {jobProfiles.map((jp) => (
+          {availableProfiles.map((jp) => (
             <SelectItem key={jp.id} value={jp.id}>
               {jp.name}
             </SelectItem>
@@ -68,14 +77,15 @@ export function AssignJobProfile({ workerId, jobProfiles }: AssignJobProfileProp
       <Button
         onClick={handleAssign}
         disabled={!selectedId || loading}
+        size="sm"
         className="bg-indigo-600 hover:bg-indigo-700"
       >
         {loading ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
         ) : (
-          <Briefcase className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-1" />
         )}
-        {loading ? 'Attribution...' : 'Attribuer ce profil métier'}
+        Ajouter
       </Button>
     </div>
   )
