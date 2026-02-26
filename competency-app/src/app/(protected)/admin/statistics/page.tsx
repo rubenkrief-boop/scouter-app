@@ -1,11 +1,16 @@
 import { Header } from '@/components/layout/header'
-import { getGlobalStatistics } from '@/lib/actions/statistics'
+import { getGlobalStatistics, getProgressionData, getGapAnalysis } from '@/lib/actions/statistics'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { StatisticsDashboard } from '@/components/statistics/statistics-dashboard'
 
 export default async function StatisticsPage() {
-  const { moduleStats, userSummaries } = await getGlobalStatistics()
-  const chartColors = await getChartColors()
+  // Fetch all data in parallel
+  const [{ moduleStats, userSummaries }, chartColors, progressionData, gapAnalysis] = await Promise.all([
+    getGlobalStatistics(),
+    getChartColors(),
+    getProgressionData(),
+    getGapAnalysis(),
+  ])
 
   return (
     <div>
@@ -18,6 +23,8 @@ export default async function StatisticsPage() {
           moduleStats={moduleStats}
           userSummaries={userSummaries}
           chartColors={chartColors}
+          progressionData={progressionData}
+          gapAnalysis={gapAnalysis}
         />
       </div>
     </div>
