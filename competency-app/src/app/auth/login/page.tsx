@@ -51,7 +51,7 @@ function LoginForm() {
 
   return (
     <Card
-      className="w-full max-w-md"
+      className="w-full max-w-2xl"
       style={branding.accentColor ? { borderTop: `3px solid ${branding.accentColor}` } : undefined}
     >
       <CardHeader className="flex flex-col items-center pt-8 pb-2">
@@ -69,10 +69,10 @@ function LoginForm() {
           <Image
             src="/logo-full.png"
             alt="SCOUTER - Mesure des compétences"
-            width={450}
-            height={225}
+            width={700}
+            height={350}
             priority
-            className="object-contain"
+            className="object-contain w-full max-w-[600px]"
           />
         )}
         <CardDescription className="mt-2">Connectez-vous avec votre compte VivaSon</CardDescription>
@@ -119,14 +119,14 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-2xl">
         <CardHeader className="flex flex-col items-center pt-8 pb-2">
           <Image
             src="/logo-full.png"
             alt="SCOUTER"
-            width={450}
-            height={225}
-            className="object-contain"
+            width={700}
+            height={350}
+            className="object-contain w-full max-w-[600px]"
           />
           <CardDescription>Chargement...</CardDescription>
         </CardHeader>
