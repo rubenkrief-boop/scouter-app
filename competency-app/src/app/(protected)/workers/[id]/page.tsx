@@ -187,8 +187,14 @@ export default async function WorkerProfilePage({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {assignedProfiles.map(profile => {
                 const evalId = evalByProfile.get(profile.id)
-                const moduleScores = evalId ? (scoresByEval.get(evalId) ?? []) : []
+                const allModuleScores = evalId ? (scoresByEval.get(evalId) ?? []) : []
                 const expectedScores = expectedByProfile.get(profile.id) ?? []
+
+                // Filter module scores to only include modules from this job profile
+                const profileModuleIds = new Set(expectedScores.map(es => es.module_id))
+                const moduleScores = profileModuleIds.size > 0
+                  ? allModuleScores.filter((ms: any) => profileModuleIds.has(ms.module_id))
+                  : allModuleScores
 
                 return (
                   <WorkerJobProfileCard
