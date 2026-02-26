@@ -34,21 +34,28 @@ export default async function EvaluationResultsPage({
   const { data: moduleScores } = await supabase
     .rpc('get_module_scores', { p_evaluation_id: id })
 
-  // Get expected scores from job_profile_competencies
+  // Get expected scores and profile module IDs from job_profile_competencies
   let expectedScores: Record<string, number> = {}
+  let profileModuleIds: string[] | null = null
   if (evaluation.job_profile_id) {
     const { data: jpComps } = await supabase
       .from('job_profile_competencies')
       .select('*')
       .eq('job_profile_id', evaluation.job_profile_id)
 
+    profileModuleIds = (jpComps ?? []).map(jpc => jpc.module_id)
     jpComps?.forEach((jpc) => {
       expectedScores[jpc.module_id] = jpc.expected_score
     })
   }
 
+  // Filter module scores by job profile if applicable
+  const filteredModuleScores = profileModuleIds !== null
+    ? (moduleScores ?? []).filter((ms: any) => profileModuleIds!.includes(ms.module_id))
+    : (moduleScores ?? [])
+
   // Get module colors from modules table
-  const moduleIds = (moduleScores ?? []).map((ms: any) => ms.module_id)
+  const moduleIds = filteredModuleScores.map((ms: any) => ms.module_id)
   let moduleColors: Record<string, string> = {}
   let moduleIcons: Record<string, string> = {}
   if (moduleIds.length > 0) {
@@ -64,7 +71,7 @@ export default async function EvaluationResultsPage({
   }
 
   // Transform to radar data
-  const radarData: RadarDataPoint[] = (moduleScores ?? []).map((ms: any) => ({
+  const radarData: RadarDataPoint[] = filteredModuleScores.map((ms: any) => ({
     module: `${ms.module_code} - ${ms.module_name}`,
     actual: parseFloat(ms.completion_pct) || 0,
     expected: expectedScores[ms.module_id] ?? 0,
