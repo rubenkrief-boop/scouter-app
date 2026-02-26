@@ -9,6 +9,8 @@ import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { AvatarUpload } from '@/components/workers/avatar-upload'
 import { AssignJobProfile } from '@/components/workers/assign-job-profile'
 import { WorkerJobProfileCard } from '@/components/workers/worker-job-profile-card'
+import { WorkerComments } from '@/components/workers/worker-comments'
+import { getWorkerComments } from '@/lib/actions/worker-comments'
 
 export default async function WorkerProfilePage({
   params,
@@ -109,6 +111,9 @@ export default async function WorkerProfilePage({
     list.push({ module_id: es.module_id, expected_score: es.expected_score })
     expectedByProfile.set(es.job_profile_id, list)
   }
+
+  // Fetch worker comments
+  const workerComments = await getWorkerComments(id)
 
   return (
     <div>
@@ -231,6 +236,9 @@ export default async function WorkerProfilePage({
             />
           </div>
         </div>
+
+        {/* Section : Bilans et commentaires */}
+        <WorkerComments workerId={id} comments={workerComments} />
       </div>
     </div>
   )

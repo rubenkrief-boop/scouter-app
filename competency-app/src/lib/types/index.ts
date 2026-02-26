@@ -25,6 +25,8 @@ export type {
   SnapshotHistoryEntry,
   EvaluationComment,
   EvaluationCommentWithAuthor,
+  WorkerComment,
+  WorkerCommentWithAuthor,
   AudioprothesisteAssignment,
   RadarDataPoint,
   ModuleScore,

@@ -215,6 +215,18 @@ export interface EvaluationCommentWithAuthor extends EvaluationComment {
   author?: { first_name: string; last_name: string; role: string }
 }
 
+export interface WorkerComment {
+  id: string
+  worker_id: string
+  author_id: string
+  content: string
+  created_at: string
+}
+
+export interface WorkerCommentWithAuthor extends WorkerComment {
+  author?: { first_name: string; last_name: string; role: string }
+}
+
 export interface AudioprothesisteAssignment {
   id: string
   audioprothesiste_id: string
@@ -315,6 +327,11 @@ export type Database = {
       evaluation_comments: {
         Row: EvaluationComment
         Insert: Omit<EvaluationComment, 'id' | 'created_at'>
+        Update: never // Immutable
+      }
+      worker_comments: {
+        Row: WorkerComment
+        Insert: Omit<WorkerComment, 'id' | 'created_at'>
         Update: never // Immutable
       }
       module_qualifiers: {
