@@ -228,29 +228,46 @@ export default async function WorkerProfilePage({
             </div>
           </div>
 
-          {/* Stats row */}
-          <CardContent className="p-0">
-            <div className="grid grid-cols-3 divide-x">
-              <div className="p-4 text-center">
-                <p className="text-2xl font-bold text-indigo-600">{evalCount ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Évaluations</p>
+          {/* Stats row — uniquement si profil métier attribué */}
+          {workerJobProfileId && (
+            <CardContent className="p-0">
+              <div className="grid grid-cols-3 divide-x">
+                <div className="p-4 text-center">
+                  <p className="text-2xl font-bold text-indigo-600">{evalCount ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Évaluations</p>
+                </div>
+                <div className="p-4 text-center">
+                  <p className="text-2xl font-bold text-indigo-600">{avgScore}%</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Score moyen</p>
+                </div>
+                <div className="p-4 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {modulesAboveExpected}/{modulesWithExpected}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Modules validés</p>
+                </div>
               </div>
-              <div className="p-4 text-center">
-                <p className="text-2xl font-bold text-indigo-600">{avgScore}%</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Score moyen</p>
-              </div>
-              <div className="p-4 text-center">
-                <p className="text-2xl font-bold text-emerald-600">
-                  {modulesAboveExpected}/{modulesWithExpected}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Modules validés</p>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
 
-        {/* Big radar chart - full width */}
-        {radarData.length > 0 ? (
+        {/* Contenu principal : dépend du profil métier */}
+        {!workerJobProfileId ? (
+          /* Pas de profil métier → message d'avertissement, pas d'évaluation possible */
+          <Card>
+            <CardContent className="py-16 text-center">
+              <Briefcase className="h-12 w-12 mx-auto mb-4 text-amber-400" />
+              <p className="text-lg font-medium text-foreground">Aucun profil métier attribué</p>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                Pour pouvoir évaluer ce collaborateur, vous devez d&apos;abord lui attribuer un profil métier
+                depuis la page de gestion des utilisateurs.
+              </p>
+              <p className="text-xs text-muted-foreground mt-3">
+                Les modules d&apos;évaluation sont définis dans chaque profil métier.
+              </p>
+            </CardContent>
+          </Card>
+        ) : radarData.length > 0 ? (
           <>
             <Card>
               <CardHeader className="pb-2">
@@ -322,17 +339,11 @@ export default async function WorkerProfilePage({
                 Ce collaborateur n&apos;a pas encore été évalué.
               </p>
               <div className="mt-4">
-                {workerJobProfileId ? (
-                  <StartEvaluationButton
-                    workerId={id}
-                    jobProfileId={workerJobProfileId}
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                  />
-                ) : (
-                  <p className="text-sm text-amber-600 font-medium">
-                    Attribuez d&apos;abord un profil métier pour pouvoir évaluer ce collaborateur.
-                  </p>
-                )}
+                <StartEvaluationButton
+                  workerId={id}
+                  jobProfileId={workerJobProfileId}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                />
               </div>
             </CardContent>
           </Card>
