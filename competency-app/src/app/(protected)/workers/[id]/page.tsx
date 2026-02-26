@@ -39,8 +39,7 @@ export default async function WorkerProfilePage({
     .select(`
       id, first_name, last_name, email, job_title, job_profile_id, role, created_at, avatar_url,
       location:locations(name),
-      manager:profiles!manager_id(first_name, last_name),
-      job_profile:job_profiles(id, name)
+      manager:profiles!manager_id(first_name, last_name)
     `)
     .eq('id', id)
     .eq('is_active', true)
@@ -50,8 +49,18 @@ export default async function WorkerProfilePage({
 
   const loc = worker.location as any
   const mgr = worker.manager as any
-  const workerJobProfile = worker.job_profile as any
   const workerJobProfileId: string | null = (worker as any).job_profile_id ?? null
+
+  // Récupérer le nom du profil métier séparément (évite un join FK qui peut échouer si le cache PostgREST n'est pas à jour)
+  let workerJobProfileName: string | null = null
+  if (workerJobProfileId) {
+    const { data: jp } = await supabase
+      .from('job_profiles')
+      .select('name')
+      .eq('id', workerJobProfileId)
+      .single()
+    workerJobProfileName = jp?.name ?? null
+  }
 
   // Chercher d'abord l'évaluation continue, sinon la dernière complétée
   let latestEval: any = null
@@ -91,7 +100,7 @@ export default async function WorkerProfilePage({
 
   let radarData: RadarDataPoint[] = []
   // Nom du profil métier : priorité au profil du collaborateur, fallback sur l'évaluation
-  const jobProfileName: string | null = workerJobProfile?.name ?? null
+  const jobProfileName: string | null = workerJobProfileName ?? null
 
   if (latestEval) {
 
