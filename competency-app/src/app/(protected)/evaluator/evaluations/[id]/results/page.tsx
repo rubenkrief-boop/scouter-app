@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Pencil, CheckCircle2, AlertTriangle, User } from 'lucide-react'
-import { CompetencyRadarChart } from '@/components/charts/radar-chart'
+import { ChartViewToggle } from '@/components/charts/chart-view-toggle'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ModuleSidebar } from '@/components/dashboard/module-sidebar'
@@ -197,10 +197,8 @@ export default async function EvaluationResultsPage({
           {/* HUGE Radar */}
           <Card className="border-0 shadow-sm">
             <CardContent className="p-2 pt-4">
-              <CompetencyRadarChart
+              <ChartViewToggle
                 data={radarData}
-                expectedLabel="Attendu"
-                actualLabel="Niveau actuel"
                 colors={chartColors}
                 fullSize
               />
