@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import type { RadarDataPoint } from '@/lib/types'
@@ -23,56 +23,33 @@ function fibonacciDirections(n: number): THREE.Vector3[] {
   return dirs
 }
 
-/** Color for the gap actual vs expected */
+/** Gap color: vivid, saturated */
 function gapColor(actual: number, expected: number): THREE.Color {
-  if (expected === 0) return new THREE.Color('#8b5cf6')
+  if (expected === 0) return new THREE.Color('#a78bfa')
   const ratio = actual / expected
-  if (ratio >= 1.0) return new THREE.Color('#22c55e') // green
-  if (ratio >= 0.8) return new THREE.Color('#eab308') // yellow
-  if (ratio >= 0.5) return new THREE.Color('#f97316') // orange
-  return new THREE.Color('#ef4444') // red
+  if (ratio >= 1.0) return new THREE.Color('#34d399')  // emerald
+  if (ratio >= 0.85) return new THREE.Color('#a3e635')  // lime
+  if (ratio >= 0.7) return new THREE.Color('#facc15')  // yellow
+  if (ratio >= 0.5) return new THREE.Color('#fb923c')  // orange
+  return new THREE.Color('#f87171') // red
 }
 
 function gapColorHex(actual: number, expected: number): string {
   return '#' + gapColor(actual, expected).getHexString()
 }
 
-/** Compute deformed radius for a given vertex direction based on data control points */
-function computeDeformedRadius(
-  vertexDir: THREE.Vector3,
-  controlDirs: THREE.Vector3[],
-  scores: number[],
-  baseRadius: number,
-  sigma: number,
-): number {
-  let totalW = 0
-  let weightedScore = 0
-
-  for (let j = 0; j < controlDirs.length; j++) {
-    const dot = vertexDir.dot(controlDirs[j])
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-    const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-    totalW += w
-    weightedScore += w * (scores[j] / 100)
-  }
-
-  const normalized = totalW > 0 ? weightedScore / totalW : 0.5
-  // Map 0..1 to 0.5..1.2 of baseRadius (more range for visibility)
-  return baseRadius * (0.5 + normalized * 0.7)
-}
-
 // ============================================
-// Deformed solid mesh with vertex colors
+// Crystal Sphere — solid, transparent, colorful
 // ============================================
 
-interface SolidShellProps {
+interface CrystalSphereProps {
   data: RadarDataPoint[]
   controlDirs: THREE.Vector3[]
   baseRadius: number
   type: 'actual' | 'expected'
 }
 
-function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
+function CrystalSphere({ data, controlDirs, baseRadius, type }: CrystalSphereProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const geoRef = useRef<THREE.IcosahedronGeometry>(null)
 
@@ -80,45 +57,47 @@ function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
     data.map(d => type === 'actual' ? d.actual : d.expected),
     [data, type]
   )
-
-  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
   const actualScores = useMemo(() => data.map(d => d.actual), [data])
+  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
 
-  // Wider influence for fewer control points
+  // Gaussian spread — wider for fewer points
   const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
-  // Deform geometry + apply vertex colors
   useEffect(() => {
     if (!geoRef.current) return
     const geo = geoRef.current
     const posAttr = geo.attributes.position
     const count = posAttr.count
 
-    // Add vertex colors
     const colors = new Float32Array(count * 3)
     const tempDir = new THREE.Vector3()
 
     for (let i = 0; i < count; i++) {
       tempDir.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).normalize()
 
-      const newR = computeDeformedRadius(tempDir, controlDirs, scores, baseRadius, sigma)
+      // Deform radius based on score
+      let totalW = 0
+      let weightedScore = 0
+      let wActual = 0
+      let wExpected = 0
+
+      for (let j = 0; j < controlDirs.length; j++) {
+        const dot = tempDir.dot(controlDirs[j])
+        const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
+        const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
+        totalW += w
+        weightedScore += w * (scores[j] / 100)
+        wActual += w * actualScores[j]
+        wExpected += w * expectedScores[j]
+      }
+
+      const normalized = totalW > 0 ? weightedScore / totalW : 0.5
+      const newR = baseRadius * (0.45 + normalized * 0.75)
 
       posAttr.setXYZ(i, tempDir.x * newR, tempDir.y * newR, tempDir.z * newR)
 
-      // Vertex colors for actual mesh: colored by gap
+      // Vertex colors
       if (type === 'actual') {
-        // Compute local actual and expected for this vertex
-        let totalW = 0
-        let wActual = 0
-        let wExpected = 0
-        for (let j = 0; j < controlDirs.length; j++) {
-          const dot = tempDir.dot(controlDirs[j])
-          const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-          const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-          totalW += w
-          wActual += w * actualScores[j]
-          wExpected += w * expectedScores[j]
-        }
         const localActual = totalW > 0 ? wActual / totalW : 0
         const localExpected = totalW > 0 ? wExpected / totalW : 70
         const c = gapColor(localActual, localExpected)
@@ -126,10 +105,11 @@ function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
         colors[i * 3 + 1] = c.g
         colors[i * 3 + 2] = c.b
       } else {
-        // Expected: uniform gray-purple
-        colors[i * 3] = 0.6
-        colors[i * 3 + 1] = 0.6
-        colors[i * 3 + 2] = 0.7
+        // Expected: soft blue-violet
+        const c = new THREE.Color('#a5b4fc')
+        colors[i * 3] = c.r
+        colors[i * 3 + 1] = c.g
+        colors[i * 3 + 2] = c.b
       }
     }
 
@@ -139,41 +119,45 @@ function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
   }, [data, controlDirs, scores, baseRadius, sigma, type, actualScores, expectedScores])
 
   if (type === 'expected') {
+    // Expected: sphère pleine, très transparente, comme un halo/enveloppe
     return (
       <mesh ref={meshRef}>
         <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
         <meshPhysicalMaterial
           vertexColors
           transparent
-          opacity={0.1}
-          wireframe
-          wireframeLinewidth={1}
+          opacity={0.12}
+          roughness={0.8}
           side={THREE.DoubleSide}
+          depthWrite={false}
         />
       </mesh>
     )
   }
 
-  // Actual: solid colored mesh
+  // Actual: sphère pleine, transparente colorée — effet crystal/glass
   return (
     <mesh ref={meshRef}>
       <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
       <meshPhysicalMaterial
         vertexColors
         transparent
-        opacity={0.75}
-        roughness={0.25}
+        opacity={0.55}
+        roughness={0.1}
         metalness={0.05}
         clearcoat={1}
-        clearcoatRoughness={0.15}
-        side={THREE.FrontSide}
+        clearcoatRoughness={0.05}
+        transmission={0.3}
+        thickness={1.5}
+        side={THREE.DoubleSide}
+        depthWrite={false}
       />
     </mesh>
   )
 }
 
 // ============================================
-// Module markers (labels at control points)
+// Module markers
 // ============================================
 
 interface ModuleMarkerProps {
@@ -190,32 +174,36 @@ interface ModuleMarkerProps {
 
 function ModuleMarker({
   point, direction, controlDirs, data, baseRadius, sigma,
-  index, isHovered, onHover
+  index, isHovered, onHover,
 }: ModuleMarkerProps) {
   const meshRef = useRef<THREE.Mesh>(null)
-
   const actualScores = useMemo(() => data.map(d => d.actual), [data])
   const expectedScores = useMemo(() => data.map(d => d.expected), [data])
 
-  // Position at the actual surface + slight offset outward
-  const actualR = useMemo(() =>
-    computeDeformedRadius(direction, controlDirs, actualScores, baseRadius, sigma),
-    [direction, controlDirs, actualScores, baseRadius, sigma]
-  )
-  const expectedR = useMemo(() =>
-    computeDeformedRadius(direction, controlDirs, expectedScores, baseRadius, sigma),
-    [direction, controlDirs, expectedScores, baseRadius, sigma]
-  )
+  // Position: just outside the larger of actual/expected surface
+  const markerR = useMemo(() => {
+    const computeR = (scores: number[]) => {
+      let totalW = 0
+      let ws = 0
+      for (let j = 0; j < controlDirs.length; j++) {
+        const dot = direction.dot(controlDirs[j])
+        const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
+        const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
+        totalW += w
+        ws += w * (scores[j] / 100)
+      }
+      const n = totalW > 0 ? ws / totalW : 0.5
+      return baseRadius * (0.45 + n * 0.75)
+    }
+    return Math.max(computeR(actualScores), computeR(expectedScores)) + 0.18
+  }, [direction, controlDirs, actualScores, expectedScores, baseRadius, sigma])
 
-  const markerR = Math.max(actualR, expectedR) + 0.12
   const position = useMemo(() => direction.clone().multiplyScalar(markerR), [direction, markerR])
-
   const color = useMemo(() => gapColorHex(point.actual, point.expected), [point.actual, point.expected])
 
-  // Pulse
   useFrame((state) => {
     if (meshRef.current) {
-      const s = isHovered ? 2 : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.7) * 0.15
+      const s = isHovered ? 2.2 : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.7) * 0.12
       meshRef.current.scale.setScalar(s)
     }
   })
@@ -226,43 +214,38 @@ function ModuleMarker({
 
   return (
     <group position={position}>
-      {/* Dot at surface */}
       <mesh
         ref={meshRef}
         onPointerEnter={(e) => { e.stopPropagation(); onHover(index) }}
         onPointerLeave={(e) => { e.stopPropagation(); onHover(null) }}
       >
-        <sphereGeometry args={[0.05, 12, 12]} />
+        <sphereGeometry args={[0.06, 12, 12]} />
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={isHovered ? 0.8 : 0.3}
+          emissiveIntensity={isHovered ? 1 : 0.4}
+          transparent
+          opacity={0.9}
         />
       </mesh>
 
-      {/* Code badge */}
-      <Html
-        center
-        distanceFactor={6}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >
-        <div className="text-center" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))' }}>
+      <Html center distanceFactor={6} style={{ pointerEvents: 'none', userSelect: 'none' }}>
+        <div className="text-center" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
           <div
             className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all duration-200"
             style={{
-              backgroundColor: isHovered ? color : 'rgba(255,255,255,0.92)',
+              backgroundColor: isHovered ? color : 'rgba(255,255,255,0.95)',
               color: isHovered ? '#fff' : '#374151',
               border: `1.5px solid ${color}`,
-              transform: isHovered ? 'scale(1.2) translateY(-4px)' : 'scale(1)',
+              transform: isHovered ? 'scale(1.25) translateY(-4px)' : 'scale(1)',
             }}
           >
             {code}
           </div>
 
-          {/* Tooltip on hover */}
           {isHovered && (
             <div
-              className="mt-2 bg-gray-900/95 text-white text-[10px] px-3 py-2.5 rounded-xl shadow-2xl border border-white/10 min-w-[170px]"
+              className="mt-2 bg-gray-900/95 text-white text-[10px] px-3 py-2.5 rounded-xl shadow-2xl border border-white/10 min-w-[180px]"
               style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.6))' }}
             >
               <p className="font-semibold text-[11px] mb-2 pb-1.5 border-b border-white/10">{name}</p>
@@ -286,7 +269,7 @@ function ModuleMarker({
                   </div>
                 </div>
                 <div className="flex justify-between pt-1.5 mt-1 border-t border-white/10">
-                  <span className="text-gray-400">Ecart</span>
+                  <span className="text-gray-400">Écart</span>
                   <span className={`font-bold ${point.actual >= point.expected ? 'text-green-400' : 'text-red-400'}`}>
                     {point.actual >= point.expected ? '+' : ''}{point.actual - point.expected}%
                   </span>
@@ -312,7 +295,6 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
   const controlDirs = useMemo(() => fibonacciDirections(data.length), [data.length])
   const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
-  // Auto-rotation, pause on hover
   useFrame((_, delta) => {
     if (groupRef.current && hoveredIndex === null) {
       groupRef.current.rotation.y += delta * 0.06
@@ -323,11 +305,12 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 8, 5]} intensity={0.6} />
-      <directionalLight position={[-4, -2, -6]} intensity={0.2} color="#c4b5fd" />
-      <pointLight position={[0, 0, 0]} intensity={0.15} color="#7c3aed" distance={6} />
+      {/* Rich lighting for glass effect */}
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 8, 5]} intensity={0.8} color="#ffffff" />
+      <directionalLight position={[-4, -3, -6]} intensity={0.4} color="#c4b5fd" />
+      <directionalLight position={[0, -5, 3]} intensity={0.25} color="#fbbf24" />
+      <pointLight position={[0, 0, 0]} intensity={0.3} color="#a78bfa" distance={5} />
 
       <OrbitControls
         enablePan={false}
@@ -339,11 +322,11 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
       />
 
       <group ref={groupRef}>
-        {/* Outer shell: EXPECTED (wireframe, translucent) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" />
+        {/* Expected: sphère pleine transparente (enveloppe) */}
+        <CrystalSphere data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" />
 
-        {/* Inner solid: ACTUAL (opaque, vertex-colored by gap) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" />
+        {/* Actual: sphère pleine colorée transparente (crystal) */}
+        <CrystalSphere data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" />
 
         {/* Module markers */}
         {data.map((point, i) => (
@@ -379,7 +362,7 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center text-muted-foreground" style={{ height }}>
-        Aucune donnee disponible
+        Aucune donnée disponible
       </div>
     )
   }
@@ -395,26 +378,26 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
       </Canvas>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-green-400 via-yellow-400 to-red-400 opacity-80" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score (solide)</span>
+          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 via-yellow-400 to-red-400 opacity-70" />
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score actuel</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm border-2 border-gray-400 border-dashed opacity-50" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu (fil de fer)</span>
+          <div className="w-4 h-4 rounded-full bg-indigo-300/30 border border-indigo-300/50" />
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu</span>
         </div>
         <div className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span className="text-[9px] text-gray-500">&ge; Attendu</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="text-[9px] text-gray-500">≥ Attendu</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-yellow-500" />
+          <span className="w-2 h-2 rounded-full bg-yellow-400" />
           <span className="text-[9px] text-gray-500">Proche</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="w-2 h-2 rounded-full bg-red-400" />
           <span className="text-[9px] text-gray-500">Insuffisant</span>
         </div>
       </div>
