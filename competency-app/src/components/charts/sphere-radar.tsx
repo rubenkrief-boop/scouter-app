@@ -10,7 +10,7 @@ import type { RadarDataPoint } from '@/lib/types'
 // Helpers
 // ============================================
 
-/** Distribute N control points on a sphere (Fibonacci) */
+/** Distribute N directions evenly on a sphere (Fibonacci spiral) */
 function fibonacciDirections(n: number): THREE.Vector3[] {
   const dirs: THREE.Vector3[] = []
   const goldenAngle = Math.PI * (3 - Math.sqrt(5))
@@ -23,45 +23,59 @@ function fibonacciDirections(n: number): THREE.Vector3[] {
   return dirs
 }
 
-/** Gap color: vivid, saturated */
+/** Gap color — vivid, saturated */
 function gapColor(actual: number, expected: number): THREE.Color {
   if (expected === 0) return new THREE.Color('#a78bfa')
   const ratio = actual / expected
-  if (ratio >= 1.0) return new THREE.Color('#34d399')  // emerald
-  if (ratio >= 0.85) return new THREE.Color('#a3e635')  // lime
-  if (ratio >= 0.7) return new THREE.Color('#facc15')  // yellow
-  if (ratio >= 0.5) return new THREE.Color('#fb923c')  // orange
-  return new THREE.Color('#f87171') // red
+  if (ratio >= 1.0) return new THREE.Color('#34d399')
+  if (ratio >= 0.85) return new THREE.Color('#a3e635')
+  if (ratio >= 0.7) return new THREE.Color('#facc15')
+  if (ratio >= 0.5) return new THREE.Color('#fb923c')
+  return new THREE.Color('#f87171')
 }
 
 function gapColorHex(actual: number, expected: number): string {
   return '#' + gapColor(actual, expected).getHexString()
 }
 
-// ============================================
-// Crystal Sphere — solid, transparent, colorful
-// ============================================
-
-interface CrystalSphereProps {
-  data: RadarDataPoint[]
-  controlDirs: THREE.Vector3[]
-  baseRadius: number
-  type: 'actual' | 'expected'
+/** Find nearest module index for a given direction on the sphere */
+function nearestModule(dir: THREE.Vector3, controlDirs: THREE.Vector3[]): { idx: number; secondIdx: number; edgeFactor: number } {
+  let bestDot = -2
+  let secondDot = -2
+  let idx = 0
+  let secondIdx = 0
+  for (let j = 0; j < controlDirs.length; j++) {
+    const d = dir.dot(controlDirs[j])
+    if (d > bestDot) {
+      secondDot = bestDot
+      secondIdx = idx
+      bestDot = d
+      idx = j
+    } else if (d > secondDot) {
+      secondDot = d
+      secondIdx = j
+    }
+  }
+  // edgeFactor: 0 = deep inside zone, 1 = exactly on border
+  const diff = bestDot - secondDot
+  const edgeFactor = Math.max(0, 1 - diff * 8)
+  return { idx, secondIdx, edgeFactor }
 }
 
-function CrystalSphere({ data, controlDirs, baseRadius, type }: CrystalSphereProps) {
+// ============================================
+// Voronoi Globe — perfect sphere, colored zones
+// ============================================
+
+interface VoronoiGlobeProps {
+  data: RadarDataPoint[]
+  controlDirs: THREE.Vector3[]
+  radius: number
+  hoveredIdx: number | null
+}
+
+function VoronoiGlobe({ data, controlDirs, radius, hoveredIdx }: VoronoiGlobeProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const geoRef = useRef<THREE.IcosahedronGeometry>(null)
-
-  const scores = useMemo(() =>
-    data.map(d => type === 'actual' ? d.actual : d.expected),
-    [data, type]
-  )
-  const actualScores = useMemo(() => data.map(d => d.actual), [data])
-  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
-
-  // Gaussian spread — wider for fewer points
-  const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
   useEffect(() => {
     if (!geoRef.current) return
@@ -75,82 +89,106 @@ function CrystalSphere({ data, controlDirs, baseRadius, type }: CrystalSpherePro
     for (let i = 0; i < count; i++) {
       tempDir.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).normalize()
 
-      // Deform radius based on score
-      let totalW = 0
-      let weightedScore = 0
-      let wActual = 0
-      let wExpected = 0
+      const { idx, edgeFactor } = nearestModule(tempDir, controlDirs)
+      const point = data[idx]
+      const zoneColor = gapColor(point.actual, point.expected)
 
-      for (let j = 0; j < controlDirs.length; j++) {
-        const dot = tempDir.dot(controlDirs[j])
-        const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-        const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-        totalW += w
-        weightedScore += w * (scores[j] / 100)
-        wActual += w * actualScores[j]
-        wExpected += w * expectedScores[j]
-      }
+      // Darken at zone boundaries for clear separation
+      const borderDarkening = 1 - edgeFactor * 0.7
 
-      const normalized = totalW > 0 ? weightedScore / totalW : 0.5
-      const newR = baseRadius * (0.45 + normalized * 0.75)
+      // Brighten hovered zone
+      const hoverBoost = hoveredIdx === idx ? 1.2 : 1.0
 
-      posAttr.setXYZ(i, tempDir.x * newR, tempDir.y * newR, tempDir.z * newR)
-
-      // Vertex colors
-      if (type === 'actual') {
-        const localActual = totalW > 0 ? wActual / totalW : 0
-        const localExpected = totalW > 0 ? wExpected / totalW : 70
-        const c = gapColor(localActual, localExpected)
-        colors[i * 3] = c.r
-        colors[i * 3 + 1] = c.g
-        colors[i * 3 + 2] = c.b
-      } else {
-        // Expected: soft blue-violet
-        const c = new THREE.Color('#a5b4fc')
-        colors[i * 3] = c.r
-        colors[i * 3 + 1] = c.g
-        colors[i * 3 + 2] = c.b
-      }
+      colors[i * 3] = Math.min(1, zoneColor.r * borderDarkening * hoverBoost)
+      colors[i * 3 + 1] = Math.min(1, zoneColor.g * borderDarkening * hoverBoost)
+      colors[i * 3 + 2] = Math.min(1, zoneColor.b * borderDarkening * hoverBoost)
     }
 
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    posAttr.needsUpdate = true
-    geo.computeVertexNormals()
-  }, [data, controlDirs, scores, baseRadius, sigma, type, actualScores, expectedScores])
+    geo.attributes.color.needsUpdate = true
+  }, [data, controlDirs, hoveredIdx])
 
-  if (type === 'expected') {
-    // Expected: sphère pleine, très transparente, comme un halo/enveloppe
-    return (
-      <mesh ref={meshRef}>
-        <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
-        <meshPhysicalMaterial
-          vertexColors
-          transparent
-          opacity={0.12}
-          roughness={0.8}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-    )
-  }
-
-  // Actual: sphère pleine, transparente colorée — effet crystal/glass
   return (
     <mesh ref={meshRef}>
-      <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
+      <icosahedronGeometry ref={geoRef} args={[radius, 6]} />
       <meshPhysicalMaterial
         vertexColors
         transparent
-        opacity={0.55}
-        roughness={0.1}
-        metalness={0.05}
+        opacity={0.65}
+        roughness={0.05}
+        metalness={0.0}
         clearcoat={1}
         clearcoatRoughness={0.05}
-        transmission={0.3}
-        thickness={1.5}
+        transmission={0.15}
+        thickness={2}
+        side={THREE.FrontSide}
+        envMapIntensity={1}
+      />
+    </mesh>
+  )
+}
+
+// ============================================
+// Inner reference sphere (expected level)
+// ============================================
+
+function ExpectedGlobe({ data, controlDirs, radius }: {
+  data: RadarDataPoint[]
+  controlDirs: THREE.Vector3[]
+  radius: number
+}) {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const geoRef = useRef<THREE.IcosahedronGeometry>(null)
+
+  useEffect(() => {
+    if (!geoRef.current) return
+    const geo = geoRef.current
+    const posAttr = geo.attributes.position
+    const count = posAttr.count
+    const tempDir = new THREE.Vector3()
+
+    // Deform inner sphere slightly per module's expected score
+    for (let i = 0; i < count; i++) {
+      tempDir.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).normalize()
+      const { idx } = nearestModule(tempDir, controlDirs)
+      const expectedRatio = data[idx].expected / 100
+      const r = radius * (0.3 + expectedRatio * 0.7)
+      posAttr.setXYZ(i, tempDir.x * r, tempDir.y * r, tempDir.z * r)
+    }
+
+    posAttr.needsUpdate = true
+    geo.computeVertexNormals()
+  }, [data, controlDirs, radius])
+
+  return (
+    <mesh ref={meshRef}>
+      <icosahedronGeometry ref={geoRef} args={[radius, 5]} />
+      <meshPhysicalMaterial
+        color="#a5b4fc"
+        transparent
+        opacity={0.08}
+        wireframe
+        wireframeLinewidth={1}
         side={THREE.DoubleSide}
         depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+// ============================================
+// Atmosphere glow (outer shell)
+// ============================================
+
+function AtmosphereGlow({ radius }: { radius: number }) {
+  return (
+    <mesh>
+      <sphereGeometry args={[radius * 1.02, 48, 48]} />
+      <meshBasicMaterial
+        color="#c4b5fd"
+        transparent
+        opacity={0.04}
+        side={THREE.BackSide}
       />
     </mesh>
   )
@@ -163,47 +201,24 @@ function CrystalSphere({ data, controlDirs, baseRadius, type }: CrystalSpherePro
 interface ModuleMarkerProps {
   point: RadarDataPoint
   direction: THREE.Vector3
-  controlDirs: THREE.Vector3[]
-  data: RadarDataPoint[]
-  baseRadius: number
-  sigma: number
+  radius: number
   index: number
   isHovered: boolean
   onHover: (index: number | null) => void
 }
 
-function ModuleMarker({
-  point, direction, controlDirs, data, baseRadius, sigma,
-  index, isHovered, onHover,
-}: ModuleMarkerProps) {
+function ModuleMarker({ point, direction, radius, index, isHovered, onHover }: ModuleMarkerProps) {
   const meshRef = useRef<THREE.Mesh>(null)
-  const actualScores = useMemo(() => data.map(d => d.actual), [data])
-  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
 
-  // Position: just outside the larger of actual/expected surface
-  const markerR = useMemo(() => {
-    const computeR = (scores: number[]) => {
-      let totalW = 0
-      let ws = 0
-      for (let j = 0; j < controlDirs.length; j++) {
-        const dot = direction.dot(controlDirs[j])
-        const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-        const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-        totalW += w
-        ws += w * (scores[j] / 100)
-      }
-      const n = totalW > 0 ? ws / totalW : 0.5
-      return baseRadius * (0.45 + n * 0.75)
-    }
-    return Math.max(computeR(actualScores), computeR(expectedScores)) + 0.18
-  }, [direction, controlDirs, actualScores, expectedScores, baseRadius, sigma])
-
-  const position = useMemo(() => direction.clone().multiplyScalar(markerR), [direction, markerR])
+  const position = useMemo(
+    () => direction.clone().multiplyScalar(radius + 0.2),
+    [direction, radius]
+  )
   const color = useMemo(() => gapColorHex(point.actual, point.expected), [point.actual, point.expected])
 
   useFrame((state) => {
     if (meshRef.current) {
-      const s = isHovered ? 2.2 : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.7) * 0.12
+      const s = isHovered ? 2.5 : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.7) * 0.1
       meshRef.current.scale.setScalar(s)
     }
   })
@@ -290,14 +305,13 @@ function ModuleMarker({
 function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: string; expected: string } }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const groupRef = useRef<THREE.Group>(null)
-  const baseRadius = 2
+  const radius = 2.2
 
   const controlDirs = useMemo(() => fibonacciDirections(data.length), [data.length])
-  const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
   useFrame((_, delta) => {
     if (groupRef.current && hoveredIndex === null) {
-      groupRef.current.rotation.y += delta * 0.06
+      groupRef.current.rotation.y += delta * 0.05
     }
   })
 
@@ -305,12 +319,12 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
 
   return (
     <>
-      {/* Rich lighting for glass effect */}
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[5, 8, 5]} intensity={0.8} color="#ffffff" />
-      <directionalLight position={[-4, -3, -6]} intensity={0.4} color="#c4b5fd" />
-      <directionalLight position={[0, -5, 3]} intensity={0.25} color="#fbbf24" />
-      <pointLight position={[0, 0, 0]} intensity={0.3} color="#a78bfa" distance={5} />
+      {/* Lighting for glass/crystal look */}
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[6, 8, 5]} intensity={1} color="#ffffff" />
+      <directionalLight position={[-5, -3, -5]} intensity={0.4} color="#ddd6fe" />
+      <directionalLight position={[0, -6, 4]} intensity={0.3} color="#fde68a" />
+      <pointLight position={[0, 0, 0]} intensity={0.2} color="#c4b5fd" distance={4} />
 
       <OrbitControls
         enablePan={false}
@@ -322,11 +336,14 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
       />
 
       <group ref={groupRef}>
-        {/* Expected: sphère pleine transparente (enveloppe) */}
-        <CrystalSphere data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" />
+        {/* Atmosphere glow */}
+        <AtmosphereGlow radius={radius} />
 
-        {/* Actual: sphère pleine colorée transparente (crystal) */}
-        <CrystalSphere data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" />
+        {/* Main globe: perfect sphere, colored zones */}
+        <VoronoiGlobe data={data} controlDirs={controlDirs} radius={radius} hoveredIdx={hoveredIndex} />
+
+        {/* Inner expected reference (subtle wireframe) */}
+        <ExpectedGlobe data={data} controlDirs={controlDirs} radius={radius * 0.95} />
 
         {/* Module markers */}
         {data.map((point, i) => (
@@ -334,10 +351,7 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
             key={i}
             point={point}
             direction={controlDirs[i]}
-            controlDirs={controlDirs}
-            data={data}
-            baseRadius={baseRadius}
-            sigma={sigma}
+            radius={radius}
             index={i}
             isHovered={hoveredIndex === i}
             onHover={handleHover}
@@ -381,30 +395,34 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 rounded-full bg-gradient-to-br from-emerald-400 via-yellow-400 to-red-400 opacity-70" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score actuel</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-full bg-indigo-300/30 border border-indigo-300/50" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu</span>
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score par zone</span>
         </div>
         <div className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
           <span className="text-[9px] text-gray-500">≥ Attendu</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-yellow-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-lime-400" />
           <span className="text-[9px] text-gray-500">Proche</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+          <span className="text-[9px] text-gray-500">En progrès</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+          <span className="text-[9px] text-gray-500">À travailler</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
           <span className="text-[9px] text-gray-500">Insuffisant</span>
         </div>
       </div>
 
       {/* Instructions */}
       <div className="absolute top-3 right-3 text-[10px] text-gray-400 dark:text-gray-500 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm rounded-lg px-3 py-1.5">
-        Cliquer-glisser pour tourner &bull; Molette pour zoomer
+        Cliquer-glisser pour tourner &bull; Molette pour zoomer &bull; Survoler une zone
       </div>
     </div>
   )
