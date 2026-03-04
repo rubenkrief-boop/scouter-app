@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Html } from '@react-three/drei'
+import { useRef, useState, useMemo, useCallback } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls, Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import type { RadarDataPoint } from '@/lib/types'
 
@@ -24,250 +24,235 @@ function fibonacciDirections(n: number): THREE.Vector3[] {
 }
 
 /** Color for the gap actual vs expected */
-function gapColor(actual: number, expected: number): THREE.Color {
-  if (expected === 0) return new THREE.Color('#8b5cf6')
-  const ratio = actual / expected
-  if (ratio >= 1.0) return new THREE.Color('#22c55e') // green
-  if (ratio >= 0.8) return new THREE.Color('#eab308') // yellow
-  if (ratio >= 0.5) return new THREE.Color('#f97316') // orange
-  return new THREE.Color('#ef4444') // red
-}
-
 function gapColorHex(actual: number, expected: number): string {
-  return '#' + gapColor(actual, expected).getHexString()
+  if (expected === 0) return '#8b5cf6'
+  const ratio = actual / expected
+  if (ratio >= 1.0) return '#22c55e' // green
+  if (ratio >= 0.8) return '#eab308' // yellow
+  if (ratio >= 0.5) return '#f97316' // orange
+  return '#ef4444' // red
 }
 
-/** Compute deformed radius for a given vertex direction based on data control points */
-function computeDeformedRadius(
-  vertexDir: THREE.Vector3,
-  controlDirs: THREE.Vector3[],
-  scores: number[],
-  baseRadius: number,
-  sigma: number,
-): number {
-  let totalW = 0
-  let weightedScore = 0
-
-  for (let j = 0; j < controlDirs.length; j++) {
-    const dot = vertexDir.dot(controlDirs[j])
-    const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-    const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-    totalW += w
-    weightedScore += w * (scores[j] / 100)
-  }
-
-  const normalized = totalW > 0 ? weightedScore / totalW : 0.5
-  // Map 0..1 to 0.5..1.2 of baseRadius (more range for visibility)
-  return baseRadius * (0.5 + normalized * 0.7)
+/** Lerp hex color */
+function lerpColor(a: string, b: string, t: number): string {
+  const ca = new THREE.Color(a)
+  const cb = new THREE.Color(b)
+  ca.lerp(cb, t)
+  return '#' + ca.getHexString()
 }
 
 // ============================================
-// Deformed solid mesh with vertex colors
+// Reference Sphere (wireframe grid)
 // ============================================
 
-interface SolidShellProps {
-  data: RadarDataPoint[]
-  controlDirs: THREE.Vector3[]
-  baseRadius: number
-  type: 'actual' | 'expected'
-  themeColors: { actual: string; expected: string }
-}
-
-function SolidShell({ data, controlDirs, baseRadius, type, themeColors }: SolidShellProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  const geoRef = useRef<THREE.IcosahedronGeometry>(null)
-
-  const scores = useMemo(() =>
-    data.map(d => type === 'actual' ? d.actual : d.expected),
-    [data, type]
-  )
-
-  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
-  const actualScores = useMemo(() => data.map(d => d.actual), [data])
-
-  // Wider influence for fewer control points
-  const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
-
-  // Deform geometry + apply vertex colors
-  useEffect(() => {
-    if (!geoRef.current) return
-    const geo = geoRef.current
-    const posAttr = geo.attributes.position
-    const count = posAttr.count
-
-    // Add vertex colors
-    const colors = new Float32Array(count * 3)
-    const tempDir = new THREE.Vector3()
-
-    for (let i = 0; i < count; i++) {
-      tempDir.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).normalize()
-
-      const newR = computeDeformedRadius(tempDir, controlDirs, scores, baseRadius, sigma)
-
-      posAttr.setXYZ(i, tempDir.x * newR, tempDir.y * newR, tempDir.z * newR)
-
-      // Vertex colors — use theme colors
-      if (type === 'actual') {
-        // Compute local actual and expected for intensity variation
-        let totalW = 0
-        let wActual = 0
-        let wExpected = 0
-        for (let j = 0; j < controlDirs.length; j++) {
-          const dot = tempDir.dot(controlDirs[j])
-          const angle = Math.acos(Math.max(-1, Math.min(1, dot)))
-          const w = Math.exp(-(angle * angle) / (2 * sigma * sigma))
-          totalW += w
-          wActual += w * actualScores[j]
-          wExpected += w * expectedScores[j]
-        }
-        const localActual = totalW > 0 ? wActual / totalW : 0
-        const localExpected = totalW > 0 ? wExpected / totalW : 70
-        // Base = theme actual color, darken/lighten based on score intensity
-        const base = new THREE.Color(themeColors.actual)
-        const intensity = localActual / 100 // 0 to 1
-        // Low scores = darker, high scores = lighter/saturated
-        const c = base.clone().multiplyScalar(0.4 + intensity * 0.8)
-        // If above expected, add slight green tint; if below, slight warm tint
-        if (localExpected > 0) {
-          const ratio = localActual / localExpected
-          if (ratio >= 1) c.lerp(new THREE.Color('#22c55e'), 0.2)
-          else if (ratio < 0.7) c.lerp(new THREE.Color('#ef4444'), 0.25)
-        }
-        colors[i * 3] = c.r
-        colors[i * 3 + 1] = c.g
-        colors[i * 3 + 2] = c.b
-      } else {
-        // Expected: use theme expected color
-        const ec = new THREE.Color(themeColors.expected)
-        colors[i * 3] = ec.r
-        colors[i * 3 + 1] = ec.g
-        colors[i * 3 + 2] = ec.b
-      }
-    }
-
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    posAttr.needsUpdate = true
-    geo.computeVertexNormals()
-  }, [data, controlDirs, scores, baseRadius, sigma, type, actualScores, expectedScores, themeColors])
-
-  if (type === 'expected') {
-    return (
-      <mesh ref={meshRef}>
-        <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
-        <meshPhysicalMaterial
-          vertexColors
+function ReferenceSphere({ radius, color }: { radius: number; color: string }) {
+  return (
+    <group>
+      {/* Very subtle wireframe sphere for spatial reference */}
+      <mesh>
+        <sphereGeometry args={[radius, 32, 32]} />
+        <meshBasicMaterial
+          color={color}
           transparent
-          opacity={0.1}
+          opacity={0.04}
           wireframe
-          wireframeLinewidth={1}
-          side={THREE.DoubleSide}
         />
       </mesh>
-    )
-  }
-
-  // Actual: solid colored mesh
-  return (
-    <mesh ref={meshRef}>
-      <icosahedronGeometry ref={geoRef} args={[baseRadius, 5]} />
-      <meshPhysicalMaterial
-        vertexColors
-        transparent
-        opacity={0.75}
-        roughness={0.25}
-        metalness={0.05}
-        clearcoat={1}
-        clearcoatRoughness={0.15}
-        side={THREE.FrontSide}
-      />
-    </mesh>
+      {/* Slight solid inner for glow effect */}
+      <mesh>
+        <sphereGeometry args={[radius * 0.15, 16, 16]} />
+        <meshStandardMaterial
+          color={color}
+          transparent
+          opacity={0.15}
+          emissive={color}
+          emissiveIntensity={0.5}
+        />
+      </mesh>
+    </group>
   )
 }
 
 // ============================================
-// Module markers (labels at control points)
+// Radial Bar (spike) for each module
 // ============================================
 
-interface ModuleMarkerProps {
+interface RadialBarProps {
   point: RadarDataPoint
   direction: THREE.Vector3
-  controlDirs: THREE.Vector3[]
-  data: RadarDataPoint[]
-  baseRadius: number
-  sigma: number
+  maxRadius: number
   index: number
   isHovered: boolean
   onHover: (index: number | null) => void
   themeColors: { actual: string; expected: string }
 }
 
-function ModuleMarker({
-  point, direction, controlDirs, data, baseRadius, sigma,
-  index, isHovered, onHover, themeColors
-}: ModuleMarkerProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
+function RadialBar({
+  point, direction, maxRadius, index, isHovered, onHover, themeColors
+}: RadialBarProps) {
+  const barRef = useRef<THREE.Group>(null)
+  const glowRef = useRef<THREE.Mesh>(null)
 
-  const actualScores = useMemo(() => data.map(d => d.actual), [data])
-  const expectedScores = useMemo(() => data.map(d => d.expected), [data])
+  // Compute bar geometry
+  const actualLength = (point.actual / 100) * maxRadius
+  const expectedLength = (point.expected / 100) * maxRadius
+  const barThickness = 0.06
 
-  // Position at the actual surface + slight offset outward
-  const actualR = useMemo(() =>
-    computeDeformedRadius(direction, controlDirs, actualScores, baseRadius, sigma),
-    [direction, controlDirs, actualScores, baseRadius, sigma]
+  // Gap-based color
+  const barColor = useMemo(() => {
+    const gap = gapColorHex(point.actual, point.expected)
+    // Blend with theme actual color
+    return lerpColor(gap, themeColors.actual, 0.3)
+  }, [point.actual, point.expected, themeColors.actual])
+
+  // Orientation: align cylinder along direction
+  const quaternion = useMemo(() => {
+    const q = new THREE.Quaternion()
+    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction)
+    return q
+  }, [direction])
+
+  // Bar center position (cylinder is centered, so offset by half length)
+  const actualCenter = useMemo(
+    () => direction.clone().multiplyScalar(actualLength / 2),
+    [direction, actualLength]
   )
-  const expectedR = useMemo(() =>
-    computeDeformedRadius(direction, controlDirs, expectedScores, baseRadius, sigma),
-    [direction, controlDirs, expectedScores, baseRadius, sigma]
+
+  const expectedCenter = useMemo(
+    () => direction.clone().multiplyScalar(expectedLength / 2),
+    [direction, expectedLength]
   )
 
-  const markerR = Math.max(actualR, expectedR) + 0.12
-  const position = useMemo(() => direction.clone().multiplyScalar(markerR), [direction, markerR])
+  // Label position (tip of the longer bar + offset)
+  const labelPos = useMemo(() => {
+    const tipR = Math.max(actualLength, expectedLength) + 0.25
+    return direction.clone().multiplyScalar(tipR)
+  }, [direction, actualLength, expectedLength])
 
-  // Use the module's own color if available, otherwise theme actual color
-  const color = useMemo(() => point.moduleColor || themeColors.actual, [point.moduleColor, themeColors.actual])
+  // Expected ring position (at the expected height along the direction)
+  const expectedRingPos = useMemo(
+    () => direction.clone().multiplyScalar(expectedLength),
+    [direction, expectedLength]
+  )
 
-  // Pulse
+  // Pulse animation
   useFrame((state) => {
-    if (meshRef.current) {
-      const s = isHovered ? 2 : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.7) * 0.15
-      meshRef.current.scale.setScalar(s)
+    if (glowRef.current) {
+      const pulse = isHovered
+        ? 1.8
+        : 1 + Math.sin(state.clock.elapsedTime * 2 + index * 0.5) * 0.15
+      glowRef.current.scale.setScalar(pulse)
     }
   })
 
+  // Parse module name
   const parts = point.module.split(' - ')
   const code = parts[0]?.trim() || ''
   const name = parts[1]?.trim() || parts[0]?.trim()
 
   return (
-    <group position={position}>
-      {/* Dot at surface */}
+    <group ref={barRef}>
+      {/* === Actual score bar (solid, rounded) === */}
       <mesh
-        ref={meshRef}
+        position={actualCenter}
+        quaternion={quaternion}
         onPointerEnter={(e) => { e.stopPropagation(); onHover(index) }}
         onPointerLeave={(e) => { e.stopPropagation(); onHover(null) }}
       >
-        <sphereGeometry args={[0.05, 12, 12]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={isHovered ? 0.8 : 0.3}
+        <cylinderGeometry args={[
+          isHovered ? barThickness * 1.5 : barThickness,
+          isHovered ? barThickness * 1.8 : barThickness * 1.2,
+          actualLength,
+          8,
+          1
+        ]} />
+        <meshPhysicalMaterial
+          color={barColor}
+          emissive={barColor}
+          emissiveIntensity={isHovered ? 0.6 : 0.2}
+          transparent
+          opacity={isHovered ? 0.95 : 0.85}
+          roughness={0.3}
+          metalness={0.1}
+          clearcoat={0.8}
         />
       </mesh>
 
-      {/* Code badge */}
+      {/* === Expected level: translucent outer cylinder === */}
+      <mesh
+        position={expectedCenter}
+        quaternion={quaternion}
+      >
+        <cylinderGeometry args={[
+          barThickness * 2.5,
+          barThickness * 2.5,
+          expectedLength,
+          8,
+          1
+        ]} />
+        <meshBasicMaterial
+          color={themeColors.expected}
+          transparent
+          opacity={isHovered ? 0.15 : 0.07}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* === Expected ring marker (torus at the expected height) === */}
+      <mesh
+        position={expectedRingPos}
+        quaternion={quaternion}
+      >
+        <torusGeometry args={[barThickness * 3, 0.015, 8, 24]} />
+        <meshStandardMaterial
+          color={themeColors.expected}
+          emissive={themeColors.expected}
+          emissiveIntensity={0.3}
+          transparent
+          opacity={isHovered ? 0.9 : 0.5}
+        />
+      </mesh>
+
+      {/* === Tip glow dot === */}
+      <mesh
+        ref={glowRef}
+        position={direction.clone().multiplyScalar(actualLength)}
+      >
+        <sphereGeometry args={[0.04, 12, 12]} />
+        <meshStandardMaterial
+          color={barColor}
+          emissive={barColor}
+          emissiveIntensity={isHovered ? 1.2 : 0.5}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+
+      {/* === Base anchor point (small sphere at origin along direction) === */}
+      <mesh position={direction.clone().multiplyScalar(0.05)}>
+        <sphereGeometry args={[0.03, 8, 8]} />
+        <meshStandardMaterial
+          color={barColor}
+          transparent
+          opacity={0.6}
+        />
+      </mesh>
+
+      {/* === Module label === */}
       <Html
+        position={labelPos}
         center
         distanceFactor={6}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
-        <div className="text-center" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))' }}>
+        <div className="text-center" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }}>
           <div
             className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all duration-200"
             style={{
-              backgroundColor: isHovered ? color : 'rgba(255,255,255,0.92)',
+              backgroundColor: isHovered ? barColor : 'rgba(255,255,255,0.92)',
               color: isHovered ? '#fff' : '#374151',
-              border: `1.5px solid ${color}`,
-              transform: isHovered ? 'scale(1.2) translateY(-4px)' : 'scale(1)',
+              border: `1.5px solid ${barColor}`,
+              transform: isHovered ? 'scale(1.3) translateY(-4px)' : 'scale(1)',
             }}
           >
             {code}
@@ -276,7 +261,7 @@ function ModuleMarker({
           {/* Tooltip on hover */}
           {isHovered && (
             <div
-              className="mt-2 bg-gray-900/95 text-white text-[10px] px-3 py-2.5 rounded-xl shadow-2xl border border-white/10 min-w-[170px]"
+              className="mt-2 bg-gray-900/95 text-white text-[10px] px-3 py-2.5 rounded-xl shadow-2xl border border-white/10 min-w-[180px]"
               style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.6))' }}
             >
               <p className="font-semibold text-[11px] mb-2 pb-1.5 border-b border-white/10">{name}</p>
@@ -285,22 +270,30 @@ function ModuleMarker({
                   <span className="text-gray-400">Score</span>
                   <div className="flex items-center gap-1.5">
                     <div className="w-14 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${point.actual}%`, backgroundColor: color }} />
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${point.actual}%`, backgroundColor: barColor }}
+                      />
                     </div>
-                    <span className="font-bold min-w-[32px] text-right" style={{ color }}>{point.actual}%</span>
+                    <span className="font-bold min-w-[32px] text-right" style={{ color: barColor }}>
+                      {point.actual}%
+                    </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Attendu</span>
                   <div className="flex items-center gap-1.5">
                     <div className="w-14 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-gray-400" style={{ width: `${point.expected}%` }} />
+                      <div
+                        className="h-full rounded-full bg-gray-400"
+                        style={{ width: `${point.expected}%` }}
+                      />
                     </div>
                     <span className="text-gray-300 min-w-[32px] text-right">{point.expected}%</span>
                   </div>
                 </div>
                 <div className="flex justify-between pt-1.5 mt-1 border-t border-white/10">
-                  <span className="text-gray-400">Ecart</span>
+                  <span className="text-gray-400">Écart</span>
                   <span className={`font-bold ${point.actual >= point.expected ? 'text-green-400' : 'text-red-400'}`}>
                     {point.actual >= point.expected ? '+' : ''}{point.actual - point.expected}%
                   </span>
@@ -315,13 +308,38 @@ function ModuleMarker({
 }
 
 // ============================================
+// Connection Lines (from center to bar tips)
+// ============================================
+
+function ConnectionLine({
+  direction, actualLength, color
+}: {
+  direction: THREE.Vector3; actualLength: number; color: string
+}) {
+  const points = useMemo(() => [
+    new THREE.Vector3(0, 0, 0),
+    direction.clone().multiplyScalar(actualLength)
+  ], [direction, actualLength])
+
+  return (
+    <Line
+      points={points}
+      color={color}
+      lineWidth={0.5}
+      transparent
+      opacity={0.12}
+    />
+  )
+}
+
+// ============================================
 // Scene
 // ============================================
 
 function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: string; expected: string } }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const groupRef = useRef<THREE.Group>(null)
-  const baseRadius = 2
+  const maxRadius = 2.5
 
   // Resolve theme colors with defaults
   const themeColors = useMemo(() => ({
@@ -330,12 +348,11 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
   }), [colors])
 
   const controlDirs = useMemo(() => fibonacciDirections(data.length), [data.length])
-  const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
   // Auto-rotation, pause on hover
   useFrame((_, delta) => {
     if (groupRef.current && hoveredIndex === null) {
-      groupRef.current.rotation.y += delta * 0.06
+      groupRef.current.rotation.y += delta * 0.08
     }
   })
 
@@ -344,37 +361,41 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
   return (
     <>
       {/* Lighting */}
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 8, 5]} intensity={0.6} />
-      <directionalLight position={[-4, -2, -6]} intensity={0.2} color={themeColors.actual} />
-      <pointLight position={[0, 0, 0]} intensity={0.15} color={themeColors.actual} distance={6} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 5]} intensity={0.7} />
+      <directionalLight position={[-4, -2, -6]} intensity={0.25} color="#c4b5fd" />
+      <pointLight position={[0, 0, 0]} intensity={0.3} color={themeColors.actual} distance={8} />
 
       <OrbitControls
         enablePan={false}
         minDistance={3.5}
-        maxDistance={10}
+        maxDistance={12}
         enableDamping
         dampingFactor={0.05}
         rotateSpeed={0.5}
       />
 
       <group ref={groupRef}>
-        {/* Outer shell: EXPECTED (wireframe, translucent) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" themeColors={themeColors} />
+        {/* Reference sphere (subtle wireframe grid) */}
+        <ReferenceSphere radius={maxRadius} color={themeColors.expected} />
 
-        {/* Inner solid: ACTUAL (opaque, themed color) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" themeColors={themeColors} />
-
-        {/* Module markers */}
+        {/* Connection lines from center to tips */}
         {data.map((point, i) => (
-          <ModuleMarker
+          <ConnectionLine
+            key={`line-${i}`}
+            direction={controlDirs[i]}
+            actualLength={(point.actual / 100) * maxRadius}
+            color={themeColors.actual}
+          />
+        ))}
+
+        {/* Radial bars (spikes) for each module */}
+        {data.map((point, i) => (
+          <RadialBar
             key={i}
             point={point}
             direction={controlDirs[i]}
-            controlDirs={controlDirs}
-            data={data}
-            baseRadius={baseRadius}
-            sigma={sigma}
+            maxRadius={maxRadius}
             index={i}
             isHovered={hoveredIndex === i}
             onHover={handleHover}
@@ -400,7 +421,7 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center text-muted-foreground" style={{ height }}>
-        Aucune donnee disponible
+        Aucune donnée disponible
       </div>
     )
   }
@@ -408,7 +429,7 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
   return (
     <div className="relative" style={{ height }}>
       <Canvas
-        camera={{ position: [0, 1.5, 5.5], fov: 50 }}
+        camera={{ position: [0, 2, 6], fov: 50 }}
         style={{ background: 'transparent' }}
         gl={{ antialias: true, alpha: true }}
       >
@@ -418,12 +439,20 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
       {/* Legend */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-4 h-3 rounded-sm" style={{ backgroundColor: colors?.actual || '#7c3aed' }} />
+          <span className="inline-block w-1.5 h-4 rounded-full" style={{ backgroundColor: colors?.actual || '#7c3aed' }} />
           <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Niveau actuel</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block w-4 h-3 rounded-sm border-2 border-dashed" style={{ borderColor: colors?.expected || '#9ca3af' }} />
+          <span className="inline-block w-4 h-4 rounded-full border-2 border-dashed" style={{ borderColor: colors?.expected || '#9ca3af' }} />
           <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu</span>
+        </div>
+        <div className="flex items-center gap-1.5 ml-2 pl-3 border-l border-gray-200 dark:border-gray-700">
+          <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+          <span className="text-[9px] text-gray-500 dark:text-gray-400">≥ Attendu</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+          <span className="text-[9px] text-gray-500 dark:text-gray-400">&lt; Attendu</span>
         </div>
       </div>
 
