@@ -70,9 +70,10 @@ interface SolidShellProps {
   controlDirs: THREE.Vector3[]
   baseRadius: number
   type: 'actual' | 'expected'
+  themeColors: { actual: string; expected: string }
 }
 
-function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
+function SolidShell({ data, controlDirs, baseRadius, type, themeColors }: SolidShellProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const geoRef = useRef<THREE.IcosahedronGeometry>(null)
 
@@ -105,9 +106,9 @@ function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
 
       posAttr.setXYZ(i, tempDir.x * newR, tempDir.y * newR, tempDir.z * newR)
 
-      // Vertex colors for actual mesh: colored by gap
+      // Vertex colors — use theme colors
       if (type === 'actual') {
-        // Compute local actual and expected for this vertex
+        // Compute local actual and expected for intensity variation
         let totalW = 0
         let wActual = 0
         let wExpected = 0
@@ -121,22 +122,33 @@ function SolidShell({ data, controlDirs, baseRadius, type }: SolidShellProps) {
         }
         const localActual = totalW > 0 ? wActual / totalW : 0
         const localExpected = totalW > 0 ? wExpected / totalW : 70
-        const c = gapColor(localActual, localExpected)
+        // Base = theme actual color, darken/lighten based on score intensity
+        const base = new THREE.Color(themeColors.actual)
+        const intensity = localActual / 100 // 0 to 1
+        // Low scores = darker, high scores = lighter/saturated
+        const c = base.clone().multiplyScalar(0.4 + intensity * 0.8)
+        // If above expected, add slight green tint; if below, slight warm tint
+        if (localExpected > 0) {
+          const ratio = localActual / localExpected
+          if (ratio >= 1) c.lerp(new THREE.Color('#22c55e'), 0.2)
+          else if (ratio < 0.7) c.lerp(new THREE.Color('#ef4444'), 0.25)
+        }
         colors[i * 3] = c.r
         colors[i * 3 + 1] = c.g
         colors[i * 3 + 2] = c.b
       } else {
-        // Expected: uniform gray-purple
-        colors[i * 3] = 0.6
-        colors[i * 3 + 1] = 0.6
-        colors[i * 3 + 2] = 0.7
+        // Expected: use theme expected color
+        const ec = new THREE.Color(themeColors.expected)
+        colors[i * 3] = ec.r
+        colors[i * 3 + 1] = ec.g
+        colors[i * 3 + 2] = ec.b
       }
     }
 
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     posAttr.needsUpdate = true
     geo.computeVertexNormals()
-  }, [data, controlDirs, scores, baseRadius, sigma, type, actualScores, expectedScores])
+  }, [data, controlDirs, scores, baseRadius, sigma, type, actualScores, expectedScores, themeColors])
 
   if (type === 'expected') {
     return (
@@ -186,11 +198,12 @@ interface ModuleMarkerProps {
   index: number
   isHovered: boolean
   onHover: (index: number | null) => void
+  themeColors: { actual: string; expected: string }
 }
 
 function ModuleMarker({
   point, direction, controlDirs, data, baseRadius, sigma,
-  index, isHovered, onHover
+  index, isHovered, onHover, themeColors
 }: ModuleMarkerProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
@@ -210,7 +223,8 @@ function ModuleMarker({
   const markerR = Math.max(actualR, expectedR) + 0.12
   const position = useMemo(() => direction.clone().multiplyScalar(markerR), [direction, markerR])
 
-  const color = useMemo(() => gapColorHex(point.actual, point.expected), [point.actual, point.expected])
+  // Use the module's own color if available, otherwise theme actual color
+  const color = useMemo(() => point.moduleColor || themeColors.actual, [point.moduleColor, themeColors.actual])
 
   // Pulse
   useFrame((state) => {
@@ -309,6 +323,12 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
   const groupRef = useRef<THREE.Group>(null)
   const baseRadius = 2
 
+  // Resolve theme colors with defaults
+  const themeColors = useMemo(() => ({
+    actual: colors?.actual || '#7c3aed',
+    expected: colors?.expected || '#9ca3af',
+  }), [colors])
+
   const controlDirs = useMemo(() => fibonacciDirections(data.length), [data.length])
   const sigma = useMemo(() => Math.PI / Math.max(data.length * 0.35, 2.5), [data.length])
 
@@ -326,8 +346,8 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
       {/* Lighting */}
       <ambientLight intensity={0.5} />
       <directionalLight position={[5, 8, 5]} intensity={0.6} />
-      <directionalLight position={[-4, -2, -6]} intensity={0.2} color="#c4b5fd" />
-      <pointLight position={[0, 0, 0]} intensity={0.15} color="#7c3aed" distance={6} />
+      <directionalLight position={[-4, -2, -6]} intensity={0.2} color={themeColors.actual} />
+      <pointLight position={[0, 0, 0]} intensity={0.15} color={themeColors.actual} distance={6} />
 
       <OrbitControls
         enablePan={false}
@@ -340,10 +360,10 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
 
       <group ref={groupRef}>
         {/* Outer shell: EXPECTED (wireframe, translucent) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" />
+        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="expected" themeColors={themeColors} />
 
-        {/* Inner solid: ACTUAL (opaque, vertex-colored by gap) */}
-        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" />
+        {/* Inner solid: ACTUAL (opaque, themed color) */}
+        <SolidShell data={data} controlDirs={controlDirs} baseRadius={baseRadius} type="actual" themeColors={themeColors} />
 
         {/* Module markers */}
         {data.map((point, i) => (
@@ -358,6 +378,7 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
             index={i}
             isHovered={hoveredIndex === i}
             onHover={handleHover}
+            themeColors={themeColors}
           />
         ))}
       </group>
@@ -395,27 +416,14 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
       </Canvas>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-green-400 via-yellow-400 to-red-400 opacity-80" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score (solide)</span>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-5 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-3 rounded-sm" style={{ backgroundColor: colors?.actual || '#7c3aed' }} />
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Niveau actuel</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm border-2 border-gray-400 border-dashed opacity-50" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu (fil de fer)</span>
-        </div>
-        <div className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span className="text-[9px] text-gray-500">&ge; Attendu</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-yellow-500" />
-          <span className="text-[9px] text-gray-500">Proche</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-[9px] text-gray-500">Insuffisant</span>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-3 rounded-sm border-2 border-dashed" style={{ borderColor: colors?.expected || '#9ca3af' }} />
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu</span>
         </div>
       </div>
 
