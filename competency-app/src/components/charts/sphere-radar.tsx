@@ -36,18 +36,13 @@ function gapColorHex(actual: number, expected: number): string {
   return '#' + gapColor(actual, expected).getHexString()
 }
 
-/**
- * Sharp deformation: each vertex is assigned to its nearest module (Voronoi).
- * Score drives the radius — creates pointy/faceted spikes per module.
- * Minimal blending at zone edges for a smooth-but-still-sharp look.
- */
+/** Deform vertex for the expected outer shell (kept from previous version) */
 function deformVertex(
   dir: THREE.Vector3,
   controlDirs: THREE.Vector3[],
   scores: number[],
   baseRadius: number,
 ): { radius: number; moduleIdx: number } {
-  // Find the two nearest modules
   let best = -2, second = -2
   let bestIdx = 0, secondIdx = 0
   for (let j = 0; j < controlDirs.length; j++) {
@@ -63,136 +58,215 @@ function deformVertex(
   const bestScore = scores[bestIdx] / 100
   const secondScore = scores[secondIdx] / 100
 
-  // Sharp blend: only blend in a narrow band at zone borders
   const gap = best - second
-  const blendZone = 0.08 // Very narrow blend zone — keeps it spiky
-  let t: number
-  if (gap > blendZone) {
-    t = 1 // Fully in the best zone — sharp
-  } else {
-    t = gap / blendZone // Smooth transition only right at the edge
-  }
-
+  const blendZone = 0.08
+  const t = gap > blendZone ? 1 : gap / blendZone
   const score = bestScore * t + secondScore * (1 - t)
-  // Score maps: 0% → 40% radius, 100% → 115% radius (spiky range)
   const r = baseRadius * (0.4 + score * 0.75)
 
   return { radius: r, moduleIdx: bestIdx }
 }
 
 // ============================================
-// Faceted Shell (spiky, crystalline)
+// OUTER: Expected Shell (transparent — user approved ✓)
 // ============================================
 
-interface FacetedShellProps {
+interface ExpectedShellProps {
   data: RadarDataPoint[]
   controlDirs: THREE.Vector3[]
   baseRadius: number
-  type: 'actual' | 'expected'
   hoveredIdx: number | null
 }
 
-function FacetedShell({ data, controlDirs, baseRadius, type, hoveredIdx }: FacetedShellProps) {
+function ExpectedShell({ data, controlDirs, baseRadius, hoveredIdx }: ExpectedShellProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const geoRef = useRef<THREE.IcosahedronGeometry>(null)
 
-  const scores = useMemo(() =>
-    data.map(d => type === 'actual' ? d.actual : d.expected),
-    [data, type]
-  )
+  const scores = useMemo(() => data.map(d => d.expected), [data])
 
   useEffect(() => {
     if (!geoRef.current) return
     const geo = geoRef.current
     const posAttr = geo.attributes.position
     const count = posAttr.count
-
     const vertColors = new Float32Array(count * 3)
     const tempDir = new THREE.Vector3()
 
     for (let i = 0; i < count; i++) {
       tempDir.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).normalize()
-
       const { radius, moduleIdx } = deformVertex(tempDir, controlDirs, scores, baseRadius)
-
       posAttr.setXYZ(i, tempDir.x * radius, tempDir.y * radius, tempDir.z * radius)
 
-      if (type === 'actual') {
-        // Color by gap
-        const pt = data[moduleIdx]
-        const c = gapColor(pt.actual, pt.expected)
-        // Brighten on hover
-        const boost = hoveredIdx === moduleIdx ? 1.3 : 1.0
-        vertColors[i * 3] = Math.min(1, c.r * boost)
-        vertColors[i * 3 + 1] = Math.min(1, c.g * boost)
-        vertColors[i * 3 + 2] = Math.min(1, c.b * boost)
-      } else {
-        // Expected: soft lavender
-        const isHov = hoveredIdx === moduleIdx
-        vertColors[i * 3] = isHov ? 0.75 : 0.7
-        vertColors[i * 3 + 1] = isHov ? 0.72 : 0.68
-        vertColors[i * 3 + 2] = isHov ? 0.95 : 0.88
-      }
+      const isHov = hoveredIdx === moduleIdx
+      vertColors[i * 3] = isHov ? 0.75 : 0.7
+      vertColors[i * 3 + 1] = isHov ? 0.72 : 0.68
+      vertColors[i * 3 + 2] = isHov ? 0.95 : 0.88
     }
 
     geo.setAttribute('color', new THREE.BufferAttribute(vertColors, 3))
     posAttr.needsUpdate = true
     geo.computeVertexNormals()
-  }, [data, controlDirs, scores, baseRadius, type, hoveredIdx])
+  }, [data, controlDirs, scores, baseRadius, hoveredIdx])
 
-  if (type === 'expected') {
-    // OUTER: transparent glass shell — attendus
-    return (
-      <group>
-        {/* Solid transparent shell */}
-        <mesh ref={meshRef}>
-          <icosahedronGeometry ref={geoRef} args={[baseRadius, 3]} />
-          <meshPhysicalMaterial
-            vertexColors
-            transparent
-            opacity={0.12}
-            roughness={0.05}
-            metalness={0}
-            clearcoat={1}
-            clearcoatRoughness={0}
-            side={THREE.DoubleSide}
-            depthWrite={false}
-          />
-        </mesh>
-        {/* Wireframe edges for structure */}
-        <mesh>
-          <icosahedronGeometry args={[baseRadius, 3]} />
-          <meshBasicMaterial
-            color="#a5b4fc"
-            transparent
-            opacity={0.18}
-            wireframe
-          />
-        </mesh>
-      </group>
-    )
-  }
-
-  // INNER: opaque crystalline actual scores
   return (
-    <mesh ref={meshRef}>
-      <icosahedronGeometry ref={geoRef} args={[baseRadius, 3]} />
-      <meshPhysicalMaterial
-        vertexColors
+    <group>
+      <mesh ref={meshRef}>
+        <icosahedronGeometry ref={geoRef} args={[baseRadius, 3]} />
+        <meshPhysicalMaterial
+          vertexColors
+          transparent
+          opacity={0.12}
+          roughness={0.05}
+          metalness={0}
+          clearcoat={1}
+          clearcoatRoughness={0}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh>
+        <icosahedronGeometry args={[baseRadius, 3]} />
+        <meshBasicMaterial color="#a5b4fc" transparent opacity={0.18} wireframe />
+      </mesh>
+    </group>
+  )
+}
+
+// ============================================
+// INNER: Crystal Spike (one per module)
+// ============================================
+
+interface CrystalSpikeProps {
+  point: RadarDataPoint
+  direction: THREE.Vector3
+  maxLength: number
+  index: number
+  isHovered: boolean
+  onHover: (index: number | null) => void
+}
+
+function CrystalSpike({ point, direction, maxLength, index, isHovered, onHover }: CrystalSpikeProps) {
+  const groupRef = useRef<THREE.Group>(null)
+
+  const color = useMemo(() => gapColorHex(point.actual, point.expected), [point.actual, point.expected])
+  const colorObj = useMemo(() => gapColor(point.actual, point.expected), [point.actual, point.expected])
+
+  // Spike length proportional to actual score
+  const spikeLength = (point.actual / 100) * maxLength
+  // Base width — tapers to a point
+  const baseWidth = 0.12 + (point.actual / 100) * 0.06
+
+  // Orientation: align Y axis of cone along direction
+  const quaternion = useMemo(() => {
+    const q = new THREE.Quaternion()
+    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction)
+    return q
+  }, [direction])
+
+  // Position: cone centered at half its length along direction
+  const position = useMemo(
+    () => direction.clone().multiplyScalar(spikeLength / 2),
+    [direction, spikeLength]
+  )
+
+  // Subtle pulse
+  useFrame((state) => {
+    if (groupRef.current) {
+      const pulse = isHovered ? 1.08 : 1 + Math.sin(state.clock.elapsedTime * 1.5 + index * 0.9) * 0.02
+      groupRef.current.scale.setScalar(pulse)
+    }
+  })
+
+  return (
+    <group ref={groupRef}>
+      {/* Main crystal spike — faceted cone (5 sides = pentagonal crystal) */}
+      <mesh
+        position={position}
+        quaternion={quaternion}
+        onPointerEnter={(e) => { e.stopPropagation(); onHover(index) }}
+        onPointerLeave={(e) => { e.stopPropagation(); onHover(null) }}
+      >
+        <coneGeometry args={[baseWidth, spikeLength, 5, 1]} />
+        <meshPhysicalMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={isHovered ? 0.5 : 0.15}
+          transparent
+          opacity={isHovered ? 0.88 : 0.75}
+          roughness={0.08}
+          metalness={0.15}
+          clearcoat={1}
+          clearcoatRoughness={0.05}
+          side={THREE.FrontSide}
+        />
+      </mesh>
+
+      {/* Secondary smaller crystal alongside (for natural crystal cluster look) */}
+      <mesh
+        position={direction.clone().multiplyScalar(spikeLength * 0.35).add(
+          new THREE.Vector3(direction.y, -direction.x, direction.z).normalize().multiplyScalar(0.08)
+        )}
+        quaternion={quaternion}
+      >
+        <coneGeometry args={[baseWidth * 0.5, spikeLength * 0.55, 4, 1]} />
+        <meshPhysicalMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={isHovered ? 0.4 : 0.1}
+          transparent
+          opacity={isHovered ? 0.75 : 0.6}
+          roughness={0.1}
+          metalness={0.1}
+          clearcoat={0.8}
+          clearcoatRoughness={0.1}
+        />
+      </mesh>
+
+      {/* Tip glow */}
+      <mesh position={direction.clone().multiplyScalar(spikeLength)}>
+        <sphereGeometry args={[0.03, 8, 8]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={isHovered ? 1.5 : 0.6}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+    </group>
+  )
+}
+
+// ============================================
+// Core glow (center of the crystal formation)
+// ============================================
+
+function CoreGlow() {
+  const ref = useRef<THREE.Mesh>(null)
+
+  useFrame((state) => {
+    if (ref.current) {
+      const s = 1 + Math.sin(state.clock.elapsedTime * 0.8) * 0.15
+      ref.current.scale.setScalar(s)
+    }
+  })
+
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[0.18, 16, 16]} />
+      <meshStandardMaterial
+        color="#c4b5fd"
+        emissive="#8b5cf6"
+        emissiveIntensity={0.8}
         transparent
-        opacity={0.78}
-        roughness={0.15}
-        metalness={0.08}
-        clearcoat={0.9}
-        clearcoatRoughness={0.1}
-        side={THREE.FrontSide}
+        opacity={0.5}
       />
     </mesh>
   )
 }
 
 // ============================================
-// Module markers (labels floating outside)
+// Module markers (labels)
 // ============================================
 
 interface ModuleMarkerProps {
@@ -240,20 +314,6 @@ function ModuleMarker({ point, direction, outerRadius, index, isHovered, onHover
           opacity={0.9}
         />
       </mesh>
-
-      {/* Thin line from marker to sphere surface */}
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[new Float32Array([
-              0, 0, 0,
-              ...direction.clone().multiplyScalar(-0.35).toArray()
-            ]), 3]}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color={color} transparent opacity={0.3} />
-      </line>
 
       <Html center distanceFactor={6} style={{ pointerEvents: 'none', userSelect: 'none' }}>
         <div className="text-center" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
@@ -330,12 +390,11 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
 
   return (
     <>
-      {/* Lighting */}
       <ambientLight intensity={0.45} />
       <directionalLight position={[6, 8, 5]} intensity={0.9} color="#ffffff" />
       <directionalLight position={[-5, -3, -5]} intensity={0.35} color="#ddd6fe" />
       <directionalLight position={[2, -6, 4]} intensity={0.2} color="#fde68a" />
-      <pointLight position={[0, 0, 0]} intensity={0.15} color="#c4b5fd" distance={4} />
+      <pointLight position={[0, 0, 0]} intensity={0.3} color="#c4b5fd" distance={5} />
 
       <OrbitControls
         enablePan={false}
@@ -347,28 +406,34 @@ function Scene({ data, colors }: { data: RadarDataPoint[]; colors?: { actual: st
       />
 
       <group ref={groupRef}>
-        {/* OUTER: Expected — transparent glass crystal */}
-        <FacetedShell
+        {/* OUTER: Expected shell — transparent glass (approved ✓) */}
+        <ExpectedShell
           data={data}
           controlDirs={controlDirs}
           baseRadius={baseRadius}
-          type="expected"
           hoveredIdx={hoveredIndex}
         />
 
-        {/* INNER: Actual — opaque colored crystal inside */}
-        <FacetedShell
-          data={data}
-          controlDirs={controlDirs}
-          baseRadius={baseRadius * 0.92}
-          type="actual"
-          hoveredIdx={hoveredIndex}
-        />
+        {/* CENTER: Core glow */}
+        <CoreGlow />
 
-        {/* Module markers */}
+        {/* INNER: Crystal spikes — one per module */}
+        {data.map((point, i) => (
+          <CrystalSpike
+            key={`spike-${i}`}
+            point={point}
+            direction={controlDirs[i]}
+            maxLength={baseRadius * 0.88}
+            index={i}
+            isHovered={hoveredIndex === i}
+            onHover={handleHover}
+          />
+        ))}
+
+        {/* Module markers (labels outside) */}
         {data.map((point, i) => (
           <ModuleMarker
-            key={i}
+            key={`marker-${i}`}
             point={point}
             direction={controlDirs[i]}
             outerRadius={baseRadius * 1.15}
@@ -415,11 +480,11 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg border border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded border-2 border-indigo-300/60 bg-indigo-200/15" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu (extérieur)</span>
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Attendu (enveloppe)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-gradient-to-br from-emerald-400 via-yellow-400 to-red-400 opacity-80" />
-          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score (intérieur)</span>
+          <div className="w-3 h-4 bg-gradient-to-t from-emerald-400 to-emerald-200 opacity-80" style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+          <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300">Score (cristaux)</span>
         </div>
         <div className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
         <div className="flex items-center gap-1">
@@ -436,7 +501,6 @@ export function SphereRadar({ data, colors, height = 600 }: SphereRadarProps) {
         </div>
       </div>
 
-      {/* Instructions */}
       <div className="absolute top-3 right-3 text-[10px] text-gray-400 dark:text-gray-500 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm rounded-lg px-3 py-1.5">
         Cliquer-glisser pour tourner &bull; Molette pour zoomer
       </div>
