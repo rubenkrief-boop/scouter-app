@@ -476,6 +476,17 @@ function AteliersSection({
 // Inscriptions Section
 // ============================================
 
+interface GroupedAdminParticipant {
+  nom: string
+  prenom: string
+  centre: string | null
+  profile_id: string | null
+  types: Set<string>
+  statuts: Set<string>
+  dpc: boolean
+  inscriptions: FormationInscriptionWithSession[]
+}
+
 function InscriptionsSection({
   inscriptions,
   sessions,
@@ -486,6 +497,7 @@ function InscriptionsSection({
   showMessage: (type: 'success' | 'error', text: string) => void
 }) {
   const [showAdd, setShowAdd] = useState(false)
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const [form, setForm] = useState({
     session_id: '', nom: '', prenom: '', type: 'Audio' as 'Audio' | 'Assistante',
     statut: 'Succursale' as 'Succursale' | 'Franchise', programme: 'P1', centre: '', dpc: false,
@@ -499,6 +511,7 @@ function InscriptionsSection({
     setShowAdd(false)
   }
 
+  // Filter raw inscriptions first
   let filtered = filterSession === 'all' ? inscriptions : inscriptions.filter(i => i.session_id === filterSession)
   if (search) {
     const q = search.toLowerCase()
@@ -506,6 +519,33 @@ function InscriptionsSection({
       i.nom.toLowerCase().includes(q) || i.prenom.toLowerCase().includes(q) || (i.centre && i.centre.toLowerCase().includes(q))
     )
   }
+
+  // Group by unique person
+  const grouped = (() => {
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
+    const byKey: Record<string, GroupedAdminParticipant> = {}
+    for (const i of filtered) {
+      const key = `${normalize(i.prenom)}|${normalize(i.nom)}`
+      if (!byKey[key]) {
+        byKey[key] = {
+          nom: i.nom, prenom: i.prenom, centre: i.centre, profile_id: i.profile_id,
+          types: new Set(), statuts: new Set(), dpc: false, inscriptions: [],
+        }
+      }
+      const g = byKey[key]
+      if (i.centre) g.centre = i.centre
+      g.types.add(i.type)
+      g.statuts.add(i.statut)
+      if (i.dpc) g.dpc = true
+      if (i.profile_id) g.profile_id = i.profile_id
+      g.inscriptions.push(i)
+    }
+    return Object.entries(byKey).sort(([, a], [, b]) =>
+      a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr')
+    )
+  })()
+
+  const uniqueCount = grouped.length
 
   const handleAdd = async () => {
     if (!form.session_id || !form.nom || !form.prenom) return showMessage('error', 'Session, nom et prénom requis')
@@ -525,12 +565,26 @@ function InscriptionsSection({
     router.refresh()
   }
 
-  const handleDelete = async (id: string, nom: string, prenom: string) => {
-    if (!confirm(`Supprimer l'inscription de ${prenom} ${nom} ?`)) return
+  const handleDelete = async (id: string, nom: string, prenom: string, sessionLabel?: string) => {
+    const msg = sessionLabel
+      ? `Supprimer l'inscription de ${prenom} ${nom} pour ${sessionLabel} ?`
+      : `Supprimer l'inscription de ${prenom} ${nom} ?`
+    if (!confirm(msg)) return
     const result = await deleteFormationInscription(id)
     if (result.error) return showMessage('error', result.error)
     showMessage('success', 'Inscription supprimée')
     router.refresh()
+  }
+
+  const SESSION_COLORS: Record<string, string> = {
+    s22: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    m23: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+    s23: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    m24: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+    s24: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    m25: 'bg-green-500/15 text-green-400 border-green-500/30',
+    s25: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    m26: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
   }
 
   return (
@@ -598,7 +652,10 @@ function InscriptionsSection({
       )}
 
       <p className="text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{filtered.length}</span> inscription(s)
+        <span className="font-semibold text-foreground">{uniqueCount}</span> participant(s) unique(s)
+        {uniqueCount !== filtered.length && (
+          <span className="ml-1">({filtered.length} inscriptions)</span>
+        )}
       </p>
 
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -607,47 +664,93 @@ function InscriptionsSection({
             <tr className="border-b border-border bg-muted/50">
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Nom</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Prénom</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Session</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Type</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Programme</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Sessions</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase">Lié</th>
               <th className="text-right p-3 font-medium text-muted-foreground text-xs uppercase">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 100).map(i => (
-              <tr key={i.id} className="border-b border-border/50 hover:bg-muted/30">
-                <td className="p-3 font-medium">{i.nom}</td>
-                <td className="p-3">{i.prenom}</td>
-                <td className="p-3 text-muted-foreground text-xs">{i.session?.label || '-'}</td>
-                <td className="p-3">
-                  <Badge variant="outline" className={i.type === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'}>
-                    {i.type}
-                  </Badge>
-                </td>
-                <td className="p-3">
-                  <Badge variant="outline" className="text-xs">{i.programme}</Badge>
-                </td>
-                <td className="p-3">
-                  {i.profile_id ? (
-                    <Badge variant="default" className="text-[10px] bg-green-500/15 text-green-500 border-green-500/30">Oui</Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-[10px]">Non</Badge>
-                  )}
-                </td>
-                <td className="p-3 text-right">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(i.id, i.nom, i.prenom)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </td>
-              </tr>
+            {grouped.slice(0, 100).map(([key, g]) => (
+              <>
+                <tr
+                  key={key}
+                  className={`border-b border-border/50 hover:bg-muted/30 cursor-pointer ${expandedKey === key ? 'bg-muted/40' : ''}`}
+                  onClick={() => setExpandedKey(expandedKey === key ? null : key)}
+                >
+                  <td className="p-3 font-medium">{g.nom}</td>
+                  <td className="p-3">{g.prenom}</td>
+                  <td className="p-3 text-muted-foreground">{g.centre || '-'}</td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {[...g.types].map(t => (
+                        <Badge key={t} variant="outline" className={t === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'}>
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1">
+                      {g.inscriptions.map((insc, i) => (
+                        <Badge key={i} variant="outline" className={`text-[10px] ${SESSION_COLORS[insc.session?.code] || ''}`}>
+                          {insc.session?.label} ({insc.programme})
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    {g.profile_id ? (
+                      <Badge variant="default" className="text-[10px] bg-green-500/15 text-green-500 border-green-500/30">Oui</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">Non</Badge>
+                    )}
+                  </td>
+                  <td className="p-3 text-right">
+                    <span className="text-[10px] text-muted-foreground">
+                      {g.inscriptions.length > 1 ? `${g.inscriptions.length} inscr.` : ''}
+                    </span>
+                  </td>
+                </tr>
+                {expandedKey === key && (
+                  <tr key={`${key}-detail`} className="bg-muted/20">
+                    <td colSpan={7} className="p-0">
+                      <div className="px-6 py-2 space-y-1">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                          Détail des inscriptions — cliquer pour réduire
+                        </p>
+                        {g.inscriptions.map(insc => (
+                          <div key={insc.id} className="flex items-center justify-between py-1.5 px-3 rounded-md hover:bg-muted/50 text-xs">
+                            <div className="flex items-center gap-3">
+                              <Badge variant="outline" className={`text-[10px] ${SESSION_COLORS[insc.session?.code] || ''}`}>
+                                {insc.session?.label}
+                              </Badge>
+                              <Badge variant="outline" className={insc.type === 'Audio' ? 'text-cyan-500 border-cyan-500/30 text-[10px]' : 'text-orange-500 border-orange-500/30 text-[10px]'}>
+                                {insc.type}
+                              </Badge>
+                              <span className="text-muted-foreground">{insc.programme}</span>
+                              <span className="text-muted-foreground">{insc.statut}</span>
+                              {insc.dpc && <Badge variant="secondary" className="text-[10px]">DPC</Badge>}
+                            </div>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(insc.id, insc.nom, insc.prenom, insc.session?.label) }}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
-            {filtered.length === 0 && (
+            {grouped.length === 0 && (
               <tr><td colSpan={7} className="text-center p-8 text-muted-foreground">Aucune inscription</td></tr>
             )}
-            {filtered.length > 100 && (
+            {grouped.length > 100 && (
               <tr><td colSpan={7} className="text-center p-4 text-muted-foreground text-xs">
-                Affichage limité aux 100 premiers résultats sur {filtered.length}
+                Affichage limité aux 100 premiers sur {grouped.length} participants
               </td></tr>
             )}
           </tbody>
