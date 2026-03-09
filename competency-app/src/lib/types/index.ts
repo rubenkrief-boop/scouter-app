@@ -31,4 +31,13 @@ export type {
   RadarDataPoint,
   ModuleScore,
   Database,
+  FormationType,
+  FormationEtat,
+  FormationStatut,
+  FormationSession,
+  FormationAtelier,
+  FormationInscription,
+  FormationInscriptionWithSession,
+  FormationAtelierWithSession,
+  FormationProgrammeAtelier,
 } from './database.types'

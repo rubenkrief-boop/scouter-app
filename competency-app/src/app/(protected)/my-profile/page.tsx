@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { ScouterTrigger } from '@/components/animations/scouter-trigger'
+import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
+import { getWorkerFormations } from '@/lib/actions/formations'
 
 export default async function MyProfilePage() {
   const supabase = await createClient()
@@ -77,6 +79,9 @@ export default async function MyProfilePage() {
   const modulesWithExpected = radarData.filter(d => d.expected > 0).length
   const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || avgScore >= 90
   const jobProfileName = (latestEval?.job_profile as any)?.name
+
+  // Fetch worker formations
+  const workerFormations = await getWorkerFormations(user.id)
 
   return (
     <div>
@@ -161,6 +166,9 @@ export default async function MyProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Section : Formations plénières */}
+        <WorkerFormationsCard formations={workerFormations} />
       </div>
     </div>
   )

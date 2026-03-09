@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, Users, BookOpen, Layers, ClipboardCheck,
-  BarChart3, User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart
+  BarChart3, User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
@@ -95,6 +95,13 @@ const navItems: NavItem[] = [
     href: '/evaluator/evaluations',
     icon: <ClipboardCheck className="h-5 w-5" />,
     roles: ['super_admin', 'manager', 'skill_master'],
+    section: 'Évaluation',
+  },
+  {
+    label: 'Formations',
+    href: '/formations',
+    icon: <GraduationCap className="h-5 w-5" />,
+    roles: ['super_admin', 'skill_master', 'manager', 'worker'],
     section: 'Évaluation',
   },
   // Audioprothésiste

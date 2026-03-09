@@ -255,6 +255,68 @@ export interface ModuleScore {
   completion_pct: number
 }
 
+// === FORMATIONS ===
+
+export type FormationType = 'Audio' | 'Assistante'
+export type FormationEtat = 'Terminé' | 'En cours' | 'Pas commencé'
+export type FormationStatut = 'Succursale' | 'Franchise'
+
+export interface FormationSession {
+  id: string
+  code: string
+  label: string
+  date_info: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface FormationAtelier {
+  id: string
+  session_id: string
+  nom: string
+  formateur: string | null
+  duree: string | null
+  type: FormationType
+  etat: FormationEtat
+  programmes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FormationInscription {
+  id: string
+  session_id: string
+  profile_id: string | null
+  nom: string
+  prenom: string
+  type: FormationType
+  statut: FormationStatut
+  programme: string
+  centre: string | null
+  dpc: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface FormationInscriptionWithSession extends FormationInscription {
+  session: FormationSession
+}
+
+export interface FormationAtelierWithSession extends FormationAtelier {
+  session: FormationSession
+}
+
+export interface FormationProgrammeAtelier {
+  id: string
+  session_id: string
+  type: FormationType
+  programme: string
+  atelier_id: string
+}
+
 // Database type for Supabase client
 export type Database = {
   public: {
@@ -348,6 +410,26 @@ export type Database = {
         Row: EvaluationSnapshot
         Insert: Omit<EvaluationSnapshot, 'id' | 'created_at'>
         Update: never // Immutable
+      }
+      formation_sessions: {
+        Row: FormationSession
+        Insert: Omit<FormationSession, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<FormationSession, 'id' | 'created_at'>>
+      }
+      formation_ateliers: {
+        Row: FormationAtelier
+        Insert: Omit<FormationAtelier, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<FormationAtelier, 'id' | 'created_at'>>
+      }
+      formation_inscriptions: {
+        Row: FormationInscription
+        Insert: Omit<FormationInscription, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<FormationInscription, 'id' | 'created_at'>>
+      }
+      formation_programme_ateliers: {
+        Row: FormationProgrammeAtelier
+        Insert: Omit<FormationProgrammeAtelier, 'id'>
+        Update: Partial<Omit<FormationProgrammeAtelier, 'id'>>
       }
     }
     Functions: {

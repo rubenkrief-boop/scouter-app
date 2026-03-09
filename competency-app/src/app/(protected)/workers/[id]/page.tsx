@@ -11,6 +11,8 @@ import { AssignJobProfile } from '@/components/workers/assign-job-profile'
 import { WorkerJobProfileCard } from '@/components/workers/worker-job-profile-card'
 import { WorkerComments } from '@/components/workers/worker-comments'
 import { getWorkerComments } from '@/lib/actions/worker-comments'
+import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
+import { getWorkerFormations } from '@/lib/actions/formations'
 
 export default async function WorkerProfilePage({
   params,
@@ -112,8 +114,11 @@ export default async function WorkerProfilePage({
     expectedByProfile.set(es.job_profile_id, list)
   }
 
-  // Fetch worker comments
-  const workerComments = await getWorkerComments(id)
+  // Fetch worker comments + formations
+  const [workerComments, workerFormations] = await Promise.all([
+    getWorkerComments(id),
+    getWorkerFormations(id),
+  ])
 
   return (
     <div>
@@ -236,6 +241,9 @@ export default async function WorkerProfilePage({
             />
           </div>
         </div>
+
+        {/* Section : Formations plénières */}
+        <WorkerFormationsCard formations={workerFormations} />
 
         {/* Section : Bilans et commentaires */}
         <WorkerComments workerId={id} comments={workerComments} />
