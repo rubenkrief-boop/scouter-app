@@ -196,6 +196,39 @@ export async function getAllFormationInscriptions(): Promise<FormationInscriptio
 }
 
 // ============================================
+// READ: All programme-atelier mappings (batch)
+// ============================================
+
+export interface ProgrammeAtelierMapping {
+  session_id: string
+  type: string
+  programme: string
+  atelier_id: string
+  atelier_nom: string
+}
+
+export async function getAllProgrammeAtelierMappings(): Promise<ProgrammeAtelierMapping[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('formation_programme_ateliers')
+    .select('session_id, type, programme, atelier_id, atelier:formation_ateliers!formation_programme_ateliers_atelier_id_fkey(nom)')
+
+  if (error) {
+    console.error('Error fetching programme-atelier mappings:', error)
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((d: any) => ({
+    session_id: d.session_id,
+    type: d.type,
+    programme: d.programme,
+    atelier_id: d.atelier_id,
+    atelier_nom: d.atelier?.nom || '',
+  }))
+}
+
+// ============================================
 // CRUD: Sessions
 // ============================================
 

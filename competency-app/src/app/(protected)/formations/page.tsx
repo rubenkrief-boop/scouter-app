@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/header'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
-import { getFormationSessions, getFormationAteliers, getFormationInscriptions, getFormationStats } from '@/lib/actions/formations'
+import { getFormationSessions, getFormationAteliers, getFormationInscriptions, getFormationStats, getAllProgrammeAtelierMappings } from '@/lib/actions/formations'
 import { FormationsDashboard } from '@/components/formations/formations-dashboard'
 import { redirect } from 'next/navigation'
 
@@ -8,11 +8,12 @@ export default async function FormationsPage() {
   const { profile } = await getAuthProfile()
   if (!profile) redirect('/auth/login')
 
-  const [sessions, ateliers, inscriptions, stats] = await Promise.all([
+  const [sessions, ateliers, inscriptions, stats, progAtelierMappings] = await Promise.all([
     getFormationSessions(),
     getFormationAteliers(),
     getFormationInscriptions(),
     getFormationStats(),
+    getAllProgrammeAtelierMappings(),
   ])
 
   const isAdmin = ['super_admin', 'skill_master', 'manager'].includes(profile.role)
@@ -29,6 +30,7 @@ export default async function FormationsPage() {
           ateliers={ateliers}
           inscriptions={inscriptions}
           stats={stats}
+          progAtelierMappings={progAtelierMappings}
           isAdmin={isAdmin}
         />
       </div>
