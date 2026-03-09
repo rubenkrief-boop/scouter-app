@@ -35,6 +35,19 @@ const PROG_COLORS: Record<string, string> = {
   'Format rotatif': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
 }
 
+interface GroupedParticipant {
+  nom: string
+  prenom: string
+  centre: string | null
+  type: string
+  statut: string
+  dpc: boolean
+  profile_id: string | null
+  sessions: { session: FormationSession; programme: string; type: string; statut: string }[]
+  types: Set<string>
+  statuts: Set<string>
+}
+
 interface FormationsDashboardProps {
   sessions: FormationSession[]
   ateliers: FormationAtelierWithSession[]
@@ -71,30 +84,75 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, i
     return result
   }, [inscriptions, selectedSession, search, filterType, filterProgramme, filterStatut])
 
+  // Grouped participants (unique persons combining all sessions)
+  const groupedParticipants = useMemo(() => {
+    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
+    const byKey: Record<string, GroupedParticipant> = {}
+
+    for (const i of filteredInscriptions) {
+      const key = `${normalize(i.prenom)}|${normalize(i.nom)}`
+      if (!byKey[key]) {
+        byKey[key] = {
+          nom: i.nom,
+          prenom: i.prenom,
+          centre: i.centre,
+          type: i.type,
+          statut: i.statut,
+          dpc: i.dpc,
+          profile_id: i.profile_id,
+          sessions: [],
+          types: new Set<string>(),
+          statuts: new Set<string>(),
+        }
+      }
+      const g = byKey[key]
+      // Keep most recent centre (non-null)
+      if (i.centre && !g.centre) g.centre = i.centre
+      if (i.centre) g.centre = i.centre
+      g.types.add(i.type)
+      g.statuts.add(i.statut)
+      if (i.dpc) g.dpc = true
+      if (i.profile_id) g.profile_id = i.profile_id
+      g.sessions.push({
+        session: i.session,
+        programme: i.programme,
+        type: i.type,
+        statut: i.statut,
+      })
+    }
+
+    // Sort by nom then prenom
+    return Object.values(byKey).sort((a, b) =>
+      a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr')
+    )
+  }, [filteredInscriptions])
+
   // Filtered ateliers
   const filteredAteliers = useMemo(() => {
     if (selectedSession === 'all') return ateliers
     return ateliers.filter(a => a.session?.code === selectedSession)
   }, [ateliers, selectedSession])
 
-  // Filtered stats
+  // Stats based on unique persons (grouped)
   const currentStats = useMemo(() => {
-    if (selectedSession === 'all') return stats
-    const filtered = inscriptions.filter(i => i.session?.code === selectedSession)
     const s: FormationStats = {
-      totalParticipants: filtered.length,
-      audio: filtered.filter(i => i.type === 'Audio').length,
-      assistante: filtered.filter(i => i.type === 'Assistante').length,
-      succursale: filtered.filter(i => i.statut === 'Succursale').length,
-      franchise: filtered.filter(i => i.statut === 'Franchise').length,
-      dpc: filtered.filter(i => i.dpc).length,
+      totalParticipants: groupedParticipants.length,
+      audio: groupedParticipants.filter(g => g.types.has('Audio')).length,
+      assistante: groupedParticipants.filter(g => g.types.has('Assistante')).length,
+      succursale: groupedParticipants.filter(g => g.statuts.has('Succursale')).length,
+      franchise: groupedParticipants.filter(g => g.statuts.has('Franchise')).length,
+      dpc: groupedParticipants.filter(g => g.dpc).length,
       byProgramme: {},
     }
-    for (const i of filtered) {
-      s.byProgramme[i.programme] = (s.byProgramme[i.programme] || 0) + 1
+    // Programme stats still count inscriptions (a person in P1 + P2 counts for both)
+    for (const g of groupedParticipants) {
+      const progs = new Set(g.sessions.map(s => s.programme))
+      for (const p of progs) {
+        s.byProgramme[p] = (s.byProgramme[p] || 0) + 1
+      }
     }
     return s
-  }, [inscriptions, selectedSession, stats])
+  }, [groupedParticipants])
 
   // Doublons detection
   const doublons = useMemo(() => {
@@ -191,7 +249,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, i
       {/* Tab Content */}
       {activeTab === 'participants' && (
         <ParticipantsTab
-          inscriptions={filteredInscriptions}
+          participants={groupedParticipants}
           sessions={sessions}
           selectedSession={selectedSession}
           search={search}
@@ -245,11 +303,11 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 // ============================================
 
 function ParticipantsTab({
-  inscriptions, sessions, selectedSession, search, onSearchChange,
+  participants, sessions, selectedSession, search, onSearchChange,
   filterType, onFilterTypeChange, filterProgramme, onFilterProgrammeChange,
   filterStatut, onFilterStatutChange,
 }: {
-  inscriptions: FormationInscriptionWithSession[]
+  participants: GroupedParticipant[]
   sessions: FormationSession[]
   selectedSession: string
   search: string
@@ -261,6 +319,8 @@ function ParticipantsTab({
   filterStatut: string
   onFilterStatutChange: (v: string) => void
 }) {
+  const isSingleSession = selectedSession !== 'all'
+
   return (
     <div className="space-y-3">
       {/* Filters */}
@@ -304,7 +364,7 @@ function ParticipantsTab({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{inscriptions.length}</span> participant(s)
+        <span className="font-semibold text-foreground">{participants.length}</span> participant(s) unique(s)
       </p>
 
       {/* Table */}
@@ -317,45 +377,63 @@ function ParticipantsTab({
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Statut</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Programme</th>
-              {selectedSession === 'all' && (
-                <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Session</th>
+              {isSingleSession ? (
+                <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Programme</th>
+              ) : (
+                <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Sessions</th>
               )}
             </tr>
           </thead>
           <tbody>
-            {inscriptions.length === 0 ? (
+            {participants.length === 0 ? (
               <tr>
-                <td colSpan={selectedSession === 'all' ? 7 : 6} className="text-center p-8 text-muted-foreground">
+                <td colSpan={6} className="text-center p-8 text-muted-foreground">
                   Aucun participant
                 </td>
               </tr>
             ) : (
-              inscriptions.map(i => (
-                <tr key={i.id} className="border-b border-border/50 hover:bg-muted/30">
-                  <td className="p-3 font-medium">{i.nom}</td>
-                  <td className="p-3">{i.prenom}</td>
-                  <td className="p-3 text-muted-foreground">{i.centre || '-'}</td>
+              participants.map((p, idx) => (
+                <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="p-3 font-medium">{p.nom}</td>
+                  <td className="p-3">{p.prenom}</td>
+                  <td className="p-3 text-muted-foreground">{p.centre || '-'}</td>
                   <td className="p-3">
-                    <Badge variant="outline" className={i.type === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'}>
-                      {i.type}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {[...p.types].map(t => (
+                        <Badge key={t} variant="outline" className={t === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'}>
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
                   </td>
                   <td className="p-3">
-                    <Badge variant="outline" className={i.statut === 'Succursale' ? 'text-blue-500 border-blue-500/30' : 'text-amber-500 border-amber-500/30'}>
-                      {i.statut}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {[...p.statuts].map(s => (
+                        <Badge key={s} variant="outline" className={s === 'Succursale' ? 'text-blue-500 border-blue-500/30' : 'text-amber-500 border-amber-500/30'}>
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
                   </td>
-                  <td className="p-3">
-                    <Badge variant="outline" className={PROG_COLORS[i.programme] || ''}>
-                      {i.programme}
-                    </Badge>
-                  </td>
-                  {selectedSession === 'all' && (
+                  {isSingleSession ? (
                     <td className="p-3">
-                      <Badge variant="outline" className={SESSION_COLORS[i.session?.code] || ''}>
-                        {i.session?.label || '-'}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {[...new Set(p.sessions.map(s => s.programme))].map(prog => (
+                          <Badge key={prog} variant="outline" className={PROG_COLORS[prog] || ''}>
+                            {prog}
+                          </Badge>
+                        ))}
+                      </div>
+                    </td>
+                  ) : (
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {p.sessions.map((s, i) => (
+                          <Badge key={i} variant="outline" className={`text-[10px] ${SESSION_COLORS[s.session?.code] || ''}`}>
+                            {s.session?.label} ({s.programme})
+                          </Badge>
+                        ))}
+                      </div>
                     </td>
                   )}
                 </tr>
