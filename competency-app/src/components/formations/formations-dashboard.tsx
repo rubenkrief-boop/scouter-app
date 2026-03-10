@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2 } from 'lucide-react'
+import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import Link from 'next/link'
 import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { FormationStats, ProgrammeAtelierMapping } from '@/lib/actions/formations'
@@ -36,6 +36,22 @@ const PROG_COLORS: Record<string, string> = {
 }
 
 // ============================================
+// Doublons: Exclusions & Equivalences (from HTML prototype)
+// ============================================
+
+// Ateliers NEVER considered doublons (content differs per session)
+const EXCLUSIONS = ['back office', 'best practices']
+
+// Ateliers semantically equivalent across sessions
+const EQUIVALENCES: { keywords: string[]; type: 'Audio' | 'Assistante' | 'both' }[] = [
+  { keywords: ['secours'],       type: 'both' },
+  { keywords: ['autophonation'], type: 'Audio' },
+  { keywords: ['réglementat'],   type: 'both' },
+  { keywords: ['manager 2'],     type: 'Audio' },
+  { keywords: ['manager 2'],     type: 'Assistante' },
+]
+
+// ============================================
 // Types
 // ============================================
 
@@ -60,6 +76,17 @@ interface FormationsDashboardProps {
   isAdmin: boolean
 }
 
+type SortKey = 'nom' | 'prenom' | 'type' | 'statut' | 'programme'
+type SortDir = 'asc' | 'desc'
+
+// ============================================
+// Normalize helper
+// ============================================
+
+function normalize(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 // ============================================
 // Helper: get ateliers for a participant in a session
 // ============================================
@@ -74,11 +101,9 @@ function getAteliersForParticipant(
   const isRotatif = programme === 'Format rotatif'
 
   if (isRotatif) {
-    // Format rotatif: all ateliers of this type in this session
     return ateliers.filter(a => a.session_id === sessionId && a.type === type)
   }
 
-  // Programme P1-P4: use the mapping
   const mappedAtelierIds = new Set(
     progMappings
       .filter(m => m.session_id === sessionId && m.type === type && m.programme === programme)
@@ -86,11 +111,67 @@ function getAteliersForParticipant(
   )
 
   if (mappedAtelierIds.size === 0) {
-    // Fallback: if no mapping exists, return all ateliers (like rotatif)
     return ateliers.filter(a => a.session_id === sessionId && a.type === type)
   }
 
   return ateliers.filter(a => mappedAtelierIds.has(a.id))
+}
+
+// ============================================
+// Helper: get participants for an atelier
+// ============================================
+
+function getParticipantsForAtelier(
+  atelier: FormationAtelierWithSession,
+  inscriptions: FormationInscriptionWithSession[],
+  progMappings: ProgrammeAtelierMapping[]
+): FormationInscriptionWithSession[] {
+  const sessionInscriptions = inscriptions.filter(
+    i => i.session_id === atelier.session_id && i.type === atelier.type
+  )
+
+  if (atelier.programmes === 'Format rotatif' || !atelier.programmes) {
+    return sessionInscriptions
+  }
+
+  // Find which programmes include this atelier
+  const atelierMappings = progMappings.filter(
+    m => m.atelier_id === atelier.id && m.session_id === atelier.session_id && m.type === atelier.type
+  )
+  const mappedProgrammes = new Set(atelierMappings.map(m => m.programme))
+
+  if (mappedProgrammes.size === 0) {
+    return sessionInscriptions
+  }
+
+  return sessionInscriptions.filter(i => mappedProgrammes.has(i.programme))
+}
+
+// ============================================
+// Helper: Doublon atelier grouping (matching HTML logic)
+// ============================================
+
+function groupeAtelier(nomAtelier: string, type: string, sid: string): string {
+  const n = normalize(nomAtelier)
+
+  // Exclusions: unique key per session (never matches cross-session)
+  for (const excl of EXCLUSIONS) {
+    if (n.includes(excl)) {
+      return `${n}_exclu|${type}_${sid}_${nomAtelier}`
+    }
+  }
+
+  // Equivalences: group by keyword
+  for (const eq of EQUIVALENCES) {
+    if (eq.type === 'both' || eq.type === type) {
+      if (eq.keywords.every(kw => n.includes(normalize(kw)))) {
+        return `equiv|${eq.keywords.join('_')}|${eq.type === 'both' ? type : eq.type}`
+      }
+    }
+  }
+
+  // Default: normalized name + type
+  return `${n}|${type}`
 }
 
 // ============================================
@@ -105,6 +186,19 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
   const [filterProgramme, setFilterProgramme] = useState<string>('all')
   const [filterStatut, setFilterStatut] = useState<string>('all')
   const [selectedParticipant, setSelectedParticipant] = useState<GroupedParticipant | null>(null)
+  const [selectedAtelier, setSelectedAtelier] = useState<FormationAtelierWithSession | null>(null)
+  const [sortBy, setSortBy] = useState<SortKey>('nom')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  // Check if selected session uses format rotatif
+  const isRotatifSession = useMemo(() => {
+    if (selectedSession === 'all') return false
+    const sessionInsc = inscriptions.filter(i => i.session?.code === selectedSession)
+    return sessionInsc.length > 0 && sessionInsc.every(i => i.programme === 'Format rotatif')
+  }, [selectedSession, inscriptions])
+
+  // Show programme filter only for P1-P4 sessions
+  const showProgrammeFilter = selectedSession !== 'all' && !isRotatifSession
 
   // Filtered inscriptions
   const filteredInscriptions = useMemo(() => {
@@ -113,7 +207,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       result = result.filter(i => i.session?.code === selectedSession)
     }
     if (filterType !== 'all') result = result.filter(i => i.type === filterType)
-    if (filterProgramme !== 'all') result = result.filter(i => i.programme === filterProgramme)
+    if (filterProgramme !== 'all' && showProgrammeFilter) result = result.filter(i => i.programme === filterProgramme)
     if (filterStatut !== 'all') result = result.filter(i => i.statut === filterStatut)
     if (search) {
       const q = search.toLowerCase()
@@ -124,11 +218,10 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       )
     }
     return result
-  }, [inscriptions, selectedSession, search, filterType, filterProgramme, filterStatut])
+  }, [inscriptions, selectedSession, search, filterType, filterProgramme, filterStatut, showProgrammeFilter])
 
   // Grouped participants (unique persons combining all sessions)
   const groupedParticipants = useMemo(() => {
-    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
     const byKey: Record<string, GroupedParticipant> = {}
 
     for (const i of filteredInscriptions) {
@@ -158,10 +251,37 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       g.atelierCount = count
     }
 
-    return Object.values(byKey).sort((a, b) =>
-      a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr')
-    )
-  }, [filteredInscriptions, ateliers, progAtelierMappings])
+    // Sort
+    const list = Object.values(byKey)
+    list.sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      switch (sortBy) {
+        case 'nom':
+          return dir * (a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'))
+        case 'prenom':
+          return dir * (a.prenom.localeCompare(b.prenom, 'fr') || a.nom.localeCompare(b.nom, 'fr'))
+        case 'type': {
+          const ta = [...a.types].sort().join(',')
+          const tb = [...b.types].sort().join(',')
+          return dir * ta.localeCompare(tb)
+        }
+        case 'statut': {
+          const sa = [...a.statuts].sort().join(',')
+          const sb = [...b.statuts].sort().join(',')
+          return dir * sa.localeCompare(sb)
+        }
+        case 'programme': {
+          const pa = a.sessions[0]?.programme || ''
+          const pb = b.sessions[0]?.programme || ''
+          return dir * pa.localeCompare(pb)
+        }
+        default:
+          return a.nom.localeCompare(b.nom, 'fr')
+      }
+    })
+
+    return list
+  }, [filteredInscriptions, ateliers, progAtelierMappings, sortBy, sortDir])
 
   // Filtered ateliers
   const filteredAteliers = useMemo(() => {
@@ -189,9 +309,8 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     return s
   }, [groupedParticipants])
 
-  // Doublons: multi-session persons + atelier doublons detection
+  // Doublons: multi-session persons + atelier doublons with EQUIVALENCES/EXCLUSIONS
   const doublonsData = useMemo(() => {
-    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
     const byKey: Record<string, { inscriptions: FormationInscriptionWithSession[] }> = {}
 
     for (const i of inscriptions) {
@@ -203,8 +322,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     // Only keep multi-session persons
     const multiSession = Object.values(byKey).filter(g => g.inscriptions.length > 1)
 
-    // Detect atelier doublons
-    let atelierDoublonCount = 0
+    // Detect atelier doublons using groupeAtelier equivalence system
     const doublons = multiSession.map(g => {
       const insc = g.inscriptions
       const nom = insc[0].nom
@@ -224,21 +342,26 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
         })
       }
 
-      // Find duplicate atelier names across sessions
+      // Find duplicate ateliers across sessions using groupeAtelier
       const atelierDoublons: { name: string; sessions: { code: string; label: string }[] }[] = []
-      const atelierByName: Record<string, { code: string; label: string }[]> = {}
+      const atelierGroupMap: Record<string, { name: string; sessions: { code: string; label: string }[] }> = {}
+
       for (const sa of sessionAteliers) {
         for (const name of sa.atelierNames) {
-          const nName = normalize(name)
-          if (!atelierByName[nName]) atelierByName[nName] = []
-          atelierByName[nName].push({ code: sa.session.code, label: sa.session.label })
+          const groupKey = groupeAtelier(name, type, sa.session.code)
+          if (!atelierGroupMap[groupKey]) {
+            atelierGroupMap[groupKey] = { name, sessions: [] }
+          }
+          atelierGroupMap[groupKey].sessions.push({
+            code: sa.session.code,
+            label: sa.session.label,
+          })
         }
       }
-      for (const [, sessionsForAtelier] of Object.entries(atelierByName)) {
-        if (sessionsForAtelier.length > 1) {
-          const name = Object.keys(atelierByName).find(k => atelierByName[k] === sessionsForAtelier) || ''
-          atelierDoublons.push({ name, sessions: sessionsForAtelier })
-          atelierDoublonCount++
+
+      for (const [, info] of Object.entries(atelierGroupMap)) {
+        if (info.sessions.length > 1) {
+          atelierDoublons.push(info)
         }
       }
 
@@ -250,14 +373,56 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       }
     })
 
+    // Only keep people with actual atelier doublons for count
+    const withDoublons = doublons.filter(d => d.atelierDoublons.length > 0)
+
     return {
       doublons,
+      doublonsWithAteliers: withDoublons,
       multiSessionCount: multiSession.length,
       audioRecurrent: multiSession.filter(g => g.inscriptions[0].type === 'Audio').length,
       assistanteRecurrent: multiSession.filter(g => g.inscriptions[0].type === 'Assistante').length,
-      atelierDoublonCount,
+      atelierDoublonCount: withDoublons.length,
     }
   }, [inscriptions, ateliers, progAtelierMappings])
+
+  // Toggle sort column
+  const toggleSort = (key: SortKey) => {
+    if (sortBy === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(key)
+      setSortDir('asc')
+    }
+  }
+
+  // Handle atelier click -> find participant and open profile modal
+  const handleAtelierParticipantClick = (prenom: string, nom: string) => {
+    const nKey = `${normalize(prenom)}|${normalize(nom)}`
+    // Build a grouped participant from all inscriptions
+    const personInsc = inscriptions.filter(i => `${normalize(i.prenom)}|${normalize(i.nom)}` === nKey)
+    if (personInsc.length === 0) return
+
+    const g: GroupedParticipant = {
+      nom: personInsc[0].nom,
+      prenom: personInsc[0].prenom,
+      centre: personInsc.find(i => i.centre)?.centre || null,
+      dpc: personInsc.some(i => i.dpc),
+      profile_id: personInsc.find(i => i.profile_id)?.profile_id || null,
+      sessions: personInsc.map(i => ({ session: i.session, programme: i.programme, type: i.type, statut: i.statut })),
+      types: new Set(personInsc.map(i => i.type)),
+      statuts: new Set(personInsc.map(i => i.statut)),
+      atelierCount: 0,
+    }
+    let count = 0
+    for (const s of g.sessions) {
+      count += getAteliersForParticipant(s.session.id, s.type, s.programme, ateliers, progAtelierMappings).length
+    }
+    g.atelierCount = count
+
+    setSelectedAtelier(null) // Close atelier modal
+    setSelectedParticipant(g) // Open profile modal
+  }
 
   const tabs = [
     { id: 'participants' as const, label: 'Participants', icon: Users },
@@ -273,7 +438,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
         <Button
           variant={selectedSession === 'all' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setSelectedSession('all')}
+          onClick={() => { setSelectedSession('all'); setFilterProgramme('all') }}
           className="text-xs font-semibold tracking-wider"
         >
           TOUTES
@@ -283,7 +448,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
             key={s.code}
             variant={selectedSession === s.code ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedSession(s.code)}
+            onClick={() => { setSelectedSession(s.code); setFilterProgramme('all') }}
             className="text-xs font-semibold tracking-wider"
           >
             {s.label}
@@ -344,11 +509,22 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           filterStatut={filterStatut}
           onFilterStatutChange={setFilterStatut}
           onSelectParticipant={setSelectedParticipant}
+          showProgrammeFilter={showProgrammeFilter}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onToggleSort={toggleSort}
         />
       )}
 
       {activeTab === 'ateliers' && (
-        <AteliersTab ateliers={filteredAteliers} sessions={sessions} selectedSession={selectedSession} inscriptions={filteredInscriptions} />
+        <AteliersTab
+          ateliers={filteredAteliers}
+          sessions={sessions}
+          selectedSession={selectedSession}
+          inscriptions={inscriptions}
+          progMappings={progAtelierMappings}
+          onSelectAtelier={setSelectedAtelier}
+        />
       )}
 
       {activeTab === 'programmes' && (
@@ -362,7 +538,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       )}
 
       {activeTab === 'doublons' && (
-        <DoublonsTab data={doublonsData} />
+        <DoublonsTab data={doublonsData} onSelectPerson={handleAtelierParticipantClick} />
       )}
 
       {/* Profile Modal */}
@@ -374,6 +550,17 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           sessions={sessions}
           progMappings={progAtelierMappings}
           onClose={() => setSelectedParticipant(null)}
+        />
+      )}
+
+      {/* Atelier Modal */}
+      {selectedAtelier && (
+        <AtelierModal
+          atelier={selectedAtelier}
+          inscriptions={inscriptions}
+          progMappings={progAtelierMappings}
+          onClose={() => setSelectedAtelier(null)}
+          onSelectParticipant={handleAtelierParticipantClick}
         />
       )}
     </div>
@@ -414,8 +601,6 @@ function ParticipantModal({
   progMappings: ProgrammeAtelierMapping[]
   onClose: () => void
 }) {
-  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
-
   // Get ALL inscriptions for this person (unfiltered)
   const personKey = `${normalize(participant.prenom)}|${normalize(participant.nom)}`
   const personInscriptions = allInscriptions.filter(i => {
@@ -436,9 +621,9 @@ function ParticipantModal({
             <div className="flex items-center gap-2 mt-1">
               <User2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                {types.map(t => t === 'Audio' ? 'Audioprothésiste' : 'Assistante').join(' · ')}
-                {' · '}
-                {statuts.join(' · ')}
+                {types.map(t => t === 'Audio' ? 'Audioproth.' : 'Assistante').join(' / ')}
+                {' \u00b7 '}
+                {statuts.join(' / ')}
               </span>
             </div>
           </div>
@@ -490,7 +675,7 @@ function ParticipantModal({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">Aucun atelier mappé</p>
+                    <p className="text-xs text-muted-foreground italic">Aucun atelier mapp\u00e9</p>
                   )}
                 </div>
 
@@ -505,13 +690,93 @@ function ParticipantModal({
 }
 
 // ============================================
+// Atelier Modal — shows participants for this atelier
+// ============================================
+
+function AtelierModal({
+  atelier, inscriptions, progMappings, onClose, onSelectParticipant,
+}: {
+  atelier: FormationAtelierWithSession
+  inscriptions: FormationInscriptionWithSession[]
+  progMappings: ProgrammeAtelierMapping[]
+  onClose: () => void
+  onSelectParticipant: (prenom: string, nom: string) => void
+}) {
+  const participants = getParticipantsForAtelier(atelier, inscriptions, progMappings)
+
+  // Deduplicate by normalized name (same person can't be in same session twice)
+  const uniqueParticipants = participants.sort((a, b) =>
+    a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr')
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 pb-4 border-b border-border">
+          <div className="flex-1">
+            <h2 className="text-xl font-bold">{atelier.nom}</h2>
+            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+              {atelier.formateur && (
+                <span className="flex items-center gap-1">
+                  <User2 className="h-3.5 w-3.5" /> {atelier.formateur}
+                </span>
+              )}
+              {atelier.duree && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" /> {atelier.duree}
+                </span>
+              )}
+              <Badge variant="outline" className={SESSION_COLORS[atelier.session?.code] || ''}>
+                {atelier.session?.label}
+              </Badge>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Participants */}
+        <div className="p-6">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {uniqueParticipants.length} participant{uniqueParticipants.length > 1 ? 's' : ''}
+          </h3>
+
+          <div className="flex flex-wrap gap-2">
+            {uniqueParticipants.map((p, idx) => (
+              <button
+                key={idx}
+                onClick={() => onSelectParticipant(p.prenom, p.nom)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors cursor-pointer hover:opacity-80 ${
+                  p.type === 'Audio'
+                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20'
+                    : 'bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20'
+                }`}
+              >
+                {p.prenom} {p.nom}
+              </button>
+            ))}
+          </div>
+
+          {uniqueParticipants.length === 0 && (
+            <p className="text-sm text-muted-foreground italic">Aucun participant pour cet atelier</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // Participants Tab
 // ============================================
 
 function ParticipantsTab({
   participants, selectedSession, search, onSearchChange,
   filterType, onFilterTypeChange, filterProgramme, onFilterProgrammeChange,
-  filterStatut, onFilterStatutChange, onSelectParticipant,
+  filterStatut, onFilterStatutChange, onSelectParticipant, showProgrammeFilter,
+  sortBy, sortDir, onToggleSort,
 }: {
   participants: GroupedParticipant[]
   selectedSession: string
@@ -524,7 +789,18 @@ function ParticipantsTab({
   filterStatut: string
   onFilterStatutChange: (v: string) => void
   onSelectParticipant: (p: GroupedParticipant) => void
+  showProgrammeFilter: boolean
+  sortBy: SortKey
+  sortDir: SortDir
+  onToggleSort: (key: SortKey) => void
 }) {
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
+    return sortDir === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />
+  }
+
   return (
     <div className="space-y-3">
       {/* Filters */}
@@ -534,7 +810,7 @@ function ParticipantsTab({
           <Input
             value={search}
             onChange={e => onSearchChange(e.target.value)}
-            placeholder="Rechercher nom, prénom, centre..."
+            placeholder="Rechercher nom, pr\u00e9nom, centre..."
             className="pl-9"
           />
         </div>
@@ -546,6 +822,18 @@ function ParticipantsTab({
             <SelectItem value="Assistante">Assistante</SelectItem>
           </SelectContent>
         </Select>
+        {showProgrammeFilter && (
+          <Select value={filterProgramme} onValueChange={onFilterProgrammeChange}>
+            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous prog.</SelectItem>
+              <SelectItem value="P1">P1</SelectItem>
+              <SelectItem value="P2">P2</SelectItem>
+              <SelectItem value="P3">P3</SelectItem>
+              <SelectItem value="P4">P4</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Select value={filterStatut} onValueChange={onFilterStatutChange}>
           <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -565,12 +853,22 @@ function ParticipantsTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Nom</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Prénom</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('nom')}>
+                <span className="flex items-center">Nom <SortIcon col="nom" /></span>
+              </th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('prenom')}>
+                <span className="flex items-center">Pr\u00e9nom <SortIcon col="prenom" /></span>
+              </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Statut</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Programme</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('type')}>
+                <span className="flex items-center">Type <SortIcon col="type" /></span>
+              </th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('statut')}>
+                <span className="flex items-center">Statut <SortIcon col="statut" /></span>
+              </th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('programme')}>
+                <span className="flex items-center">Programme <SortIcon col="programme" /></span>
+              </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ateliers</th>
             </tr>
           </thead>
@@ -641,25 +939,26 @@ function ParticipantsTab({
 }
 
 // ============================================
-// Ateliers Tab — grouped by type then by session
+// Ateliers Tab — grouped by type then by session, CLICKABLE cards
 // ============================================
 
 function AteliersTab({
-  ateliers, sessions, selectedSession, inscriptions,
+  ateliers, sessions, selectedSession, inscriptions, progMappings, onSelectAtelier,
 }: {
   ateliers: FormationAtelierWithSession[]
   sessions: FormationSession[]
   selectedSession: string
   inscriptions: FormationInscriptionWithSession[]
+  progMappings: ProgrammeAtelierMapping[]
+  onSelectAtelier: (a: FormationAtelierWithSession) => void
 }) {
   const types = ['Audio', 'Assistante'] as const
   const etatColors: Record<string, string> = {
-    'Terminé': 'text-green-500',
+    'Termin\u00e9': 'text-green-500',
     'En cours': 'text-yellow-500',
-    'Pas commencé': 'text-muted-foreground',
+    'Pas commenc\u00e9': 'text-muted-foreground',
   }
 
-  // Sessions to show (all or selected)
   const visibleSessions = selectedSession === 'all'
     ? sessions
     : sessions.filter(s => s.code === selectedSession)
@@ -674,17 +973,12 @@ function AteliersTab({
           <div key={type}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
               {type === 'Audio' ? <Mic2 className="h-4 w-4 text-cyan-500" /> : <Headphones className="h-4 w-4 text-orange-500" />}
-              {type === 'Audio' ? 'Audioprothésistes' : 'Assistantes'}
+              {type === 'Audio' ? 'Audioproth\u00e9sistes' : 'Assistantes'}
             </h3>
 
             {visibleSessions.map(session => {
               const sessionTypeAteliers = typeAteliers.filter(a => a.session_id === session.id)
               if (sessionTypeAteliers.length === 0) return null
-
-              // Count participants for this session + type
-              const participantCount = inscriptions.filter(i =>
-                i.session?.id === session.id && i.type === type
-              ).length
 
               return (
                 <div key={session.id} className="mb-6">
@@ -693,33 +987,45 @@ function AteliersTab({
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {sessionTypeAteliers.map(a => (
-                      <Card key={a.id} className="hover:border-primary/40 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <span className="font-semibold text-sm leading-tight">{a.nom}</span>
-                            <span className={`text-xs font-medium ${etatColors[a.etat] || ''}`}>{a.etat}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {a.formateur && (
-                              <span className="flex items-center gap-1">
-                                <User2 className="h-3 w-3" /> {a.formateur}
+                    {sessionTypeAteliers.map(a => {
+                      const participantCount = getParticipantsForAtelier(a, inscriptions, progMappings).length
+
+                      return (
+                        <Card
+                          key={a.id}
+                          className="hover:border-primary/40 transition-colors cursor-pointer"
+                          onClick={() => onSelectAtelier(a)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <span className="font-semibold text-sm leading-tight">{a.nom}</span>
+                              <span className={`text-xs font-medium whitespace-nowrap ${etatColors[a.etat] || ''}`}>{a.etat}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              {a.formateur && (
+                                <span className="flex items-center gap-1">
+                                  <User2 className="h-3 w-3" /> {a.formateur}
+                                </span>
+                              )}
+                              {a.duree && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> {a.duree}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <Badge variant="outline" className={`text-[10px] ${SESSION_COLORS[session.code] || ''}`}>
+                                {session.code.toUpperCase()}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                <Users className="h-3 w-3 inline mr-1" />
+                                {participantCount} part.
                               </span>
-                            )}
-                            {a.duree && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" /> {a.duree}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <Badge variant="outline" className={`text-[10px] ${SESSION_COLORS[session.code] || ''}`}>
-                              {session.code.toUpperCase()}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
                   </div>
                 </div>
               )
@@ -763,7 +1069,7 @@ function ProgrammesTab({
           <div key={type}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
               {type === 'Audio' ? <Mic2 className="h-4 w-4 text-cyan-500" /> : <Headphones className="h-4 w-4 text-orange-500" />}
-              {type === 'Audio' ? 'Audioprothésistes' : 'Assistantes'}
+              {type === 'Audio' ? 'Audioproth\u00e9sistes' : 'Assistantes'}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -771,7 +1077,6 @@ function ProgrammesTab({
                 const sessionInscriptions = typeInscriptions.filter(i => i.session?.id === session.id)
                 if (sessionInscriptions.length === 0) return null
 
-                // Check if this session is "Format rotatif" (all participants same programme)
                 const programmes = [...new Set(sessionInscriptions.map(i => i.programme))]
                 const isRotatif = programmes.length === 1 && programmes[0] === 'Format rotatif'
 
@@ -785,7 +1090,7 @@ function ProgrammesTab({
                         {session.label}
                       </h4>
                       <p className="text-[10px] text-muted-foreground italic">
-                        FORMAT ROTATIF &mdash; tous les participants {type === 'Audio' ? 'audioprothésistes' : 'assistantes'} font tous les ateliers
+                        FORMAT ROTATIF &mdash; tous les participants {type === 'Audio' ? 'audioproth\u00e9sistes' : 'assistantes'} font tous les ateliers
                       </p>
                       <div className="space-y-1.5">
                         {sessionAteliers.map(a => (
@@ -858,11 +1163,21 @@ function ProgrammesTab({
 }
 
 // ============================================
-// Doublons Tab — with stats + atelier doublon detection
+// Doublons Tab — with EQUIVALENCES/EXCLUSIONS system
 // ============================================
 
 interface DoublonsData {
   doublons: {
+    nom: string
+    prenom: string
+    type: string
+    centre: string | null
+    statuts: Set<string>
+    sessions: { session: FormationSession; programme: string; statut: string }[]
+    count: number
+    atelierDoublons: { name: string; sessions: { code: string; label: string }[] }[]
+  }[]
+  doublonsWithAteliers: {
     nom: string
     prenom: string
     type: string
@@ -878,11 +1193,12 @@ interface DoublonsData {
   atelierDoublonCount: number
 }
 
-function DoublonsTab({ data }: { data: DoublonsData }) {
+function DoublonsTab({ data, onSelectPerson }: { data: DoublonsData; onSelectPerson: (prenom: string, nom: string) => void }) {
   const [searchD, setSearchD] = useState('')
   const [filterTypeD, setFilterTypeD] = useState<string>('all')
 
-  let filtered = data.doublons
+  // Only show people with actual atelier doublons (like the HTML)
+  let filtered = data.doublonsWithAteliers
   if (filterTypeD !== 'all') filtered = filtered.filter(d => d.type === filterTypeD)
   if (searchD) {
     const q = searchD.toLowerCase()
@@ -891,15 +1207,12 @@ function DoublonsTab({ data }: { data: DoublonsData }) {
     )
   }
 
-  // Count doublons with atelier issues
-  const withAtelierDoublons = data.doublons.filter(d => d.atelierDoublons.length > 0)
-
   return (
     <div className="space-y-4">
       {/* Banner */}
       <Card className="bg-purple-500/5 border-purple-500/20">
         <CardContent className="p-4 text-sm text-muted-foreground">
-          <strong className="text-purple-400">Doublons détectés</strong> &mdash; personnes présentes aux deux sessions qui vont refaire (ou ont refait) un atelier équivalent.
+          <strong className="text-purple-400">Doublons d\u00e9tect\u00e9s</strong> &mdash; personnes pr\u00e9sentes aux deux sessions qui vont refaire (ou ont refait) un atelier \u00e9quivalent.
         </CardContent>
       </Card>
 
@@ -914,18 +1227,18 @@ function DoublonsTab({ data }: { data: DoublonsData }) {
         <Card>
           <CardContent className="p-4">
             <p className="text-2xl font-bold text-cyan-400">{data.audioRecurrent}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Audios récurrents</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Audios r\u00e9currents</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-2xl font-bold text-orange-400">{data.assistanteRecurrent}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Assistantes récurrentes</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Assistantes r\u00e9currentes</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-2xl font-bold text-red-400">{withAtelierDoublons.length}</p>
+            <p className="text-2xl font-bold text-red-400">{data.atelierDoublonCount}</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
               <AlertTriangle className="h-3 w-3 inline mr-1" />
               Doublons atelier
@@ -958,7 +1271,7 @@ function DoublonsTab({ data }: { data: DoublonsData }) {
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Nom</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Prénom</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Pr\u00e9nom</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Statut</th>
@@ -967,7 +1280,11 @@ function DoublonsTab({ data }: { data: DoublonsData }) {
           </thead>
           <tbody>
             {filtered.map((d, idx) => (
-              <tr key={idx} className="border-b border-border/50 hover:bg-muted/30 align-top">
+              <tr
+                key={idx}
+                className="border-b border-border/50 hover:bg-muted/30 align-top cursor-pointer"
+                onClick={() => onSelectPerson(d.prenom, d.nom)}
+              >
                 <td className="p-3">
                   <div>
                     <span className="font-semibold">{d.nom}</span>
