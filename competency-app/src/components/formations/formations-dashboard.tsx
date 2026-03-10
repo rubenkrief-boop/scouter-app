@@ -187,6 +187,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
   const [filterStatut, setFilterStatut] = useState<string>('all')
   const [selectedParticipant, setSelectedParticipant] = useState<GroupedParticipant | null>(null)
   const [selectedAtelier, setSelectedAtelier] = useState<FormationAtelierWithSession | null>(null)
+  const [selectedProgramme, setSelectedProgramme] = useState<{ session: FormationSession; type: string; programme: string } | null>(null)
   const [sortBy, setSortBy] = useState<SortKey>('nom')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
@@ -421,6 +422,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     g.atelierCount = count
 
     setSelectedAtelier(null) // Close atelier modal
+    setSelectedProgramme(null) // Close programme modal
     setSelectedParticipant(g) // Open profile modal
   }
 
@@ -534,6 +536,8 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           inscriptions={filteredInscriptions}
           progMappings={progAtelierMappings}
           selectedSession={selectedSession}
+          onSelectProgramme={(session, type, programme) => setSelectedProgramme({ session, type, programme })}
+          onSelectAtelier={setSelectedAtelier}
         />
       )}
 
@@ -560,6 +564,20 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           inscriptions={inscriptions}
           progMappings={progAtelierMappings}
           onClose={() => setSelectedAtelier(null)}
+          onSelectParticipant={handleAtelierParticipantClick}
+        />
+      )}
+
+      {/* Programme Modal */}
+      {selectedProgramme && (
+        <ProgrammeModal
+          session={selectedProgramme.session}
+          type={selectedProgramme.type}
+          programme={selectedProgramme.programme}
+          inscriptions={inscriptions}
+          ateliers={ateliers}
+          progMappings={progAtelierMappings}
+          onClose={() => setSelectedProgramme(null)}
           onSelectParticipant={handleAtelierParticipantClick}
         />
       )}
@@ -762,6 +780,113 @@ function AtelierModal({
           {uniqueParticipants.length === 0 && (
             <p className="text-sm text-muted-foreground italic">Aucun participant pour cet atelier</p>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// Programme Modal — shows participants in a programme
+// ============================================
+
+function ProgrammeModal({
+  session, type, programme, inscriptions, ateliers, progMappings, onClose, onSelectParticipant,
+}: {
+  session: FormationSession
+  type: string
+  programme: string
+  inscriptions: FormationInscriptionWithSession[]
+  ateliers: FormationAtelierWithSession[]
+  progMappings: ProgrammeAtelierMapping[]
+  onClose: () => void
+  onSelectParticipant: (prenom: string, nom: string) => void
+}) {
+  // Get participants for this session + type + programme
+  const participants = inscriptions
+    .filter(i => i.session_id === session.id && i.type === type && i.programme === programme)
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'))
+
+  // Get ateliers for this programme
+  const progAteliers = getAteliersForParticipant(session.id, type, programme, ateliers, progMappings)
+
+  const isRotatif = programme === 'Format rotatif'
+  const typeLabel = type === 'Audio' ? 'Audioprothésistes' : 'Assistantes'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 pb-4 border-b border-border">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={`font-bold ${PROG_COLORS[programme] || ''}`}>
+                {programme}
+              </Badge>
+              <Badge variant="outline" className={SESSION_COLORS[session.code] || ''}>
+                {session.label}
+              </Badge>
+            </div>
+            <h2 className="text-lg font-bold mt-2">
+              {isRotatif ? `Format rotatif — ${typeLabel}` : `Programme ${programme} — ${typeLabel}`}
+            </h2>
+            {session.date_info && (
+              <p className="text-sm text-muted-foreground mt-1">{session.date_info}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Ateliers section */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {progAteliers.length} atelier{progAteliers.length > 1 ? 's' : ''}
+            </h3>
+            <div className="space-y-1.5">
+              {progAteliers.map(a => (
+                <div key={a.id} className="flex items-center gap-2 text-sm">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    type === 'Audio' ? 'bg-cyan-500' : 'bg-orange-500'
+                  }`} />
+                  <span className="font-medium">{a.nom}</span>
+                  {a.formateur && (
+                    <span className="text-xs text-muted-foreground">— {a.formateur}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Participants section */}
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              {participants.length} participant{participants.length > 1 ? 's' : ''}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {participants.map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onSelectParticipant(p.prenom, p.nom)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors cursor-pointer hover:opacity-80 ${
+                    type === 'Audio'
+                      ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20'
+                      : 'bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20'
+                  }`}
+                >
+                  {p.prenom} {p.nom}
+                </button>
+              ))}
+            </div>
+
+            {participants.length === 0 && (
+              <p className="text-sm text-muted-foreground italic">Aucun participant dans ce programme</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1046,13 +1171,15 @@ function AteliersTab({
 // ============================================
 
 function ProgrammesTab({
-  sessions, ateliers, inscriptions, progMappings, selectedSession,
+  sessions, ateliers, inscriptions, progMappings, selectedSession, onSelectProgramme, onSelectAtelier,
 }: {
   sessions: FormationSession[]
   ateliers: FormationAtelierWithSession[]
   inscriptions: FormationInscriptionWithSession[]
   progMappings: ProgrammeAtelierMapping[]
   selectedSession: string
+  onSelectProgramme: (session: FormationSession, type: string, programme: string) => void
+  onSelectAtelier: (a: FormationAtelierWithSession) => void
 }) {
   const types = ['Audio', 'Assistante'] as const
   const visibleSessions = selectedSession === 'all'
@@ -1086,15 +1213,23 @@ function ProgrammesTab({
                 if (isRotatif) {
                   return (
                     <div key={session.id} className="space-y-2">
-                      <h4 className={`text-sm font-bold ${SESSION_COLORS[session.code]?.split(' ').find(c => c.startsWith('text-')) || ''}`}>
+                      <h4
+                        className={`text-sm font-bold cursor-pointer hover:underline ${SESSION_COLORS[session.code]?.split(' ').find(c => c.startsWith('text-')) || ''}`}
+                        onClick={() => onSelectProgramme(session, type, 'Format rotatif')}
+                      >
                         {session.label}
+                        <span className="text-xs font-normal text-muted-foreground ml-2">({participantCount} part.)</span>
                       </h4>
                       <p className="text-[10px] text-muted-foreground italic">
                         FORMAT ROTATIF &mdash; tous les participants {type === 'Audio' ? 'audioproth\u00e9sistes' : 'assistantes'} font tous les ateliers
                       </p>
                       <div className="space-y-1.5">
                         {sessionAteliers.map(a => (
-                          <Card key={a.id} className="bg-card">
+                          <Card
+                            key={a.id}
+                            className="bg-card cursor-pointer hover:border-primary/40 transition-colors"
+                            onClick={() => onSelectAtelier(a)}
+                          >
                             <CardContent className="p-3 flex items-center justify-between">
                               <div>
                                 <p className="text-sm font-medium">{a.nom}</p>
@@ -1123,12 +1258,16 @@ function ProgrammesTab({
                       const progAteliers = getAteliersForParticipant(session.id, type, prog, ateliers, progMappings)
 
                       return (
-                        <Card key={prog} className={`border-l-4 ${
-                          prog === 'P1' ? 'border-l-cyan-500' :
-                          prog === 'P2' ? 'border-l-orange-500' :
-                          prog === 'P3' ? 'border-l-green-500' :
-                          prog === 'P4' ? 'border-l-yellow-500' : 'border-l-purple-500'
-                        }`}>
+                        <Card
+                          key={prog}
+                          className={`border-l-4 cursor-pointer hover:border-primary/40 transition-colors ${
+                            prog === 'P1' ? 'border-l-cyan-500' :
+                            prog === 'P2' ? 'border-l-orange-500' :
+                            prog === 'P3' ? 'border-l-green-500' :
+                            prog === 'P4' ? 'border-l-yellow-500' : 'border-l-purple-500'
+                          }`}
+                          onClick={() => onSelectProgramme(session, type, prog)}
+                        >
                           <CardHeader className="p-3 pb-1">
                             <div className="flex items-center justify-between">
                               <Badge variant="outline" className={`font-bold ${PROG_COLORS[prog] || ''}`}>
