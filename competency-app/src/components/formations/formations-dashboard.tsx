@@ -1,16 +1,18 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { FormationStats, ProgrammeAtelierMapping } from '@/lib/actions/formations'
+import { deleteFormationInscription } from '@/lib/actions/formations'
 
 // ============================================
 // Color mappings
@@ -49,6 +51,9 @@ const EQUIVALENCES: { keywords: string[]; type: 'Audio' | 'Assistante' | 'both' 
   { keywords: ['réglementat'],   type: 'both' },
   { keywords: ['manager 2'],     type: 'Audio' },
   { keywords: ['manager 2'],     type: 'Assistante' },
+  { keywords: ['wizville'],      type: 'both' },
+  { keywords: ['oney'],          type: 'both' },
+  { keywords: ['renouvellement'], type: 'Audio' },
 ]
 
 // ============================================
@@ -61,7 +66,7 @@ interface GroupedParticipant {
   centre: string | null
   dpc: boolean
   profile_id: string | null
-  sessions: { session: FormationSession; programme: string; type: string; statut: string }[]
+  sessions: { session: FormationSession; programme: string; type: string; statut: string; inscriptionId: string }[]
   types: Set<string>
   statuts: Set<string>
   atelierCount: number
@@ -239,7 +244,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       g.statuts.add(i.statut)
       if (i.dpc) g.dpc = true
       if (i.profile_id) g.profile_id = i.profile_id
-      g.sessions.push({ session: i.session, programme: i.programme, type: i.type, statut: i.statut })
+      g.sessions.push({ session: i.session, programme: i.programme, type: i.type, statut: i.statut, inscriptionId: i.id })
     }
 
     // Compute atelier count per participant
@@ -410,7 +415,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       centre: personInsc.find(i => i.centre)?.centre || null,
       dpc: personInsc.some(i => i.dpc),
       profile_id: personInsc.find(i => i.profile_id)?.profile_id || null,
-      sessions: personInsc.map(i => ({ session: i.session, programme: i.programme, type: i.type, statut: i.statut })),
+      sessions: personInsc.map(i => ({ session: i.session, programme: i.programme, type: i.type, statut: i.statut, inscriptionId: i.id })),
       types: new Set(personInsc.map(i => i.type)),
       statuts: new Set(personInsc.map(i => i.statut)),
       atelierCount: 0,
@@ -515,6 +520,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           sortBy={sortBy}
           sortDir={sortDir}
           onToggleSort={toggleSort}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -901,7 +907,7 @@ function ParticipantsTab({
   participants, selectedSession, search, onSearchChange,
   filterType, onFilterTypeChange, filterProgramme, onFilterProgrammeChange,
   filterStatut, onFilterStatutChange, onSelectParticipant, showProgrammeFilter,
-  sortBy, sortDir, onToggleSort,
+  sortBy, sortDir, onToggleSort, isAdmin,
 }: {
   participants: GroupedParticipant[]
   selectedSession: string
@@ -918,7 +924,10 @@ function ParticipantsTab({
   sortBy: SortKey
   sortDir: SortDir
   onToggleSort: (key: SortKey) => void
+  isAdmin: boolean
 }) {
+  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
   const SortIcon = ({ col }: { col: SortKey }) => {
     if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
     return sortDir === 'asc'
@@ -995,12 +1004,13 @@ function ParticipantsTab({
                 <span className="flex items-center">Programme <SortIcon col="programme" /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ateliers</th>
+              {isAdmin && <th className="p-3 w-10"></th>}
             </tr>
           </thead>
           <tbody>
             {participants.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center p-8 text-muted-foreground">
+                <td colSpan={isAdmin ? 8 : 7} className="text-center p-8 text-muted-foreground">
                   Aucun participant
                 </td>
               </tr>
@@ -1053,6 +1063,32 @@ function ParticipantsTab({
                   <td className="p-3 text-right">
                     <span className="text-muted-foreground text-xs">{p.atelierCount} ateliers</span>
                   </td>
+                  {isAdmin && (
+                    <td className="p-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        disabled={isPending}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const count = p.sessions.length
+                          const msg = count > 1
+                            ? `Supprimer ${p.prenom} ${p.nom} de toutes les formations (${count} inscriptions) ?`
+                            : `Supprimer ${p.prenom} ${p.nom} du listing formations ?`
+                          if (!confirm(msg)) return
+                          startTransition(async () => {
+                            for (const s of p.sessions) {
+                              await deleteFormationInscription(s.inscriptionId)
+                            }
+                            router.refresh()
+                          })
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
