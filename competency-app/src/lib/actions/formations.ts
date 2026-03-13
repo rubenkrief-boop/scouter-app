@@ -74,6 +74,7 @@ export async function getFormationInscriptions(
     .from('formation_inscriptions')
     .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
     .order('nom', { ascending: true })
+    .limit(5000)
 
   if (sessionId) query = query.eq('session_id', sessionId)
   if (filters?.type) query = query.eq('type', filters.type)
@@ -108,7 +109,7 @@ export interface FormationStats {
 
 export async function getFormationStats(sessionId?: string): Promise<FormationStats> {
   const supabase = await createClient()
-  let query = supabase.from('formation_inscriptions').select('type, statut, programme, dpc')
+  let query = supabase.from('formation_inscriptions').select('type, statut, programme, dpc').limit(5000)
 
   if (sessionId) query = query.eq('session_id', sessionId)
 
@@ -187,6 +188,7 @@ export async function getAllFormationInscriptions(): Promise<FormationInscriptio
     .from('formation_inscriptions')
     .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
     .order('nom', { ascending: true })
+    .limit(5000)
 
   if (error) {
     console.error('Error fetching all inscriptions:', error)
@@ -421,6 +423,7 @@ export async function autoLinkInscriptions() {
     .from('formation_inscriptions')
     .select('id, nom, prenom')
     .is('profile_id', null)
+    .limit(5000)
 
   if (!inscriptions || inscriptions.length === 0) return { linked: 0 }
 
