@@ -65,32 +65,49 @@ interface InscriptionFilters {
   statut?: 'Succursale' | 'Franchise'
 }
 
+// Supabase caps at 1000 rows per request (server-side db_max_rows).
+// This helper paginates to fetch all rows.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function paginatedFetch<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
+  const all: T[] = []
+  let offset = 0
+  while (true) {
+    const { data, error } = await buildQuery().range(offset, offset + pageSize - 1)
+    if (error) {
+      console.error('Paginated fetch error:', error)
+      break
+    }
+    if (!data || data.length === 0) break
+    all.push(...(data as T[]))
+    if (data.length < pageSize) break
+    offset += pageSize
+  }
+  return all
+}
+
 export async function getFormationInscriptions(
   sessionId?: string,
   filters?: InscriptionFilters
 ): Promise<FormationInscriptionWithSession[]> {
   const supabase = await createClient()
-  let query = supabase
-    .from('formation_inscriptions')
-    .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
-    .order('nom', { ascending: true })
-    .limit(5000)
 
-  if (sessionId) query = query.eq('session_id', sessionId)
-  if (filters?.type) query = query.eq('type', filters.type)
-  if (filters?.programme) query = query.eq('programme', filters.programme)
-  if (filters?.statut) query = query.eq('statut', filters.statut)
-  if (filters?.search) {
-    query = query.or(`nom.ilike.%${filters.search}%,prenom.ilike.%${filters.search}%,centre.ilike.%${filters.search}%`)
+  const buildQuery = () => {
+    let query = supabase
+      .from('formation_inscriptions')
+      .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
+      .order('nom', { ascending: true })
+
+    if (sessionId) query = query.eq('session_id', sessionId)
+    if (filters?.type) query = query.eq('type', filters.type)
+    if (filters?.programme) query = query.eq('programme', filters.programme)
+    if (filters?.statut) query = query.eq('statut', filters.statut)
+    if (filters?.search) {
+      query = query.or(`nom.ilike.%${filters.search}%,prenom.ilike.%${filters.search}%,centre.ilike.%${filters.search}%`)
+    }
+    return query
   }
 
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching formation inscriptions:', error)
-    return []
-  }
-  return (data ?? []) as FormationInscriptionWithSession[]
+  return paginatedFetch<FormationInscriptionWithSession>(buildQuery)
 }
 
 // ============================================
@@ -109,12 +126,15 @@ export interface FormationStats {
 
 export async function getFormationStats(sessionId?: string): Promise<FormationStats> {
   const supabase = await createClient()
-  let query = supabase.from('formation_inscriptions').select('type, statut, programme, dpc').limit(5000)
 
-  if (sessionId) query = query.eq('session_id', sessionId)
+  const buildQuery = () => {
+    let query = supabase.from('formation_inscriptions').select('type, statut, programme, dpc')
+    if (sessionId) query = query.eq('session_id', sessionId)
+    return query
+  }
 
-  const { data, error } = await query
-  if (error || !data) return { totalParticipants: 0, audio: 0, assistante: 0, succursale: 0, franchise: 0, dpc: 0, byProgramme: {} }
+  const data = await paginatedFetch<{ type: string; statut: string; programme: string; dpc: boolean }>(buildQuery)
+  if (!data.length) return { totalParticipants: 0, audio: 0, assistante: 0, succursale: 0, franchise: 0, dpc: 0, byProgramme: {} }
 
   const stats: FormationStats = {
     totalParticipants: data.length,
@@ -184,17 +204,14 @@ export async function getFormationProgrammeAteliers(
 
 export async function getAllFormationInscriptions(): Promise<FormationInscriptionWithSession[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('formation_inscriptions')
-    .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
-    .order('nom', { ascending: true })
-    .limit(5000)
 
-  if (error) {
-    console.error('Error fetching all inscriptions:', error)
-    return []
-  }
-  return (data ?? []) as FormationInscriptionWithSession[]
+  const buildQuery = () =>
+    supabase
+      .from('formation_inscriptions')
+      .select('*, session:formation_sessions!formation_inscriptions_session_id_fkey(*)')
+      .order('nom', { ascending: true })
+
+  return paginatedFetch<FormationInscriptionWithSession>(buildQuery)
 }
 
 // ============================================
@@ -418,14 +435,12 @@ export async function deleteFormationInscription(id: string) {
 export async function autoLinkInscriptions() {
   const supabase = await createClient()
 
-  // Get all unlinked inscriptions
-  const { data: inscriptions } = await supabase
-    .from('formation_inscriptions')
-    .select('id, nom, prenom')
-    .is('profile_id', null)
-    .limit(5000)
+  // Get all unlinked inscriptions (paginated to avoid 1000-row limit)
+  const inscriptions = await paginatedFetch<{ id: string; nom: string; prenom: string }>(
+    () => supabase.from('formation_inscriptions').select('id, nom, prenom').is('profile_id', null)
+  )
 
-  if (!inscriptions || inscriptions.length === 0) return { linked: 0 }
+  if (inscriptions.length === 0) return { linked: 0 }
 
   // Get all active profiles
   const { data: profiles } = await supabase
