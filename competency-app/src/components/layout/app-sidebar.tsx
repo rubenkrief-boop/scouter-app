@@ -97,12 +97,13 @@ const navItems: NavItem[] = [
     roles: ['super_admin', 'manager', 'skill_master'],
     section: 'Évaluation',
   },
+  // Formations plénières
   {
     label: 'Formations',
     href: '/formations',
     icon: <GraduationCap className="h-5 w-5" />,
     roles: ['super_admin', 'skill_master', 'manager', 'worker'],
-    section: 'Évaluation',
+    section: 'Formations plénières',
   },
   // Audioprothésiste
   {
