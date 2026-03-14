@@ -12,7 +12,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { FormationStats, ProgrammeAtelierMapping } from '@/lib/actions/formations'
-import { deleteFormationInscription } from '@/lib/actions/formations'
+import { deleteFormationInscription, updateFormationInscription } from '@/lib/actions/formations'
+import { Pencil } from 'lucide-react'
 
 // ============================================
 // Color mappings
@@ -560,6 +561,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           sessions={sessions}
           progMappings={progAtelierMappings}
           onClose={() => setSelectedParticipant(null)}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -616,7 +618,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 // ============================================
 
 function ParticipantModal({
-  participant, allInscriptions, ateliers, sessions, progMappings, onClose,
+  participant, allInscriptions, ateliers, sessions, progMappings, onClose, isAdmin,
 }: {
   participant: GroupedParticipant
   allInscriptions: FormationInscriptionWithSession[]
@@ -624,7 +626,12 @@ function ParticipantModal({
   sessions: FormationSession[]
   progMappings: ProgrammeAtelierMapping[]
   onClose: () => void
+  isAdmin?: boolean
 }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [editingId, setEditingId] = useState<string | null>(null)
+
   // Get ALL inscriptions for this person (unfiltered)
   const personKey = `${normalize(participant.prenom)}|${normalize(participant.nom)}`
   const personInscriptions = allInscriptions.filter(i => {
@@ -634,6 +641,13 @@ function ParticipantModal({
 
   const types = [...new Set(personInscriptions.map(i => i.type))]
   const statuts = [...new Set(personInscriptions.map(i => i.statut))]
+
+  const handleUpdate = (id: string, field: string, value: string | boolean) => {
+    startTransition(async () => {
+      await updateFormationInscription(id, { [field]: value })
+      router.refresh()
+    })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -671,6 +685,7 @@ function ParticipantModal({
             const sessionAteliers = getAteliersForParticipant(
               insc.session.id, insc.type, insc.programme, ateliers, progMappings
             )
+            const isEditing = editingId === insc.id
 
             return (
               <div key={idx} className="space-y-3">
@@ -683,10 +698,99 @@ function ParticipantModal({
                       <span className="text-xs text-muted-foreground">{insc.session.date_info}</span>
                     )}
                   </div>
-                  <Badge variant="outline" className={`text-xs ${PROG_COLORS[insc.programme] || ''}`}>
-                    {insc.programme}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-xs ${PROG_COLORS[insc.programme] || ''}`}>
+                      {insc.programme}
+                    </Badge>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setEditingId(isEditing ? null : insc.id)}
+                        className={`p-1 rounded hover:bg-muted ${isEditing ? 'text-cyan-400' : 'text-muted-foreground hover:text-foreground'}`}
+                        title="Modifier"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Inline edit controls */}
+                {isEditing && (
+                  <div className="ml-2 p-3 rounded-lg bg-muted/50 border border-border space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Type</label>
+                        <Select
+                          defaultValue={insc.type}
+                          onValueChange={(v) => handleUpdate(insc.id, 'type', v)}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Audio">Audio</SelectItem>
+                            <SelectItem value="Assistante">Assistante</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Statut</label>
+                        <Select
+                          defaultValue={insc.statut}
+                          onValueChange={(v) => handleUpdate(insc.id, 'statut', v)}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Succursale">Succursale</SelectItem>
+                            <SelectItem value="Franchise">Franchise</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Programme</label>
+                        <Select
+                          defaultValue={insc.programme}
+                          onValueChange={(v) => handleUpdate(insc.id, 'programme', v)}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="P1">P1</SelectItem>
+                            <SelectItem value="P2">P2</SelectItem>
+                            <SelectItem value="P3">P3</SelectItem>
+                            <SelectItem value="P4">P4</SelectItem>
+                            <SelectItem value="Format rotatif">Format rotatif</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">DPC</label>
+                        <Select
+                          defaultValue={insc.dpc ? 'true' : 'false'}
+                          onValueChange={(v) => handleUpdate(insc.id, 'dpc', v === 'true')}
+                          disabled={isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Oui</SelectItem>
+                            <SelectItem value="false">Non</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {isPending && (
+                      <p className="text-xs text-cyan-400 animate-pulse">Mise à jour...</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="ml-2 space-y-1.5">
                   {sessionAteliers.length > 0 ? (
@@ -699,7 +803,7 @@ function ParticipantModal({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">Aucun atelier mapp\u00e9</p>
+                    <p className="text-xs text-muted-foreground italic">Aucun atelier mappé</p>
                   )}
                 </div>
 
