@@ -6,22 +6,22 @@ import { GraduationCap, Calendar, Mic2, Headphones } from 'lucide-react'
 import type { FormationInscriptionWithSession } from '@/lib/types'
 
 const SESSION_COLORS: Record<string, string> = {
-  s22: 'bg-orange-400/10 text-orange-300 border-orange-400/20',
-  m23: 'bg-pink-400/10 text-pink-300 border-pink-400/20',
-  s23: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
-  m24: 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20',
-  s24: 'bg-purple-400/10 text-purple-300 border-purple-400/20',
-  m25: 'bg-green-400/10 text-green-300 border-green-400/20',
-  s25: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
-  m26: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
+  s22: 'bg-orange-100 text-orange-800 border-orange-200',
+  m23: 'bg-pink-100 text-pink-800 border-pink-200',
+  s23: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  m24: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  s24: 'bg-purple-100 text-purple-800 border-purple-200',
+  m25: 'bg-green-100 text-green-800 border-green-200',
+  s25: 'bg-amber-100 text-amber-800 border-amber-200',
+  m26: 'bg-cyan-100 text-cyan-800 border-cyan-200',
 }
 
 const PROG_COLORS: Record<string, string> = {
-  P1: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
-  P2: 'bg-orange-400/10 text-orange-300 border-orange-400/20',
-  P3: 'bg-green-400/10 text-green-300 border-green-400/20',
-  P4: 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20',
-  'Format rotatif': 'bg-purple-400/10 text-purple-300 border-purple-400/20',
+  P1: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  P2: 'bg-orange-100 text-orange-800 border-orange-200',
+  P3: 'bg-green-100 text-green-800 border-green-200',
+  P4: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Format rotatif': 'bg-purple-100 text-purple-800 border-purple-200',
 }
 
 interface WorkerFormationsCardProps {
