@@ -2,12 +2,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type {
   FormationSession,
   FormationAtelier,
   FormationInscription,
   FormationInscriptionWithSession,
   FormationAtelierWithSession,
+  FormationProgrammeFile,
+  FormationProgrammeSetting,
+  FormationProgrammeSettingWithCount,
+  FormationType,
 } from '@/lib/types'
 
 // ============================================
@@ -248,6 +253,64 @@ export async function getAllProgrammeAtelierMappings(): Promise<ProgrammeAtelier
 }
 
 // ============================================
+// READ: Team profiles (for inscription selector)
+// ============================================
+
+export interface TeamProfile {
+  id: string
+  first_name: string
+  last_name: string
+  role: string
+  location_id: string | null
+  location_name: string | null
+}
+
+export async function getTeamProfiles(): Promise<TeamProfile[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) return []
+
+  // Admin / skill_master → all active profiles
+  // Manager → only profiles assigned to this manager
+  let query = supabase
+    .from('profiles')
+    .select('id, first_name, last_name, role, location_id, location:locations!profiles_location_id_fkey(name)')
+    .eq('is_active', true)
+    .order('last_name', { ascending: true })
+
+  if (profile.role === 'manager') {
+    query = query.eq('manager_id', user.id)
+  } else if (!['super_admin', 'skill_master'].includes(profile.role)) {
+    // Not authorized
+    return []
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('Error fetching team profiles:', error)
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    first_name: p.first_name,
+    last_name: p.last_name,
+    role: p.role,
+    location_id: p.location_id,
+    location_name: p.location?.name ?? null,
+  }))
+}
+
+// ============================================
 // CRUD: Sessions
 // ============================================
 
@@ -281,6 +344,7 @@ export async function updateFormationSession(id: string, data: {
   date_info?: string
   sort_order?: number
   is_active?: boolean
+  registration_open?: boolean
 }) {
   const supabase = await createClient()
   const { error } = await supabase
@@ -380,6 +444,31 @@ export async function createFormationInscription(data: {
   profile_id?: string
 }) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié' }
+
+  // Get caller role
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!callerProfile) return { error: 'Profil introuvable' }
+
+  // Manager: can only inscribe members of their team
+  if (callerProfile.role === 'manager' && data.profile_id) {
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, manager_id')
+      .eq('id', data.profile_id)
+      .single()
+
+    if (!targetProfile || targetProfile.manager_id !== user.id) {
+      return { error: 'Vous ne pouvez inscrire que les membres de votre équipe' }
+    }
+  }
+
   const { error } = await supabase
     .from('formation_inscriptions')
     .insert({
@@ -470,4 +559,274 @@ export async function autoLinkInscriptions() {
 
   revalidatePath('/formations')
   return { linked }
+}
+
+// ============================================
+// READ: Programme files
+// ============================================
+
+export async function getFormationProgrammeFiles(
+  sessionId?: string
+): Promise<FormationProgrammeFile[]> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('formation_programme_files')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (sessionId) query = query.eq('session_id', sessionId)
+
+  const { data, error } = await query
+  if (error) {
+    console.error('Error fetching programme files:', error)
+    return []
+  }
+  return (data ?? []) as FormationProgrammeFile[]
+}
+
+// ============================================
+// READ: Programme settings with inscription count
+// ============================================
+
+export async function getFormationProgrammeSettings(
+  sessionId?: string
+): Promise<FormationProgrammeSettingWithCount[]> {
+  const supabase = await createClient()
+
+  // 1. Fetch settings
+  let settingsQuery = supabase
+    .from('formation_programme_settings')
+    .select('*')
+    .order('type', { ascending: true })
+    .order('programme', { ascending: true })
+
+  if (sessionId) settingsQuery = settingsQuery.eq('session_id', sessionId)
+
+  const { data: settings, error: settingsError } = await settingsQuery
+  if (settingsError) {
+    console.error('Error fetching programme settings:', settingsError)
+    return []
+  }
+  if (!settings || settings.length === 0) return []
+
+  // 2. Fetch inscription counts grouped by (session_id, type, programme)
+  const sessionIds = [...new Set(settings.map(s => s.session_id))]
+  const buildCountQuery = () => {
+    let query = supabase
+      .from('formation_inscriptions')
+      .select('session_id, type, programme')
+    if (sessionIds.length === 1) {
+      query = query.eq('session_id', sessionIds[0])
+    } else {
+      query = query.in('session_id', sessionIds)
+    }
+    return query
+  }
+
+  const inscriptions = await paginatedFetch<{ session_id: string; type: string; programme: string }>(buildCountQuery)
+
+  // 3. Count per (session_id, type, programme)
+  const countMap: Record<string, number> = {}
+  for (const ins of inscriptions) {
+    const key = `${ins.session_id}|${ins.type}|${ins.programme}`
+    countMap[key] = (countMap[key] || 0) + 1
+  }
+
+  // 4. Merge
+  return settings.map(s => ({
+    ...s,
+    current_count: countMap[`${s.session_id}|${s.type}|${s.programme}`] || 0,
+  })) as FormationProgrammeSettingWithCount[]
+}
+
+// ============================================
+// CRUD: Programme settings
+// ============================================
+
+export async function upsertFormationProgrammeSetting(data: {
+  session_id: string
+  type: FormationType
+  programme: string
+  max_places: number
+  salle?: string
+}) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('formation_programme_settings')
+    .upsert(
+      {
+        session_id: data.session_id,
+        type: data.type,
+        programme: data.programme,
+        max_places: data.max_places,
+        salle: data.salle || null,
+      },
+      { onConflict: 'session_id,type,programme' }
+    )
+
+  if (error) return { error: error.message }
+  revalidatePath('/formations')
+  return { success: true }
+}
+
+export async function deleteFormationProgrammeSetting(id: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('formation_programme_settings').delete().eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath('/formations')
+  return { success: true }
+}
+
+// ============================================
+// Toggle session registration open/closed
+// ============================================
+
+export async function toggleSessionRegistration(sessionId: string, open: boolean) {
+  return updateFormationSession(sessionId, { registration_open: open })
+}
+
+// ============================================
+// Self-registration (worker / formation_user)
+// ============================================
+
+export async function selfRegisterFormation(data: {
+  session_id: string
+  type: FormationType
+  programme: string
+  dpc?: boolean
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié' }
+
+  // Fetch profile with location
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, role, location_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) return { error: 'Profil introuvable' }
+  if (!['worker', 'formation_user'].includes(profile.role)) {
+    return { error: 'Rôle non autorisé pour l\'inscription' }
+  }
+
+  // Determine statut from role
+  const statut = profile.role === 'formation_user' ? 'Franchise' : 'Succursale'
+
+  // Check session is active and registration is open
+  const { data: session } = await supabase
+    .from('formation_sessions')
+    .select('id, is_active, registration_open')
+    .eq('id', data.session_id)
+    .single()
+
+  if (!session) return { error: 'Session introuvable' }
+  if (!session.is_active) return { error: 'Cette session n\'est plus active' }
+  if (!session.registration_open) return { error: 'Les inscriptions sont fermées pour cette session' }
+
+  // Check capacity
+  const { data: setting } = await supabase
+    .from('formation_programme_settings')
+    .select('max_places')
+    .eq('session_id', data.session_id)
+    .eq('type', data.type)
+    .eq('programme', data.programme)
+    .single()
+
+  if (!setting) return { error: 'Ce programme n\'est pas configuré pour cette session' }
+
+  if (setting.max_places > 0) {
+    // Count current inscriptions
+    const { count } = await supabase
+      .from('formation_inscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', data.session_id)
+      .eq('type', data.type)
+      .eq('programme', data.programme)
+
+    if (count !== null && count >= setting.max_places) {
+      return { error: 'Ce programme est complet, plus de places disponibles' }
+    }
+  }
+
+  // Get centre from location
+  let centre: string | null = null
+  if (profile.location_id) {
+    const { data: location } = await supabase
+      .from('locations')
+      .select('name')
+      .eq('id', profile.location_id)
+      .single()
+    centre = location?.name ?? null
+  }
+
+  // Insert via admin client (bypasses RLS)
+  const adminClient = createAdminClient()
+  const { error } = await adminClient
+    .from('formation_inscriptions')
+    .insert({
+      session_id: data.session_id,
+      profile_id: user.id,
+      nom: profile.last_name,
+      prenom: profile.first_name,
+      type: data.type,
+      statut,
+      programme: data.programme,
+      centre,
+      dpc: data.dpc ?? false,
+    })
+
+  if (error) {
+    // Handle UNIQUE constraint violation
+    if (error.code === '23505') {
+      return { error: 'Vous êtes déjà inscrit à cette session pour ce type' }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath('/formations')
+  return { success: true }
+}
+
+// ============================================
+// Self-unregistration
+// ============================================
+
+export async function selfUnregisterFormation(inscriptionId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié' }
+
+  // Verify the inscription belongs to the user
+  const adminClient = createAdminClient()
+  const { data: inscription } = await adminClient
+    .from('formation_inscriptions')
+    .select('id, profile_id, session_id')
+    .eq('id', inscriptionId)
+    .single()
+
+  if (!inscription) return { error: 'Inscription introuvable' }
+  if (inscription.profile_id !== user.id) return { error: 'Non autorisé' }
+
+  // Check session still has registration open
+  const { data: session } = await supabase
+    .from('formation_sessions')
+    .select('registration_open')
+    .eq('id', inscription.session_id)
+    .single()
+
+  if (!session?.registration_open) {
+    return { error: 'Les inscriptions sont fermées, vous ne pouvez plus vous désinscrire' }
+  }
+
+  // Delete
+  const { error } = await adminClient
+    .from('formation_inscriptions')
+    .delete()
+    .eq('id', inscriptionId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/formations')
+  return { success: true }
 }

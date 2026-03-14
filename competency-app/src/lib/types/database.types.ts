@@ -268,6 +268,7 @@ export interface FormationSession {
   date_info: string | null
   sort_order: number
   is_active: boolean
+  registration_open: boolean
   created_at: string
   updated_at: string
 }
@@ -315,6 +316,31 @@ export interface FormationProgrammeAtelier {
   type: FormationType
   programme: string
   atelier_id: string
+}
+
+export interface FormationProgrammeFile {
+  id: string
+  session_id: string
+  type: FormationType
+  file_url: string
+  file_name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FormationProgrammeSetting {
+  id: string
+  session_id: string
+  type: FormationType
+  programme: string
+  max_places: number
+  salle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface FormationProgrammeSettingWithCount extends FormationProgrammeSetting {
+  current_count: number
 }
 
 // Database type for Supabase client
@@ -430,6 +456,16 @@ export type Database = {
         Row: FormationProgrammeAtelier
         Insert: Omit<FormationProgrammeAtelier, 'id'>
         Update: Partial<Omit<FormationProgrammeAtelier, 'id'>>
+      }
+      formation_programme_files: {
+        Row: FormationProgrammeFile
+        Insert: Omit<FormationProgrammeFile, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<FormationProgrammeFile, 'id' | 'created_at'>>
+      }
+      formation_programme_settings: {
+        Row: FormationProgrammeSetting
+        Insert: Omit<FormationProgrammeSetting, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<FormationProgrammeSetting, 'id' | 'created_at'>>
       }
     }
     Functions: {

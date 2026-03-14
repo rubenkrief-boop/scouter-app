@@ -40,4 +40,7 @@ export type {
   FormationInscriptionWithSession,
   FormationAtelierWithSession,
   FormationProgrammeAtelier,
+  FormationProgrammeFile,
+  FormationProgrammeSetting,
+  FormationProgrammeSettingWithCount,
 } from './database.types'
