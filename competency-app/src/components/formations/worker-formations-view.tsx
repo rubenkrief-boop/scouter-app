@@ -8,22 +8,22 @@ import type { FormationSession, FormationAtelierWithSession, FormationInscriptio
 import type { ProgrammeAtelierMapping } from '@/lib/actions/formations'
 
 const SESSION_COLORS: Record<string, string> = {
-  s22: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  m23: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
-  s23: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  m24: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  s24: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  m25: 'bg-green-500/15 text-green-400 border-green-500/30',
-  s25: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  m26: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+  s22: 'bg-orange-400/10 text-orange-300 border-orange-400/20',
+  m23: 'bg-pink-400/10 text-pink-300 border-pink-400/20',
+  s23: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
+  m24: 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20',
+  s24: 'bg-purple-400/10 text-purple-300 border-purple-400/20',
+  m25: 'bg-green-400/10 text-green-300 border-green-400/20',
+  s25: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
+  m26: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
 }
 
 const PROG_COLORS: Record<string, string> = {
-  P1: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-  P2: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  P3: 'bg-green-500/15 text-green-400 border-green-500/30',
-  P4: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  'Format rotatif': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  P1: 'bg-cyan-400/10 text-cyan-300 border-cyan-400/20',
+  P2: 'bg-orange-400/10 text-orange-300 border-orange-400/20',
+  P3: 'bg-green-400/10 text-green-300 border-green-400/20',
+  P4: 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20',
+  'Format rotatif': 'bg-purple-400/10 text-purple-300 border-purple-400/20',
 }
 
 interface WorkerFormationsViewProps {

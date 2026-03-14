@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     href: '/dashboard',
     icon: <Home className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'worker'],
+    roles: ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'],
   },
   // Administration
   {
@@ -102,7 +102,7 @@ const navItems: NavItem[] = [
     label: 'Formations',
     href: '/formations',
     icon: <GraduationCap className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'worker'],
+    roles: ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'],
     section: 'Formations plénières',
   },
   // Audioprothésiste
@@ -110,7 +110,7 @@ const navItems: NavItem[] = [
     label: 'Mon profil',
     href: '/my-profile',
     icon: <BarChart3 className="h-5 w-5" />,
-    roles: ['worker'],
+    roles: ['worker', 'formation_user'],
     section: 'Mon espace',
   },
   {

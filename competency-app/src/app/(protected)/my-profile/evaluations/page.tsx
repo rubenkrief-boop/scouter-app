@@ -2,12 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { EvaluationList } from '@/components/evaluations/evaluation-list'
+import { getAuthProfile } from '@/lib/supabase/auth-cache'
 
 export default async function MyEvaluationsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthProfile()
+  if (!user || !profile) redirect('/auth/login')
 
-  if (!user) redirect('/auth/login')
+  // formation_user has no evaluations — redirect to formations
+  if (profile.role === 'formation_user') redirect('/formations')
+
+  const supabase = await createClient()
 
   const { data: evaluations } = await supabase
     .from('evaluations')

@@ -5,6 +5,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   skill_master: 'Skill Master',
   manager: 'Manager',
   worker: 'Collaborateur',
+  formation_user: 'Utilisateur Formations',
 }
 
 export const ROLE_COLORS: Record<UserRole, string> = {
@@ -12,6 +13,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
   skill_master: 'bg-purple-100 text-purple-800',
   manager: 'bg-orange-100 text-orange-800',
   worker: 'bg-green-100 text-green-800',
+  formation_user: 'bg-blue-100 text-blue-800',
 }
 
 export function canAccessAdmin(role: UserRole): boolean {
@@ -44,6 +46,8 @@ export function getDashboardPath(role: UserRole): string {
       return '/evaluator/evaluations'
     case 'worker':
       return '/my-profile'
+    case 'formation_user':
+      return '/formations'
     default:
       return '/dashboard'
   }

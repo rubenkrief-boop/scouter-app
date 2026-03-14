@@ -10,12 +10,82 @@ import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
 import { getWorkerFormations } from '@/lib/actions/formations'
+import { GraduationCap, MapPin, Briefcase } from 'lucide-react'
 
 export default async function MyProfilePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/auth/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*, location:locations(name)')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) redirect('/auth/login')
+
+  // Fetch worker formations (needed for both roles)
+  const workerFormations = await getWorkerFormations(user.id)
+
+  // ============================================
+  // FORMATION_USER: simplified profile (no evaluations)
+  // ============================================
+  if (profile.role === 'formation_user') {
+    return (
+      <div>
+        <Header
+          title="Mon profil"
+          description="Vos informations et vos formations"
+        />
+        <div className="p-6 space-y-6">
+          {/* Simplified profile card */}
+          <Card className="overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 p-6 text-white">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
+                  {profile.first_name?.[0]}{profile.last_name?.[0]}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{profile.first_name} {profile.last_name}</h2>
+                  {profile.job_title && (
+                    <p className="text-white/80 flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      {profile.job_title}
+                    </p>
+                  )}
+                  {(profile.location as any)?.name && (
+                    <p className="text-white/70 text-sm flex items-center gap-1.5 mt-0.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {(profile.location as any).name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <GraduationCap className="h-4 w-4 text-blue-500" />
+                <span>
+                  {workerFormations.length > 0
+                    ? `${workerFormations.length} session${workerFormations.length > 1 ? 's' : ''} de formation`
+                    : 'Aucune formation enregistrée'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Formations card */}
+          <WorkerFormationsCard formations={workerFormations} />
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================
+  // WORKER: full profile with evaluations
+  // ============================================
 
   // Get latest evaluation (any status — continuous evaluation)
   const { data: latestEval } = await supabase
@@ -65,12 +135,6 @@ export default async function MyProfilePage() {
     .select('*', { count: 'exact', head: true })
     .eq('audioprothesiste_id', user.id)
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
   const avgScore = radarData.length > 0
     ? Math.round(radarData.reduce((sum, d) => sum + d.actual, 0) / radarData.length)
     : 0
@@ -79,9 +143,6 @@ export default async function MyProfilePage() {
   const modulesWithExpected = radarData.filter(d => d.expected > 0).length
   const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || avgScore >= 90
   const jobProfileName = (latestEval?.job_profile as any)?.name
-
-  // Fetch worker formations
-  const workerFormations = await getWorkerFormations(user.id)
 
   return (
     <div>
@@ -100,11 +161,11 @@ export default async function MyProfilePage() {
           <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 p-6 text-white">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold">
-                {profile?.first_name?.[0]}{profile?.last_name?.[0]}
+                {profile.first_name?.[0]}{profile.last_name?.[0]}
               </div>
               <div>
-                <h2 className="text-xl font-bold">{profile?.first_name} {profile?.last_name}</h2>
-                <p className="text-white/80">{profile?.job_title ?? 'Poste non defini'}</p>
+                <h2 className="text-xl font-bold">{profile.first_name} {profile.last_name}</h2>
+                <p className="text-white/80">{profile.job_title ?? 'Poste non defini'}</p>
                 {jobProfileName && (
                   <Badge className="mt-1 bg-white/20 text-white border-white/30 hover:bg-white/30">
                     Profil : {jobProfileName}

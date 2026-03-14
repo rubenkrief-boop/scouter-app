@@ -205,6 +205,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                     <SelectItem value="skill_master">Skill Master</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="worker">Collaborateur</SelectItem>
+                    <SelectItem value="formation_user">Utilisateur Formations</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -277,6 +278,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                     <SelectItem value="skill_master">Skill Master</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="worker">Collaborateur</SelectItem>
+                    <SelectItem value="formation_user">Utilisateur Formations</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

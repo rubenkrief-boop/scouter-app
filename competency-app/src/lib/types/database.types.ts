@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'skill_master' | 'manager' | 'worker'
+export type UserRole = 'super_admin' | 'skill_master' | 'manager' | 'worker' | 'formation_user'
 
 export type QualifierType = 'single_choice' | 'multiple_choice'
 
