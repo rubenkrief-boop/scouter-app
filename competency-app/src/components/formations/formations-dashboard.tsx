@@ -660,7 +660,7 @@ function ParticipantModal({
               <User2 className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
                 {types.map(t => t === 'Audio' ? 'Audioproth.' : 'Assistante').join(' / ')}
-                {' \u00b7 '}
+                {' · '}
                 {statuts.join(' / ')}
               </span>
             </div>
@@ -1048,7 +1048,7 @@ function ParticipantsTab({
           <Input
             value={search}
             onChange={e => onSearchChange(e.target.value)}
-            placeholder="Rechercher nom, pr\u00e9nom, centre..."
+            placeholder="Rechercher nom, prénom, centre..."
             className="pl-9"
           />
         </div>
@@ -1095,7 +1095,7 @@ function ParticipantsTab({
                 <span className="flex items-center">Nom <SortIcon col="nom" /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('prenom')}>
-                <span className="flex items-center">Pr\u00e9nom <SortIcon col="prenom" /></span>
+                <span className="flex items-center">Prénom <SortIcon col="prenom" /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('type')}>
@@ -1219,9 +1219,9 @@ function AteliersTab({
 }) {
   const types = ['Audio', 'Assistante'] as const
   const etatColors: Record<string, string> = {
-    'Termin\u00e9': 'text-green-500',
+    'Terminé': 'text-green-500',
     'En cours': 'text-yellow-500',
-    'Pas commenc\u00e9': 'text-muted-foreground',
+    'Pas commencé': 'text-muted-foreground',
   }
 
   const visibleSessions = selectedSession === 'all'
@@ -1238,7 +1238,7 @@ function AteliersTab({
           <div key={type}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
               {type === 'Audio' ? <Mic2 className="h-4 w-4 text-cyan-500" /> : <Headphones className="h-4 w-4 text-orange-500" />}
-              {type === 'Audio' ? 'Audioproth\u00e9sistes' : 'Assistantes'}
+              {type === 'Audio' ? 'Audioprothésistes' : 'Assistantes'}
             </h3>
 
             {visibleSessions.map(session => {
@@ -1336,7 +1336,7 @@ function ProgrammesTab({
           <div key={type}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
               {type === 'Audio' ? <Mic2 className="h-4 w-4 text-cyan-500" /> : <Headphones className="h-4 w-4 text-orange-500" />}
-              {type === 'Audio' ? 'Audioproth\u00e9sistes' : 'Assistantes'}
+              {type === 'Audio' ? 'Audioprothésistes' : 'Assistantes'}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1361,7 +1361,7 @@ function ProgrammesTab({
                         <span className="text-xs font-normal text-muted-foreground ml-2">({participantCount} part.)</span>
                       </h4>
                       <p className="text-[10px] text-muted-foreground italic">
-                        FORMAT ROTATIF &mdash; tous les participants {type === 'Audio' ? 'audioproth\u00e9sistes' : 'assistantes'} font tous les ateliers
+                        FORMAT ROTATIF &mdash; tous les participants {type === 'Audio' ? 'audioprothésistes' : 'assistantes'} font tous les ateliers
                       </p>
                       <div className="space-y-1.5">
                         {sessionAteliers.map(a => (
@@ -1491,7 +1491,7 @@ function DoublonsTab({ data, onSelectPerson }: { data: DoublonsData; onSelectPer
       {/* Banner */}
       <Card className="bg-purple-500/5 border-purple-500/20">
         <CardContent className="p-4 text-sm text-muted-foreground">
-          <strong className="text-purple-400">Doublons d\u00e9tect\u00e9s</strong> &mdash; personnes pr\u00e9sentes aux deux sessions qui vont refaire (ou ont refait) un atelier \u00e9quivalent.
+          <strong className="text-purple-400">Doublons détectés</strong> &mdash; personnes présentes aux deux sessions qui vont refaire (ou ont refait) un atelier équivalent.
         </CardContent>
       </Card>
 
@@ -1506,13 +1506,13 @@ function DoublonsTab({ data, onSelectPerson }: { data: DoublonsData; onSelectPer
         <Card>
           <CardContent className="p-4">
             <p className="text-2xl font-bold text-cyan-400">{data.audioRecurrent}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Audios r\u00e9currents</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Audios récurrents</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-2xl font-bold text-orange-400">{data.assistanteRecurrent}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Assistantes r\u00e9currentes</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Assistantes récurrentes</p>
           </CardContent>
         </Card>
         <Card>
@@ -1550,7 +1550,7 @@ function DoublonsTab({ data, onSelectPerson }: { data: DoublonsData; onSelectPer
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Nom</th>
-              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Pr\u00e9nom</th>
+              <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Prénom</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Type</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Statut</th>
