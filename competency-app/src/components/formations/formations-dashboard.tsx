@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
+import { Users, Mic2, Headphones, Building2, Briefcase, GraduationCap, Search, AlertTriangle, Settings, X, Clock, User2, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { FormationStats, ProgrammeAtelierMapping } from '@/lib/actions/formations'
 import { deleteFormationInscription, updateFormationInscription } from '@/lib/actions/formations'
-import { Pencil } from 'lucide-react'
+import { normalizeName } from '@/lib/utils'
 
 // ============================================
 // Color mappings
@@ -86,14 +86,6 @@ type SortKey = 'nom' | 'prenom' | 'type' | 'statut' | 'programme'
 type SortDir = 'asc' | 'desc'
 
 // ============================================
-// Normalize helper
-// ============================================
-
-function normalize(s: string) {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
-}
-
-// ============================================
 // Helper: get ateliers for a participant in a session
 // ============================================
 
@@ -158,7 +150,7 @@ function getParticipantsForAtelier(
 // ============================================
 
 function groupeAtelier(nomAtelier: string, type: string, sid: string): string {
-  const n = normalize(nomAtelier)
+  const n = normalizeName(nomAtelier)
 
   // Exclusions: unique key per session (never matches cross-session)
   for (const excl of EXCLUSIONS) {
@@ -170,7 +162,7 @@ function groupeAtelier(nomAtelier: string, type: string, sid: string): string {
   // Equivalences: group by keyword
   for (const eq of EQUIVALENCES) {
     if (eq.type === 'both' || eq.type === type) {
-      if (eq.keywords.every(kw => n.includes(normalize(kw)))) {
+      if (eq.keywords.every(kw => n.includes(normalizeName(kw)))) {
         return `equiv|${eq.keywords.join('_')}|${eq.type === 'both' ? type : eq.type}`
       }
     }
@@ -232,7 +224,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     const byKey: Record<string, GroupedParticipant> = {}
 
     for (const i of filteredInscriptions) {
-      const key = `${normalize(i.prenom)}|${normalize(i.nom)}`
+      const key = `${normalizeName(i.prenom)}|${normalizeName(i.nom)}`
       if (!byKey[key]) {
         byKey[key] = {
           nom: i.nom, prenom: i.prenom, centre: i.centre, dpc: i.dpc, profile_id: i.profile_id,
@@ -321,7 +313,7 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     const byKey: Record<string, { inscriptions: FormationInscriptionWithSession[] }> = {}
 
     for (const i of inscriptions) {
-      const k = `${normalize(i.prenom)}|${normalize(i.nom)}|${i.type}`
+      const k = `${normalizeName(i.prenom)}|${normalizeName(i.nom)}|${i.type}`
       if (!byKey[k]) byKey[k] = { inscriptions: [] }
       byKey[k].inscriptions.push(i)
     }
@@ -405,9 +397,9 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
 
   // Handle atelier click -> find participant and open profile modal
   const handleAtelierParticipantClick = (prenom: string, nom: string) => {
-    const nKey = `${normalize(prenom)}|${normalize(nom)}`
+    const nKey = `${normalizeName(prenom)}|${normalizeName(nom)}`
     // Build a grouped participant from all inscriptions
-    const personInsc = inscriptions.filter(i => `${normalize(i.prenom)}|${normalize(i.nom)}` === nKey)
+    const personInsc = inscriptions.filter(i => `${normalizeName(i.prenom)}|${normalizeName(i.nom)}` === nKey)
     if (personInsc.length === 0) return
 
     const g: GroupedParticipant = {
@@ -633,9 +625,9 @@ function ParticipantModal({
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Get ALL inscriptions for this person (unfiltered)
-  const personKey = `${normalize(participant.prenom)}|${normalize(participant.nom)}`
+  const personKey = `${normalizeName(participant.prenom)}|${normalizeName(participant.nom)}`
   const personInscriptions = allInscriptions.filter(i => {
-    const k = `${normalize(i.prenom)}|${normalize(i.nom)}`
+    const k = `${normalizeName(i.prenom)}|${normalizeName(i.nom)}`
     return k === personKey
   }).sort((a, b) => (a.session?.sort_order ?? 0) - (b.session?.sort_order ?? 0))
 

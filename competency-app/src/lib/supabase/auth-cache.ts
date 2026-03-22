@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/lib/types'
+import type { User } from '@supabase/supabase-js'
 
 /**
  * Cached auth helper — deduplicates getUser() + profile fetch
@@ -8,7 +9,7 @@ import type { Profile } from '@/lib/types'
  * React `cache()` ensures this runs only ONCE per server request.
  */
 export const getAuthProfile = cache(async (): Promise<{
-  user: any | null
+  user: User | null
   profile: Profile | null
 }> => {
   const supabase = await createClient()

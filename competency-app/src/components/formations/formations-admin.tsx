@@ -27,6 +27,7 @@ import {
   toggleSessionRegistration,
 } from '@/lib/actions/formations'
 import type { TeamProfile } from '@/lib/actions/formations'
+import { normalizeName } from '@/lib/utils'
 
 interface FormationsAdminProps {
   sessions: FormationSession[]
@@ -580,10 +581,9 @@ function InscriptionsSection({
 
   // Group by unique person
   const grouped = (() => {
-    const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim()
     const byKey: Record<string, GroupedAdminParticipant> = {}
     for (const i of filtered) {
-      const key = `${normalize(i.prenom)}|${normalize(i.nom)}`
+      const key = `${normalizeName(i.prenom)}|${normalizeName(i.nom)}`
       if (!byKey[key]) {
         byKey[key] = {
           nom: i.nom, prenom: i.prenom, centre: i.centre, profile_id: i.profile_id,

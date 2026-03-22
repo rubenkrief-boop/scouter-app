@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { normalizeName } from '@/lib/utils'
 import type {
   FormationSession,
   FormationAtelier,
@@ -14,6 +15,31 @@ import type {
   FormationProgrammeSettingWithCount,
   FormationType,
 } from '@/lib/types'
+import type { UserRole } from '@/lib/types'
+
+// ============================================
+// Auth helper: require admin roles for mutations
+// ============================================
+
+const ADMIN_ROLES: UserRole[] = ['super_admin', 'skill_master', 'manager']
+
+async function requireFormationAdmin(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !ADMIN_ROLES.includes(profile.role as UserRole)) {
+    return { error: 'Accès refusé' }
+  }
+
+  return {}
+}
 
 // ============================================
 // READ: Sessions
@@ -107,7 +133,11 @@ export async function getFormationInscriptions(
     if (filters?.programme) query = query.eq('programme', filters.programme)
     if (filters?.statut) query = query.eq('statut', filters.statut)
     if (filters?.search) {
-      query = query.or(`nom.ilike.%${filters.search}%,prenom.ilike.%${filters.search}%,centre.ilike.%${filters.search}%`)
+      // Sanitize search input: escape special Supabase/PostgREST filter characters
+      const sanitized = filters.search.replace(/[%_\\().,]/g, '')
+      if (sanitized.length > 0) {
+        query = query.or(`nom.ilike.%${sanitized}%,prenom.ilike.%${sanitized}%,centre.ilike.%${sanitized}%`)
+      }
     }
     return query
   }
@@ -346,6 +376,9 @@ export async function updateFormationSession(id: string, data: {
   is_active?: boolean
   registration_open?: boolean
 }) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_sessions')
@@ -358,6 +391,9 @@ export async function updateFormationSession(id: string, data: {
 }
 
 export async function deleteFormationSession(id: string) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_sessions')
@@ -409,6 +445,9 @@ export async function updateFormationAtelier(id: string, data: {
   etat?: 'Terminé' | 'En cours' | 'Pas commencé'
   programmes?: string
 }) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_ateliers')
@@ -421,6 +460,9 @@ export async function updateFormationAtelier(id: string, data: {
 }
 
 export async function deleteFormationAtelier(id: string) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase.from('formation_ateliers').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -498,6 +540,9 @@ export async function updateFormationInscription(id: string, data: {
   dpc?: boolean
   profile_id?: string | null
 }) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_inscriptions')
@@ -510,6 +555,9 @@ export async function updateFormationInscription(id: string, data: {
 }
 
 export async function deleteFormationInscription(id: string) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase.from('formation_inscriptions').delete().eq('id', id)
   if (error) return { error: error.message }
@@ -539,14 +587,11 @@ export async function autoLinkInscriptions() {
 
   if (!profiles) return { linked: 0 }
 
-  // Normalize for matching
-  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '')
-
   let linked = 0
   for (const insc of inscriptions) {
-    const key = normalize(insc.prenom) + normalize(insc.nom)
+    const key = normalizeName(insc.prenom) + normalizeName(insc.nom)
     const match = profiles.find(p =>
-      normalize(p.first_name) + normalize(p.last_name) === key
+      normalizeName(p.first_name) + normalizeName(p.last_name) === key
     )
     if (match) {
       await supabase

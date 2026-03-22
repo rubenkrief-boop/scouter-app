@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { SEED_SESSIONS, SEED_PROG_ATELIERS_MAP } from '@/lib/data/formations-seed'
+import { normalizeName } from '@/lib/utils'
 
 export async function POST() {
   try {
@@ -162,13 +163,10 @@ export async function POST() {
 
     let linked = 0
     if (unlinked && profiles) {
-      const normalize = (s: string) =>
-        s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '')
-
       for (const insc of unlinked) {
-        const key = normalize(insc.prenom) + normalize(insc.nom)
+        const key = normalizeName(insc.prenom) + normalizeName(insc.nom)
         const match = profiles.find(
-          (p) => normalize(p.first_name) + normalize(p.last_name) === key
+          (p) => normalizeName(p.first_name) + normalizeName(p.last_name) === key
         )
         if (match) {
           await supabase

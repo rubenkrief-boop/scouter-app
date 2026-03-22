@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const VALID_ROLES = ['super_admin', 'skill_master', 'manager', 'worker'] as const
+const VALID_ROLES = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'] as const
 
 export const ROLE_ALIASES: Record<string, string> = {
   'administrateur': 'super_admin',
@@ -11,6 +11,9 @@ export const ROLE_ALIASES: Record<string, string> = {
   'manager': 'manager',
   'worker': 'worker',
   'collaborateur': 'worker',
+  'formation_user': 'formation_user',
+  'utilisateur formations': 'formation_user',
+  'franchise': 'formation_user',
   // Backward compatibility
   'audioprothesiste': 'worker',
   'audioprothésiste': 'worker',

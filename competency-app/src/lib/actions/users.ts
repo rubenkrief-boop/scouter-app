@@ -51,9 +51,9 @@ export async function updateUserRole(userId: string, role: string) {
   }
 
   // Validate the role value
-  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker']
+  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user']
   if (!validRoles.includes(role as UserRole)) {
-    return { error: 'Role invalide.' }
+    return { error: 'Rôle invalide.' }
   }
 
   const { error } = await supabase
@@ -134,9 +134,9 @@ export async function createUser(formData: FormData) {
   }
 
   // Validate the role value
-  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker']
+  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user']
   if (!validRoles.includes(role)) {
-    return { error: 'Role invalide.' }
+    return { error: 'Rôle invalide.' }
   }
 
   // Use admin client to create user via Supabase Admin API

@@ -24,15 +24,7 @@ export function canAccessSkillMaster(role: UserRole): boolean {
   return role === 'super_admin' || role === 'skill_master'
 }
 
-export function canAccessManager(role: UserRole): boolean {
-  return role === 'super_admin' || role === 'manager'
-}
-
 export function canAccessEvaluator(role: UserRole): boolean {
-  return role === 'super_admin' || role === 'manager' || role === 'skill_master'
-}
-
-export function canEvaluate(role: UserRole): boolean {
   return role === 'super_admin' || role === 'manager' || role === 'skill_master'
 }
 

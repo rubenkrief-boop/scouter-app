@@ -82,7 +82,23 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json()
-  const { locationId, ...updates } = body
+  const { locationId } = body
+
+  if (!locationId) {
+    return NextResponse.json({ error: 'locationId requis' }, { status: 400 })
+  }
+
+  // Whitelist: only allow known fields
+  const updates: Record<string, unknown> = {}
+  if (body.name !== undefined) updates.name = body.name
+  if (body.address !== undefined) updates.address = body.address
+  if (body.city !== undefined) updates.city = body.city
+  if (body.postal_code !== undefined) updates.postal_code = body.postal_code
+  if (body.is_active !== undefined) updates.is_active = body.is_active
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Aucun champ à mettre à jour' }, { status: 400 })
+  }
 
   const adminClient = createAdminClient()
 

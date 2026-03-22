@@ -20,7 +20,7 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  // Get all active audioprothesistes (excluding self)
+  // Get all active workers (excluding self)
   const { data: profiles } = await supabase
     .from('profiles')
     .select(`
@@ -32,53 +32,71 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
     .neq('id', user.id)
     .order('last_name', { ascending: true })
 
-  if (!profiles) return []
+  if (!profiles || profiles.length === 0) return []
 
-  // For each colleague, get their latest completed evaluation score
-  const colleagues: ColleagueSummary[] = []
+  const profileIds = profiles.map(p => p.id)
 
-  for (const p of profiles) {
-    const loc = p.location as any
-    const { count } = await supabase
-      .from('evaluations')
-      .select('*', { count: 'exact', head: true })
-      .eq('audioprothesiste_id', p.id)
-      .or('status.eq.completed,is_continuous.eq.true')
+  // Batch: fetch all completed/continuous evaluations for all colleagues in ONE query
+  const { data: allEvals } = await supabase
+    .from('evaluations')
+    .select('id, audioprothesiste_id, evaluated_at, status, is_continuous')
+    .in('audioprothesiste_id', profileIds)
+    .or('status.eq.completed,is_continuous.eq.true')
+    .order('evaluated_at', { ascending: false })
 
-    // Get latest completed/continuous evaluation for avg score
-    let avg_score: number | null = null
-    const { data: latestEval } = await supabase
-      .from('evaluations')
-      .select('id')
-      .eq('audioprothesiste_id', p.id)
-      .or('status.eq.completed,is_continuous.eq.true')
-      .order('evaluated_at', { ascending: false })
-      .limit(1)
-      .single()
+  // Group evaluations by worker
+  const evalsByWorker = new Map<string, { id: string; evaluated_at: string | null }[]>()
+  const evalCountByWorker = new Map<string, number>()
 
-    if (latestEval) {
-      const { data: scores } = await supabase
-        .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
+  for (const ev of (allEvals ?? [])) {
+    const list = evalsByWorker.get(ev.audioprothesiste_id) ?? []
+    list.push({ id: ev.id, evaluated_at: ev.evaluated_at })
+    evalsByWorker.set(ev.audioprothesiste_id, list)
+    evalCountByWorker.set(ev.audioprothesiste_id, (evalCountByWorker.get(ev.audioprothesiste_id) ?? 0) + 1)
+  }
 
-      if (scores && scores.length > 0) {
-        const total = scores.reduce((sum: number, s: any) => sum + (parseFloat(s.completion_pct) || 0), 0)
-        avg_score = Math.round((total / scores.length) * 10) / 10
-      }
+  // Batch: get module scores for the latest evaluation of each worker
+  const latestEvalIds: string[] = []
+  const latestEvalMap = new Map<string, string>() // worker_id -> eval_id
+  for (const [workerId, evals] of evalsByWorker) {
+    if (evals.length > 0) {
+      latestEvalIds.push(evals[0].id)
+      latestEvalMap.set(workerId, evals[0].id)
     }
+  }
 
-    colleagues.push({
+  // Fetch module scores in parallel for all latest evaluations
+  const scoresByEvalId = new Map<string, number>()
+  if (latestEvalIds.length > 0) {
+    const scorePromises = latestEvalIds.map(async (evalId) => {
+      const { data: scores } = await supabase
+        .rpc('get_module_scores', { p_evaluation_id: evalId })
+      if (scores && scores.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const total = scores.reduce((sum: number, s: any) => sum + (parseFloat(s.completion_pct) || 0), 0)
+        scoresByEvalId.set(evalId, Math.round((total / scores.length) * 10) / 10)
+      }
+    })
+    await Promise.all(scorePromises)
+  }
+
+  // Build result
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return profiles.map((p: any) => {
+    const loc = p.location as { name: string } | null
+    const latestEvalId = latestEvalMap.get(p.id)
+
+    return {
       id: p.id,
       first_name: p.first_name,
       last_name: p.last_name,
       email: p.email,
-      avatar_url: (p as any).avatar_url ?? null,
+      avatar_url: p.avatar_url ?? null,
       location_name: loc?.name ?? null,
-      avg_score,
-      eval_count: count ?? 0,
-    })
-  }
-
-  return colleagues
+      avg_score: latestEvalId ? (scoresByEvalId.get(latestEvalId) ?? null) : null,
+      eval_count: evalCountByWorker.get(p.id) ?? 0,
+    }
+  })
 }
 
 export async function getColleagueProfile(colleagueId: string): Promise<{

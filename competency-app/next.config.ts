@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 
 const securityHeaders = [
+  // Content Security Policy
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://*.supabase.co https://lh3.googleusercontent.com",
+      "font-src 'self'",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '),
+  },
   // Empêche le navigateur de deviner le type MIME (protection contre le sniffing)
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Protection contre le clickjacking (iframe)

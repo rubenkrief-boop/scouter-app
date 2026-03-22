@@ -2,15 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-// Normalize name for matching: lowercase, strip accents, collapse spaces
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '')
-}
+import { normalizeName } from '@/lib/utils'
 
 // Auto-link formation inscriptions to a profile by name match
 async function linkFormationInscriptions(
