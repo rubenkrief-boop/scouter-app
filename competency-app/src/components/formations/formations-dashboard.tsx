@@ -43,7 +43,8 @@ const PROG_COLORS: Record<string, string> = {
 // ============================================
 
 // Ateliers NEVER considered doublons (content differs per session)
-const EXCLUSIONS = ['back office', 'best practices', 'customer profiling']
+// Values must be normalized (no spaces, no accents, lowercase) to match normalizeName() output
+const EXCLUSIONS = ['backoffice', 'bestpractices', 'customerprofiling']
 
 // Ateliers semantically equivalent across sessions
 const EQUIVALENCES: { keywords: string[]; type: 'Audio' | 'Assistante' | 'both' }[] = [
