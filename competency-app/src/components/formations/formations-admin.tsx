@@ -573,9 +573,9 @@ function InscriptionsSection({
   // Filter raw inscriptions first
   let filtered = filterSession === 'all' ? visibleInscriptions : visibleInscriptions.filter(i => i.session_id === filterSession)
   if (search) {
-    const q = search.toLowerCase()
+    const q = normalizeName(search)
     filtered = filtered.filter(i =>
-      i.nom.toLowerCase().includes(q) || i.prenom.toLowerCase().includes(q) || (i.centre && i.centre.toLowerCase().includes(q))
+      normalizeName(i.nom).includes(q) || normalizeName(i.prenom).includes(q) || (i.centre && normalizeName(i.centre).includes(q))
     )
   }
 

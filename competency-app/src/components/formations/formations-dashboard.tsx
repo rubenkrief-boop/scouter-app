@@ -210,11 +210,11 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
     if (filterProgramme !== 'all' && showProgrammeFilter) result = result.filter(i => i.programme === filterProgramme)
     if (filterStatut !== 'all') result = result.filter(i => i.statut === filterStatut)
     if (search) {
-      const q = search.toLowerCase()
+      const q = normalizeName(search)
       result = result.filter(i =>
-        i.nom.toLowerCase().includes(q) ||
-        i.prenom.toLowerCase().includes(q) ||
-        (i.centre && i.centre.toLowerCase().includes(q))
+        normalizeName(i.nom).includes(q) ||
+        normalizeName(i.prenom).includes(q) ||
+        (i.centre && normalizeName(i.centre).includes(q))
       )
     }
     return result
@@ -1473,9 +1473,9 @@ function DoublonsTab({ data, onSelectPerson }: { data: DoublonsData; onSelectPer
   let filtered = data.doublonsWithAteliers
   if (filterTypeD !== 'all') filtered = filtered.filter(d => d.type === filterTypeD)
   if (searchD) {
-    const q = searchD.toLowerCase()
+    const q = normalizeName(searchD)
     filtered = filtered.filter(d =>
-      d.nom.toLowerCase().includes(q) || d.prenom.toLowerCase().includes(q) || (d.centre && d.centre.toLowerCase().includes(q))
+      normalizeName(d.nom).includes(q) || normalizeName(d.prenom).includes(q) || (d.centre && normalizeName(d.centre).includes(q))
     )
   }
 
