@@ -53,6 +53,8 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
+  // Validate redirect target - must be relative path
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
 
   if (code) {
     const cookieStore = await cookies()
@@ -202,7 +204,7 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${origin}${safeNext}`)
     }
   }
 

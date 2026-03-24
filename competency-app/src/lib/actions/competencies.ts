@@ -63,6 +63,7 @@ export async function createCompetency(formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath(`/skill-master/modules/${module_id}`)
+  return { success: true }
 }
 
 export async function updateCompetency(id: string, formData: FormData) {
@@ -104,6 +105,7 @@ export async function updateCompetency(id: string, formData: FormData) {
   }
 
   revalidatePath('/skill-master/library')
+  return { success: true }
 }
 
 export async function deleteCompetency(id: string) {
@@ -132,4 +134,5 @@ export async function deleteCompetency(id: string) {
   }
 
   revalidatePath('/skill-master/library')
+  return { success: true }
 }

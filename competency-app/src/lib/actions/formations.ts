@@ -350,6 +350,9 @@ export async function createFormationSession(data: {
   date_info?: string
   sort_order?: number
 }) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié' }
@@ -418,6 +421,9 @@ export async function createFormationAtelier(data: {
   etat?: 'Terminé' | 'En cours' | 'Pas commencé'
   programmes?: string
 }) {
+  const auth = await requireFormationAdmin()
+  if (auth.error) return { error: auth.error }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_ateliers')

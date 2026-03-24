@@ -236,10 +236,11 @@ export async function updateEvaluationResults(
 
   // Update status to in_progress if still draft
   if (evaluation.status === 'draft') {
-    await supabase
+    const { error: statusError } = await supabase
       .from('evaluations')
       .update({ status: 'in_progress' })
       .eq('id', evaluationId)
+    if (statusError) return { error: statusError.message }
   }
 
   // Process each competency's qualifier answers
@@ -301,6 +302,7 @@ export async function updateEvaluationResults(
   }
 
   revalidatePath(`/evaluator/evaluations/${evaluationId}`)
+  return { success: true }
 }
 
 export async function completeEvaluation(id: string) {
@@ -348,6 +350,7 @@ export async function completeEvaluation(id: string) {
 
   revalidatePath('/evaluator/evaluations')
   revalidatePath(`/evaluator/evaluations/${id}`)
+  return { success: true }
 }
 
 // ============================================================

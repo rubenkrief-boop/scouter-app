@@ -136,6 +136,7 @@ export async function createModule(formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/modules')
+  return { success: true }
 }
 
 export async function updateModule(id: string, formData: FormData) {
@@ -184,6 +185,7 @@ export async function updateModule(id: string, formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/modules')
+  return { success: true }
 }
 
 export async function deleteModule(id: string) {
@@ -213,6 +215,7 @@ export async function deleteModule(id: string) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/modules')
+  return { success: true }
 }
 
 // ============================================

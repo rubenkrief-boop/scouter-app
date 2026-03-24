@@ -87,6 +87,7 @@ export async function createQualifier(formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
 
 export async function updateQualifier(id: string, formData: FormData) {
@@ -127,6 +128,7 @@ export async function updateQualifier(id: string, formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
 
 export async function deleteQualifier(id: string) {
@@ -156,6 +158,7 @@ export async function deleteQualifier(id: string) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
 
 export async function createQualifierOption(formData: FormData) {
@@ -200,6 +203,7 @@ export async function createQualifierOption(formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
 
 export async function updateQualifierOption(id: string, formData: FormData) {
@@ -242,6 +246,7 @@ export async function updateQualifierOption(id: string, formData: FormData) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
 
 export async function deleteQualifierOption(id: string) {
@@ -271,4 +276,5 @@ export async function deleteQualifierOption(id: string) {
 
   revalidatePath('/skill-master/library')
   revalidatePath('/skill-master/qualifiers')
+  return { success: true }
 }
