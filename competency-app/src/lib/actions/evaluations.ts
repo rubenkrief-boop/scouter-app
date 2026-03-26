@@ -336,6 +336,16 @@ export async function completeEvaluation(id: string) {
     return { error: 'Acces refuse. Vous ne pouvez completer que vos propres evaluations.' }
   }
 
+  // Verify at least one competency has been scored
+  const { count: resultCount } = await supabase
+    .from('evaluation_results')
+    .select('*', { count: 'exact', head: true })
+    .eq('evaluation_id', id)
+
+  if (!resultCount || resultCount === 0) {
+    return { error: 'Impossible de terminer : aucune competence n\'a ete evaluee.' }
+  }
+
   const { error } = await supabase
     .from('evaluations')
     .update({
@@ -599,11 +609,15 @@ export async function saveEvaluationWithSnapshot(
     .eq('id', evaluationId)
 
   // 3. Calculer les scores par module via RPC
-  const { data: moduleScores } = await supabase
+  const { data: moduleScores, error: rpcError } = await supabase
     .rpc('get_module_scores', { p_evaluation_id: evaluationId })
 
-  // 4. Créer le snapshot
-  await supabase
+  if (rpcError) {
+    console.error('Erreur calcul scores:', rpcError)
+  }
+
+  // 4. Créer le snapshot (best effort — don't fail the whole save)
+  const { error: snapshotError } = await supabase
     .from('evaluation_snapshots')
     .insert({
       evaluation_id: evaluationId,
@@ -611,6 +625,10 @@ export async function saveEvaluationWithSnapshot(
       scores: scores as any,
       module_scores: moduleScores ? JSON.parse(JSON.stringify(moduleScores)) : null,
     })
+
+  if (snapshotError) {
+    console.error('Erreur creation snapshot:', snapshotError)
+  }
 
   revalidatePath(`/evaluator/evaluations/${evaluationId}`)
   revalidatePath('/workers')

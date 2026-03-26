@@ -85,10 +85,10 @@ export async function toggleUserActive(userId: string) {
     return { error: 'Acces refuse. Role super_admin requis.' }
   }
 
-  // Get current state
+  // Get current state + role
   const { data: targetUser } = await supabase
     .from('profiles')
-    .select('is_active')
+    .select('is_active, role')
     .eq('id', userId)
     .single()
 
@@ -96,13 +96,23 @@ export async function toggleUserActive(userId: string) {
     return { error: 'Utilisateur introuvable.' }
   }
 
+  const newActive = !targetUser.is_active
+
   const { error } = await supabase
     .from('profiles')
-    .update({ is_active: !targetUser.is_active })
+    .update({ is_active: newActive })
     .eq('id', userId)
 
   if (error) {
     return { error: error.message }
+  }
+
+  // If deactivating a manager, unassign their team members
+  if (!newActive && targetUser.role === 'manager') {
+    await supabase
+      .from('profiles')
+      .update({ manager_id: null })
+      .eq('manager_id', userId)
   }
 
   revalidatePath('/admin/users')

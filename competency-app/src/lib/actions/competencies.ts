@@ -124,6 +124,16 @@ export async function deleteCompetency(id: string) {
     return { error: 'Acces refuse. Role skill_master ou super_admin requis.' }
   }
 
+  // Check if any evaluation results reference this competency
+  const { count } = await supabase
+    .from('evaluation_results')
+    .select('*', { count: 'exact', head: true })
+    .eq('competency_id', id)
+
+  if (count && count > 0) {
+    return { error: `Impossible de supprimer : ${count} resultat(s) d'evaluation utilise(nt) cette competence.` }
+  }
+
   const { error } = await supabase
     .from('competencies')
     .delete()
