@@ -87,6 +87,7 @@ export async function createJobProfile(formData: FormData) {
   }
 
   revalidatePath('/skill-master/job-profiles')
+  return { success: true }
 }
 
 export async function updateJobProfile(id: string, formData: FormData) {
@@ -125,6 +126,7 @@ export async function updateJobProfile(id: string, formData: FormData) {
 
   revalidatePath('/skill-master/job-profiles')
   revalidatePath(`/skill-master/job-profiles/${id}`)
+  return { success: true }
 }
 
 export async function deleteJobProfile(id: string) {

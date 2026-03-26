@@ -66,6 +66,7 @@ export async function updateUserRole(userId: string, role: string) {
   }
 
   revalidatePath('/admin/users')
+  return { success: true }
 }
 
 export async function toggleUserActive(userId: string) {
@@ -105,6 +106,7 @@ export async function toggleUserActive(userId: string) {
   }
 
   revalidatePath('/admin/users')
+  return { success: true }
 }
 
 export async function createUser(formData: FormData) {
@@ -173,4 +175,5 @@ export async function createUser(formData: FormData) {
   }
 
   revalidatePath('/admin/users')
+  return { success: true }
 }

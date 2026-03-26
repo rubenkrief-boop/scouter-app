@@ -517,12 +517,16 @@ export async function createFormationInscription(data: {
     }
   }
 
+  // Normalize names: trim + consistent casing to avoid doublons
+  const cleanNom = data.nom.trim().toUpperCase()
+  const cleanPrenom = data.prenom.trim().replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w+/g, c => c.toLowerCase())
+
   const { error } = await supabase
     .from('formation_inscriptions')
     .insert({
       session_id: data.session_id,
-      nom: data.nom,
-      prenom: data.prenom,
+      nom: cleanNom,
+      prenom: cleanPrenom,
       type: data.type,
       statut: data.statut,
       programme: data.programme,
@@ -701,6 +705,17 @@ export async function upsertFormationProgrammeSetting(data: {
   max_places: number
   salle?: string
 }) {
+  // Validate inputs
+  if (!data.session_id || !data.type || !data.programme) {
+    return { error: 'Session, type et programme sont requis' }
+  }
+  if (!['Audio', 'Assistante'].includes(data.type)) {
+    return { error: 'Type invalide' }
+  }
+  if (data.max_places < 0) {
+    return { error: 'Le nombre de places ne peut pas être négatif' }
+  }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_programme_settings')
