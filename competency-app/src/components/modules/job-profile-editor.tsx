@@ -408,7 +408,7 @@ export function JobProfileEditor({
                       <span className="text-xs text-muted-foreground whitespace-nowrap">Poids</span>
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
                         max={10}
                         className="w-14 h-7 text-center text-xs"
                         placeholder="—"
@@ -417,7 +417,7 @@ export function JobProfileEditor({
                           return vals.length > 0 && vals.every(v => v === vals[0]) ? vals[0] : ''
                         })()}
                         onChange={(e) => {
-                          const v = Math.max(1, Math.min(10, parseInt(e.target.value) || 1))
+                          const v = Math.max(0, Math.min(10, parseInt(e.target.value) || 0))
                           setModuleWeight(module.id, v)
                         }}
                       />
@@ -472,11 +472,11 @@ export function JobProfileEditor({
                             <TableCell className="text-center">
                               <Input
                                 type="number"
-                                min={1}
+                                min={0}
                                 max={10}
                                 className="w-16 h-7 text-center text-sm mx-auto"
                                 value={s.weight}
-                                onChange={(e) => updateSetting(comp.id, 'weight', Math.max(1, parseInt(e.target.value) || 1))}
+                                onChange={(e) => updateSetting(comp.id, 'weight', Math.max(0, parseInt(e.target.value) || 0))}
                               />
                             </TableCell>
                             <TableCell className="text-center">

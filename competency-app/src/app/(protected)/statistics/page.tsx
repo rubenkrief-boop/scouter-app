@@ -10,8 +10,8 @@ export default async function StatisticsPage() {
 
   if (!user || !profile) redirect('/auth/login')
 
-  // Accessible aux super_admin et manager uniquement
-  const allowedRoles = ['super_admin', 'manager']
+  // Accessible aux super_admin, skill_master et manager uniquement
+  const allowedRoles = ['super_admin', 'skill_master', 'manager']
   if (!allowedRoles.includes(profile.role)) {
     redirect('/dashboard')
   }

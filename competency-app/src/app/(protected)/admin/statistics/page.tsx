@@ -1,9 +1,19 @@
+import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { getGlobalStatistics, getProgressionData, getGapAnalysis } from '@/lib/actions/statistics'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { StatisticsDashboard } from '@/components/statistics/statistics-dashboard'
+import { getAuthProfile } from '@/lib/supabase/auth-cache'
 
 export default async function StatisticsPage() {
+  const { user, profile } = await getAuthProfile()
+  if (!user || !profile) redirect('/auth/login')
+
+  // Only admin, skill_master, manager
+  if (!['super_admin', 'skill_master', 'manager'].includes(profile.role)) {
+    redirect('/dashboard')
+  }
+
   // Fetch all data in parallel
   const [{ moduleStats, userSummaries }, chartColors, progressionData, gapAnalysis] = await Promise.all([
     getGlobalStatistics(),

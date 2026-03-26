@@ -130,6 +130,7 @@ export function StatisticsDashboard({
   gapAnalysis,
 }: StatisticsDashboardProps) {
   const [filterLocation, setFilterLocation] = useState<string>('all')
+  const [filterJobProfile, setFilterJobProfile] = useState<string>('all')
   const [selectedModule, setSelectedModule] = useState<string>('all')
   const [progressionWorker, setProgressionWorker] = useState<string>('team')
   const [expandedGapModule, setExpandedGapModule] = useState<string | null>(null)
@@ -141,11 +142,23 @@ export function StatisticsDashboard({
     return Array.from(set).sort()
   }, [userSummaries])
 
-  // Filter users by location
+  // Extract unique job profiles
+  const jobProfiles = useMemo(() => {
+    const set = new Set(userSummaries.map(u => u.job_profile_name).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [userSummaries])
+
+  // Filter users by location + job profile
   const filteredUsers = useMemo(() => {
-    if (filterLocation === 'all') return userSummaries
-    return userSummaries.filter(u => u.location_name === filterLocation)
-  }, [userSummaries, filterLocation])
+    let users = userSummaries
+    if (filterLocation !== 'all') {
+      users = users.filter(u => u.location_name === filterLocation)
+    }
+    if (filterJobProfile !== 'all') {
+      users = users.filter(u => u.job_profile_name === filterJobProfile)
+    }
+    return users
+  }, [userSummaries, filterLocation, filterJobProfile])
 
   // KPIs
   const totalUsers = filteredUsers.length
@@ -262,6 +275,20 @@ export function StatisticsDashboard({
             ))}
           </SelectContent>
         </Select>
+
+        {jobProfiles.length > 0 && (
+          <Select value={filterJobProfile} onValueChange={setFilterJobProfile}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filtrer par metier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les metiers</SelectItem>
+              {jobProfiles.map(jp => (
+                <SelectItem key={jp} value={jp}>{jp}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <Select value={selectedModule} onValueChange={setSelectedModule}>
           <SelectTrigger className="w-[280px]">
@@ -547,84 +574,100 @@ export function StatisticsDashboard({
         </CardContent>
       </Card>
 
-      {/* ===== SECTION: Alertes ===== */}
-      {gapAnalysis.alerts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Alertes - Collaborateurs sous le seuil
-              <Badge variant="destructive" className="ml-2 text-xs">
-                {gapAnalysis.alerts.length} alerte{gapAnalysis.alerts.length > 1 ? 's' : ''}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {gapAnalysis.alerts.slice(0, alertLimit).map((alert, i) => {
-                const badge = getAlertBadge(alert.gap)
+      {/* ===== SECTION: Alertes (groupees par collaborateur) ===== */}
+      {gapAnalysis.alerts.length > 0 && (() => {
+        // Group alerts by user
+        const alertsByUser = new Map<string, typeof gapAnalysis.alerts>()
+        for (const alert of gapAnalysis.alerts) {
+          const list = alertsByUser.get(alert.userId) ?? []
+          list.push(alert)
+          alertsByUser.set(alert.userId, list)
+        }
+        const groupedAlerts = Array.from(alertsByUser.entries())
+          .map(([userId, alerts]) => ({
+            userId,
+            name: alerts[0].name,
+            locationName: alerts[0].locationName,
+            maxGap: Math.max(...alerts.map(a => a.gap)),
+            alerts,
+          }))
+          .sort((a, b) => b.maxGap - a.maxGap)
+
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Collaborateurs sous le seuil
+                <Badge variant="destructive" className="ml-2 text-xs">
+                  {groupedAlerts.length} collaborateur{groupedAlerts.length > 1 ? 's' : ''}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {groupedAlerts.slice(0, alertLimit).map(group => {
+                const badge = getAlertBadge(group.maxGap)
                 return (
-                  <div
-                    key={`${alert.userId}-${alert.moduleCode}-${i}`}
-                    className="border border-gray-100 dark:border-gray-800 rounded-lg p-4 bg-gray-50/50 dark:bg-gray-900/30"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-medium text-sm">{alert.name}</p>
-                        {alert.locationName && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <MapPin className="h-3 w-3" /> {alert.locationName}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className={badge.className + ' text-xs flex-shrink-0'}>
-                        {badge.label}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1.5 mt-3">
-                      <p className="text-xs text-muted-foreground">
-                        {alert.moduleCode} - {alert.moduleName}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">Actuel</span>
-                            <span className="font-medium">{alert.score}%</span>
-                          </div>
-                          <Progress value={alert.score} className="h-1.5" />
-                        </div>
-                        <div className="text-xs text-muted-foreground px-2">vs</div>
-                        <div className="flex-1">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className="text-muted-foreground">Attendu</span>
-                            <span className="font-medium">{alert.expected}%</span>
-                          </div>
-                          <Progress value={alert.expected} className="h-1.5" />
+                  <div key={group.userId} className="border border-gray-100 dark:border-gray-800 rounded-lg">
+                    <button
+                      onClick={() => setExpandedGapModule(expandedGapModule === group.userId ? null : group.userId)}
+                      className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-900/50 rounded-lg transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className="font-medium text-sm">{group.name}</p>
+                          {group.locationName && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3" /> {group.locationName}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-center">
-                        <span className="text-xs font-semibold text-red-600 dark:text-red-400">
-                          Ecart : -{alert.gap}%
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="text-xs">
+                          {group.alerts.length} module{group.alerts.length > 1 ? 's' : ''} en ecart
+                        </Badge>
+                        <Badge className={badge.className + ' text-xs'}>
+                          Max -{group.maxGap}%
+                        </Badge>
+                        {expandedGapModule === group.userId
+                          ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        }
                       </div>
-                    </div>
+                    </button>
+                    {expandedGapModule === group.userId && (
+                      <div className="px-3 pb-3 space-y-1.5">
+                        {group.alerts.map((alert, i) => (
+                          <div key={i} className="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-gray-900/30 rounded text-sm">
+                            <span className="text-muted-foreground">{alert.moduleCode} - {alert.moduleName}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs">{alert.score}% / {alert.expected}%</span>
+                              <Badge className={getAlertBadge(alert.gap).className + ' text-xs'}>
+                                -{alert.gap}%
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
-            </div>
-            {gapAnalysis.alerts.length > alertLimit && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={() => setAlertLimit(prev => prev + 10)}
-                  className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
-                >
-                  Voir plus ({gapAnalysis.alerts.length - alertLimit} restantes)
-                </button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              {groupedAlerts.length > alertLimit && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    onClick={() => setAlertLimit(prev => prev + 10)}
+                    className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
+                  >
+                    Voir plus ({groupedAlerts.length - alertLimit} restants)
+                  </button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Users table */}
       <Card>
@@ -642,6 +685,7 @@ export function StatisticsDashboard({
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
                 <TableHead>Collaborateur</TableHead>
+                <TableHead>Metier</TableHead>
                 <TableHead>Lieu</TableHead>
                 <TableHead className="text-center">Evaluations</TableHead>
                 <TableHead className="text-center">Score global</TableHead>
@@ -657,6 +701,9 @@ export function StatisticsDashboard({
                       <p className="font-medium text-sm">{user.first_name} {user.last_name}</p>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {user.job_profile_name ?? '-'}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {user.location_name ?? '-'}
@@ -683,7 +730,7 @@ export function StatisticsDashboard({
               ))}
               {filteredUsers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     Aucun collaborateur evalue
                     {filterLocation !== 'all' && ` pour ${filterLocation}`}
                   </TableCell>

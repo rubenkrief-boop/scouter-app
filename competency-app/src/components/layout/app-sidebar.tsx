@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
     label: 'Statistiques',
     href: '/statistics',
     icon: <PieChart className="h-5 w-5" />,
-    roles: ['super_admin', 'manager'],
+    roles: ['super_admin', 'skill_master', 'manager'],
     section: 'Administration',
   },
   {

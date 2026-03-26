@@ -31,6 +31,7 @@ export interface UserSummary {
   last_name: string
   email: string
   location_name: string | null
+  job_profile_name: string | null
   overall_avg: number
   eval_count: number
   modules: { module_code: string; module_name: string; avg_score: number }[]
@@ -57,7 +58,8 @@ export async function getGlobalStatistics(): Promise<{
       audioprothesiste:profiles!audioprothesiste_id(
         id, first_name, last_name, email,
         location:locations(name)
-      )
+      ),
+      job_profile:job_profiles!job_profile_id(name)
     `)
     .or('status.eq.completed,is_continuous.eq.true')
 
@@ -157,12 +159,14 @@ export async function getGlobalStatistics(): Promise<{
     last_name: string
     email: string
     location_name: string | null
+    job_profile_name: string | null
     modules: Map<string, { code: string; name: string; scores: number[] }>
     eval_ids: Set<string>
   }>()
 
   for (const evaluation of evaluations) {
     const audio = evaluation.audioprothesiste as any
+    const jp = evaluation.job_profile as any
     const uid = evaluation.audioprothesiste_id
     if (!userMap.has(uid)) {
       userMap.set(uid, {
@@ -170,9 +174,14 @@ export async function getGlobalStatistics(): Promise<{
         last_name: audio?.last_name ?? '',
         email: audio?.email ?? '',
         location_name: audio?.location?.name ?? null,
+        job_profile_name: jp?.name ?? null,
         modules: new Map(),
         eval_ids: new Set(),
       })
+    }
+    // Update job_profile_name if newer evaluation has one
+    if (jp?.name) {
+      userMap.get(uid)!.job_profile_name = jp.name
     }
     userMap.get(uid)!.eval_ids.add(evaluation.id)
   }
@@ -205,6 +214,7 @@ export async function getGlobalStatistics(): Promise<{
       last_name: data.last_name,
       email: data.email,
       location_name: data.location_name,
+      job_profile_name: data.job_profile_name,
       overall_avg,
       eval_count: data.eval_ids.size,
       modules,
