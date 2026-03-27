@@ -174,7 +174,10 @@ export function CompetencyRadarChart({
 }: CompetencyRadarChartProps) {
   const c = { ...DEFAULT_COLORS, ...colors }
 
-  if (data.length === 0) {
+  // Exclude modules with expected=0 (weight 0 in job profile = not relevant)
+  const filteredData = data.filter(d => d.expected > 0 || d.actual > 0)
+
+  if (filteredData.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px] text-muted-foreground">
         Aucune donnée disponible
@@ -183,7 +186,7 @@ export function CompetencyRadarChart({
   }
 
   // Encode color into label for the custom tick: "COLOR|Name"
-  const chartData = data.map(d => {
+  const chartData = filteredData.map(d => {
     const parts = d.module.split(' - ')
     const name = parts[1]?.trim() || parts[0]?.trim() || d.module
     const color = d.moduleColor || '#6366f1'
