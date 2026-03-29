@@ -174,8 +174,8 @@ export function CompetencyRadarChart({
 }: CompetencyRadarChartProps) {
   const c = { ...DEFAULT_COLORS, ...colors }
 
-  // Exclude modules with expected=0 (weight 0 in job profile = not relevant)
-  const filteredData = data.filter(d => d.expected > 0 || d.actual > 0)
+  // Exclude modules with expected=0 (weight 0 in job profile = not relevant for this role)
+  const filteredData = data.filter(d => d.expected > 0)
 
   if (filteredData.length === 0) {
     return (

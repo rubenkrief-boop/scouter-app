@@ -83,10 +83,11 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Verify the user's email domain is @vivason.fr
+      // Verify the user's email domain is @vivason.fr or @vivason.ma
       const { data: { user } } = await supabase.auth.getUser()
+      const allowedDomains = ['@vivason.fr', '@vivason.ma']
 
-      if (user?.email && !user.email.endsWith('@vivason.fr')) {
+      if (user?.email && !allowedDomains.some(d => user.email!.endsWith(d))) {
         // Sign out unauthorized user
         await supabase.auth.signOut()
         return NextResponse.redirect(

@@ -14,9 +14,7 @@ export async function loginWithGoogle() {
     provider: 'google',
     options: {
       redirectTo: `${origin}/auth/callback`,
-      queryParams: {
-        hd: 'vivason.fr', // Restrict to vivason.fr Google Workspace domain
-      },
+      // Domain restriction handled in callback (supports vivason.fr + vivason.ma)
     },
   })
 
