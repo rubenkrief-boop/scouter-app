@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const VALID_ROLES = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'] as const
+const VALID_ROLES = ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user'] as const
 
 export const ROLE_ALIASES: Record<string, string> = {
   'administrateur': 'super_admin',
@@ -20,6 +20,8 @@ export const ROLE_ALIASES: Record<string, string> = {
   'evaluateur': 'skill_master',
   'évaluateur': 'skill_master',
   'evaluator': 'skill_master',
+  'resp_audiologie': 'resp_audiologie',
+  'responsable audiologie': 'resp_audiologie',
 }
 
 export const importRowSchema = z.object({

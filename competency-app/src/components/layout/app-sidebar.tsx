@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     href: '/dashboard',
     icon: <Home className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user'],
   },
   // Administration
   {
@@ -50,7 +50,7 @@ const navItems: NavItem[] = [
     label: 'Statistiques',
     href: '/statistics',
     icon: <PieChart className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie'],
     section: 'Administration',
   },
   {
@@ -87,14 +87,14 @@ const navItems: NavItem[] = [
     label: 'Collaborateurs',
     href: '/workers',
     icon: <Users className="h-5 w-5" />,
-    roles: ['super_admin', 'manager', 'skill_master'],
+    roles: ['super_admin', 'manager', 'skill_master', 'resp_audiologie'],
     section: 'Évaluation',
   },
   {
     label: 'Évaluations',
     href: '/evaluator/evaluations',
     icon: <ClipboardCheck className="h-5 w-5" />,
-    roles: ['super_admin', 'manager', 'skill_master'],
+    roles: ['super_admin', 'manager', 'skill_master', 'resp_audiologie'],
     section: 'Évaluation',
   },
   // Formations plénières
@@ -102,7 +102,7 @@ const navItems: NavItem[] = [
     label: 'Formations',
     href: '/formations',
     icon: <GraduationCap className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user'],
     section: 'Formations plénières',
   },
   // Audioprothésiste
@@ -124,7 +124,7 @@ const navItems: NavItem[] = [
     label: 'Collègues',
     href: '/colleagues',
     icon: <Users className="h-5 w-5" />,
-    roles: ['worker'],
+    roles: ['worker', 'resp_audiologie'],
     section: 'Mon espace',
   },
 ]

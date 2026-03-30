@@ -10,7 +10,7 @@ export default async function StatisticsPage() {
   if (!user || !profile) redirect('/auth/login')
 
   // Only admin, skill_master, manager
-  if (!['super_admin', 'skill_master', 'manager'].includes(profile.role)) {
+  if (!['super_admin', 'skill_master', 'manager', 'resp_audiologie'].includes(profile.role)) {
     redirect('/dashboard')
   }
 

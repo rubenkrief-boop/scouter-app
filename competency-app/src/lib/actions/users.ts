@@ -51,7 +51,7 @@ export async function updateUserRole(userId: string, role: string) {
   }
 
   // Validate the role value
-  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user']
+  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user']
   if (!validRoles.includes(role as UserRole)) {
     return { error: 'Rôle invalide.' }
   }
@@ -146,7 +146,7 @@ export async function createUser(formData: FormData) {
   }
 
   // Validate the role value
-  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'worker', 'formation_user']
+  const validRoles: UserRole[] = ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user']
   if (!validRoles.includes(role)) {
     return { error: 'Rôle invalide.' }
   }

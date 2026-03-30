@@ -21,7 +21,7 @@ import type { UserRole } from '@/lib/types'
 // Auth helper: require admin roles for mutations
 // ============================================
 
-const ADMIN_ROLES: UserRole[] = ['super_admin', 'skill_master', 'manager']
+const ADMIN_ROLES: UserRole[] = ['super_admin', 'skill_master', 'manager', 'resp_audiologie']
 
 async function requireFormationAdmin(): Promise<{ error?: string }> {
   const supabase = await createClient()
@@ -318,7 +318,7 @@ export async function getTeamProfiles(): Promise<TeamProfile[]> {
 
   if (profile.role === 'manager') {
     query = query.eq('manager_id', user.id)
-  } else if (!['super_admin', 'skill_master'].includes(profile.role)) {
+  } else if (!['super_admin', 'skill_master', 'resp_audiologie'].includes(profile.role)) {
     // Not authorized
     return []
   }
