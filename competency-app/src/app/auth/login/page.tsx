@@ -109,7 +109,7 @@ function LoginForm() {
           {loading ? 'Connexion en cours...' : 'Se connecter avec Google'}
         </Button>
         <p className="text-xs text-center text-muted-foreground">
-          Réservé aux collaborateurs VivaSon (@vivason.fr)
+          Réservé aux collaborateurs VivaSon (@vivason.fr / @vivason.ma)
         </p>
       </CardContent>
     </Card>
