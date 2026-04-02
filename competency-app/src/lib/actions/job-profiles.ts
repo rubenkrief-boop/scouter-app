@@ -211,4 +211,5 @@ export async function updateExpectedScore(
   }
 
   revalidatePath(`/skill-master/job-profiles/${jobProfileId}`)
+  return { success: true }
 }

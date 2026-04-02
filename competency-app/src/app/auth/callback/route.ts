@@ -53,8 +53,8 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
-  // Validate redirect target - must be relative path
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
+  // Validate redirect target - must be safe relative path (no protocol, no backslash tricks)
+  const safeNext = /^\/[a-zA-Z0-9\-_/]*$/.test(next) ? next : '/dashboard'
 
   if (code) {
     const cookieStore = await cookies()

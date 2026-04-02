@@ -504,6 +504,11 @@ export async function createFormationInscription(data: {
 
   if (!callerProfile) return { error: 'Profil introuvable' }
 
+  // Only admin roles can create inscriptions
+  if (!ADMIN_ROLES.includes(callerProfile.role as UserRole)) {
+    return { error: 'Accès refusé' }
+  }
+
   // Manager: can only inscribe members of their team
   if (callerProfile.role === 'manager' && data.profile_id) {
     const { data: targetProfile } = await supabase
