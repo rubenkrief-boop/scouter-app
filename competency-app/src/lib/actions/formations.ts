@@ -522,9 +522,15 @@ export async function createFormationInscription(data: {
     }
   }
 
-  // Normalize names: trim + consistent casing to avoid doublons
-  const cleanNom = data.nom.trim().toUpperCase()
-  const cleanPrenom = data.prenom.trim().replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w+/g, c => c.toLowerCase())
+  // Validate + normalize names
+  if (!data.nom?.trim() || !data.prenom?.trim()) {
+    return { error: 'Nom et prénom sont requis' }
+  }
+  if (data.nom.length > 100 || data.prenom.length > 100) {
+    return { error: 'Nom ou prénom trop long (max 100 caractères)' }
+  }
+  const cleanNom = data.nom.trim().toUpperCase().replace(/<[^>]*>/g, '')
+  const cleanPrenom = data.prenom.trim().replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w+/g, c => c.toLowerCase()).replace(/<[^>]*>/g, '')
 
   const { error } = await supabase
     .from('formation_inscriptions')
@@ -849,11 +855,32 @@ export async function selfRegisterFormation(data: {
     })
 
   if (error) {
-    // Handle UNIQUE constraint violation
     if (error.code === '23505') {
       return { error: 'Vous êtes déjà inscrit à cette session pour ce type' }
     }
     return { error: error.message }
+  }
+
+  // Re-check capacity after insert to handle race condition
+  if (setting.max_places > 0) {
+    const { count: postCount } = await adminClient
+      .from('formation_inscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', data.session_id)
+      .eq('type', data.type)
+      .eq('programme', data.programme)
+
+    if (postCount !== null && postCount > setting.max_places) {
+      // Rollback: delete the inscription we just created
+      await adminClient
+        .from('formation_inscriptions')
+        .delete()
+        .eq('session_id', data.session_id)
+        .eq('profile_id', user.id)
+        .eq('type', data.type)
+        .eq('programme', data.programme)
+      return { error: 'Ce programme est complet, plus de places disponibles' }
+    }
   }
 
   revalidatePath('/formations')

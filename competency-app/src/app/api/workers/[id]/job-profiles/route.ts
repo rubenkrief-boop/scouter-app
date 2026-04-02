@@ -119,11 +119,14 @@ export async function DELETE(
     .select('job_profile_id, job_profile:job_profiles(name)')
     .eq('audioprothesiste_id', workerId)
     .limit(1)
-    .single()
+    .maybeSingle()
+
+  const jp = remaining?.job_profile as unknown as { name: string } | null
+  const jpName = jp?.name ?? null
 
   await adminClient
     .from('profiles')
-    .update({ job_title: (remaining?.job_profile as any)?.name ?? null })
+    .update({ job_title: jpName })
     .eq('id', workerId)
 
   return NextResponse.json({ success: true })

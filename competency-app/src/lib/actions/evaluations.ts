@@ -491,7 +491,7 @@ export async function getOrCreateContinuousEvaluation(
           for (const prevResult of prevResults) {
             const newResultId = resultMap.get(prevResult.competency_id)
             if (!newResultId) continue
-            const qualifiers = prevResult.evaluation_result_qualifiers as any[]
+            const qualifiers = (prevResult.evaluation_result_qualifiers ?? []) as { qualifier_id: string; qualifier_option_id: string }[]
             if (qualifiers && qualifiers.length > 0) {
               for (const erq of qualifiers) {
                 allQualifierRows.push({
@@ -622,7 +622,7 @@ export async function saveEvaluationWithSnapshot(
     .insert({
       evaluation_id: evaluationId,
       snapshot_by: user.id,
-      scores: scores as any,
+      scores: scores as Record<string, Record<string, string>>,
       module_scores: moduleScores ? JSON.parse(JSON.stringify(moduleScores)) : null,
     })
 
