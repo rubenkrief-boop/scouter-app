@@ -43,6 +43,9 @@ export async function addComment(evaluationId: string, content: string) {
   if (!content || content.trim().length === 0) {
     return { error: 'Le commentaire ne peut pas être vide.' }
   }
+  if (content.length > 5000) {
+    return { error: 'Le commentaire ne peut pas dépasser 5000 caractères.' }
+  }
 
   const { error } = await supabase
     .from('evaluation_comments')

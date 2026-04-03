@@ -155,6 +155,7 @@ export async function deleteJobProfile(id: string) {
   }
 
   revalidatePath('/skill-master/job-profiles')
+  return { success: true }
 }
 
 export async function updateExpectedScore(

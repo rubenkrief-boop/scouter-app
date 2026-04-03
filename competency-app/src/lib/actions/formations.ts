@@ -564,6 +564,16 @@ export async function updateFormationInscription(id: string, data: {
   const auth = await requireFormationAdmin()
   if (auth.error) return { error: auth.error }
 
+  // Validate name fields if provided
+  if (data.nom !== undefined) {
+    if (!data.nom?.trim() || data.nom.length > 100) return { error: 'Nom invalide (max 100 caractères)' }
+    data.nom = data.nom.trim().toUpperCase().replace(/<[^>]*>/g, '')
+  }
+  if (data.prenom !== undefined) {
+    if (!data.prenom?.trim() || data.prenom.length > 100) return { error: 'Prénom invalide (max 100 caractères)' }
+    data.prenom = data.prenom.trim().replace(/\b\w/g, c => c.toUpperCase()).replace(/\B\w+/g, c => c.toLowerCase()).replace(/<[^>]*>/g, '')
+  }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('formation_inscriptions')
