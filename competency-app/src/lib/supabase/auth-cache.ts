@@ -19,11 +19,15 @@ export const getAuthProfile = cache(async (): Promise<{
     return { user: null, profile: null }
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  return { user, profile: profile as Profile | null }
+  if (profileError) {
+    console.error('Auth cache - profile fetch error:', profileError.message)
+  }
+
+  return { user, profile: (profile as Profile) ?? null }
 })
