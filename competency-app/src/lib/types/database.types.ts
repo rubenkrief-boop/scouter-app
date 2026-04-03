@@ -25,9 +25,51 @@ export interface Location {
   address: string | null
   city: string | null
   postal_code: string | null
+  zone_id: string | null
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+// ============================================
+// Visits / Déplacements
+// ============================================
+
+export type VisitStatus = 'planned' | 'completed' | 'cancelled'
+
+export interface GeographicZone {
+  id: string
+  name: string
+  freq_days_manager: number
+  freq_days_resp: number
+  color: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface Visit {
+  id: string
+  location_id: string
+  created_by: string
+  start_date: string
+  end_date: string
+  status: VisitStatus
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VisitWithRelations extends Visit {
+  location?: Location & { zone?: GeographicZone | null }
+  creator?: Pick<Profile, 'id' | 'first_name' | 'last_name' | 'role'>
+}
+
+export interface PlannerLocation {
+  id: string
+  profile_id: string
+  location_id: string
+  created_at: string
 }
 
 export interface ProfileWithRelations extends Profile {

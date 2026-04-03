@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, Users, BookOpen, Layers, ClipboardCheck,
-  BarChart3, User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap
+  BarChart3, User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap, Calendar
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
@@ -96,6 +96,14 @@ const navItems: NavItem[] = [
     icon: <ClipboardCheck className="h-5 w-5" />,
     roles: ['super_admin', 'manager', 'skill_master', 'resp_audiologie'],
     section: 'Évaluation',
+  },
+  // Visites / Déplacements
+  {
+    label: 'Visites',
+    href: '/visits',
+    icon: <Calendar className="h-5 w-5" />,
+    roles: ['super_admin', 'resp_audiologie', 'manager', 'worker'],
+    section: 'Visites',
   },
   // Formations plénières
   {

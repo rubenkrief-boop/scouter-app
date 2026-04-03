@@ -43,4 +43,9 @@ export type {
   FormationProgrammeFile,
   FormationProgrammeSetting,
   FormationProgrammeSettingWithCount,
+  VisitStatus,
+  GeographicZone,
+  Visit,
+  VisitWithRelations,
+  PlannerLocation,
 } from './database.types'
