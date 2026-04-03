@@ -2,6 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 
+// Type for Supabase joined profile relation
+type AudioJoin = { first_name: string; last_name: string; email: string; location?: { name: string } | null } | null
+type JobProfileJoin = { name: string } | null
+type SnapshotModuleScore = { module_id: string; module_code: string; module_name: string; completion_pct: string } | null
+
 export interface UserModuleScore {
   user_id: string
   first_name: string
@@ -91,7 +96,7 @@ export async function getGlobalStatistics(): Promise<{
     for (const ms of batchScores) {
       const evaluation = evaluations.find(e => e.id === ms.evaluation_id)
       if (!evaluation) continue
-      const audio = evaluation.audioprothesiste as any
+      const audio = evaluation.audioprothesiste as unknown as AudioJoin
       allScores.push({
         user_id: evaluation.audioprothesiste_id,
         first_name: audio?.first_name ?? '',
@@ -113,7 +118,7 @@ export async function getGlobalStatistics(): Promise<{
           console.warn(`Score fetch failed for evaluation ${evaluation.id}:`, error?.message)
           return
         }
-        const audio = evaluation.audioprothesiste as any
+        const audio = evaluation.audioprothesiste as unknown as AudioJoin
         for (const ms of scores) {
           allScores.push({
             user_id: evaluation.audioprothesiste_id,
@@ -165,8 +170,8 @@ export async function getGlobalStatistics(): Promise<{
   }>()
 
   for (const evaluation of evaluations) {
-    const audio = evaluation.audioprothesiste as any
-    const jp = evaluation.job_profile as any
+    const audio = evaluation.audioprothesiste as unknown as AudioJoin
+    const jp = evaluation.job_profile as unknown as JobProfileJoin
     const uid = evaluation.audioprothesiste_id
     if (!userMap.has(uid)) {
       userMap.set(uid, {
@@ -317,7 +322,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
       .rpc('get_snapshot_history', { p_evaluation_id: evaluation.id })
 
     if (error || !data) return null
-    return { evaluation, snapshots: data as any[] }
+    return { evaluation, snapshots: data as { id: string; snapshot_by: string; scores: Record<string, unknown>; module_scores: SnapshotModuleScore[]; created_at: string; snapshot_date?: string; author: AudioJoin }[] }
   })
 
   const results = await Promise.all(snapshotPromises)
@@ -332,7 +337,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
   for (const result of results) {
     if (!result) continue
     const { evaluation, snapshots } = result
-    const audio = evaluation.audioprothesiste as any
+    const audio = evaluation.audioprothesiste as unknown as AudioJoin
     const uid = evaluation.audioprothesiste_id
     const name = `${audio?.first_name ?? ''} ${audio?.last_name ?? ''}`
     const locationName = audio?.location?.name ?? null
@@ -343,7 +348,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
     }
 
     for (const snapshot of snapshots) {
-      const moduleScores = snapshot.module_scores as any[] | null
+      const moduleScores = snapshot.module_scores as SnapshotModuleScore[] | null
       if (!moduleScores || moduleScores.length === 0) continue
 
       // Filter by relevant modules if available
@@ -353,10 +358,10 @@ export async function getProgressionData(): Promise<ProgressionData> {
 
       if (filtered.length === 0) continue
 
-      const avg = filtered.reduce((sum: number, ms: any) =>
-        sum + (parseFloat(ms.completion_pct) || 0), 0) / filtered.length
+      const avg = filtered.reduce((sum: number, ms: SnapshotModuleScore) =>
+        sum + (parseFloat(ms?.completion_pct ?? '0') || 0), 0) / filtered.length
 
-      const dateKey = new Date(snapshot.snapshot_date).toISOString().split('T')[0]
+      const dateKey = new Date(snapshot.snapshot_date ?? snapshot.created_at).toISOString().split('T')[0]
       const worker = workerTimelineMap.get(uid)!
 
       if (!worker.points.has(dateKey)) {
@@ -557,7 +562,7 @@ export async function getGapAnalysis(): Promise<GapAnalysisResult> {
 
   for (const [workerId, moduleExpected] of workerExpectedByModule) {
     const actualMap = workerActualByModule.get(workerId) ?? new Map()
-    const audio = evaluations.find(e => e.audioprothesiste_id === workerId)?.audioprothesiste as any
+    const audio = evaluations.find(e => e.audioprothesiste_id === workerId)?.audioprothesiste as unknown as AudioJoin
     const name = `${audio?.first_name ?? ''} ${audio?.last_name ?? ''}`
 
     for (const [moduleId, expected] of moduleExpected) {
@@ -617,7 +622,7 @@ export async function getGapAnalysis(): Promise<GapAnalysisResult> {
   const alerts: AlertData[] = []
   for (const mod of modules) {
     for (const worker of mod.workersBelow) {
-      const audio = evaluations.find(e => e.audioprothesiste_id === worker.userId)?.audioprothesiste as any
+      const audio = evaluations.find(e => e.audioprothesiste_id === worker.userId)?.audioprothesiste as unknown as AudioJoin
       alerts.push({
         userId: worker.userId,
         name: worker.name,
