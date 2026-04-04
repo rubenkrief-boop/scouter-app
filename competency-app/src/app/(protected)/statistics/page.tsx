@@ -3,7 +3,9 @@ import { Header } from '@/components/layout/header'
 import { getGlobalStatistics, getProgressionData, getGapAnalysis } from '@/lib/actions/statistics'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { StatisticsDashboard } from '@/components/statistics/statistics-dashboard'
+import { VisitStats } from '@/components/visits/visit-stats'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
+import { getVisits } from '@/lib/actions/visits'
 
 export default async function StatisticsPage() {
   const { user, profile } = await getAuthProfile()
@@ -17,11 +19,12 @@ export default async function StatisticsPage() {
   }
 
   // Fetch all data in parallel
-  const [{ moduleStats, userSummaries }, chartColors, progressionData, gapAnalysis] = await Promise.all([
+  const [{ moduleStats, userSummaries }, chartColors, progressionData, gapAnalysis, visits] = await Promise.all([
     getGlobalStatistics(),
     getChartColors(),
     getProgressionData(),
     getGapAnalysis(),
+    getVisits(),
   ])
 
   return (
@@ -38,6 +41,12 @@ export default async function StatisticsPage() {
           progressionData={progressionData}
           gapAnalysis={gapAnalysis}
         />
+
+        {/* Visit Statistics */}
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold mb-4">Suivi des deplacements</h2>
+          <VisitStats visits={visits} />
+        </div>
       </div>
     </div>
   )

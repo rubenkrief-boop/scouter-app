@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header'
 import { getVisits } from '@/lib/actions/visits'
 import { getGeographicZones } from '@/lib/actions/geographic-zones'
 import { VisitListView } from '@/components/visits/visit-list-view'
+import { VisitCalendarFresco } from '@/components/visits/visit-calendar-fresco'
 
 export default async function VisitsPage() {
   const { user, profile } = await getAuthProfile()
@@ -30,7 +31,8 @@ export default async function VisitsPage() {
         title="Visites"
         description="Planification et suivi des deplacements en centres"
       />
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        <VisitCalendarFresco visits={visits} />
         <VisitListView
           visits={visits}
           zones={zones}
