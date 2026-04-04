@@ -97,7 +97,7 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
         <div className="min-w-[800px]">
           {/* Month headers */}
           <div className="flex mb-1">
-            <div className="w-[160px] flex-shrink-0" />
+            <div className="w-[200px] flex-shrink-0" />
             <div className="flex-1 flex">
               {MONTH_LABELS.map((label, i) => {
                 const widthPct = (daysInMonth[i] / totalDays) * 100
@@ -119,18 +119,31 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
             const zoneColor = loc.zone?.color || '#6B7280'
             return (
               <div key={loc.id} className="flex items-center mb-0.5 group">
-                {/* Location label */}
-                <div className="w-[160px] flex-shrink-0 pr-2 flex items-center gap-1.5">
+                {/* Location label + objective counter */}
+                <div className="w-[200px] flex-shrink-0 pr-2 flex items-center gap-1.5">
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: zoneColor }}
                   />
                   <span className="text-xs font-medium truncate">{loc.name}</span>
-                  {loc.zone && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5 flex-shrink-0" style={{ borderColor: zoneColor, color: zoneColor }}>
-                      {loc.zone.name}
-                    </Badge>
-                  )}
+                  {loc.zone && (() => {
+                    const freqDays = loc.zone.freq_days_manager // Default to manager freq for display
+                    const targetPerYear = Math.ceil(365 / freqDays)
+                    const completedCount = loc.visits.filter(v => v.status === 'completed').length
+                    const plannedCount = loc.visits.filter(v => v.status === 'planned').length
+                    const totalActive = completedCount + plannedCount
+                    const isOnTrack = totalActive >= targetPerYear
+                    return (
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] px-1.5 py-0 h-4 flex-shrink-0 font-mono ${
+                          isOnTrack ? 'border-green-400 text-green-600' : 'border-orange-400 text-orange-600'
+                        }`}
+                      >
+                        {totalActive}/{targetPerYear}
+                      </Badge>
+                    )
+                  })()}
                 </div>
 
                 {/* Timeline bar */}
