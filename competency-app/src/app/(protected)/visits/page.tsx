@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
+import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/header'
 import { getVisits } from '@/lib/actions/visits'
 import { getGeographicZones } from '@/lib/actions/geographic-zones'
@@ -12,20 +13,15 @@ export default async function VisitsPage() {
   const allowedRoles = ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker']
   if (!allowedRoles.includes(profile.role)) redirect('/dashboard')
 
-  const [visits, zones] = await Promise.all([
+  const supabase = await createClient()
+
+  const [visits, zones, { data: allLocations }] = await Promise.all([
     getVisits(),
     getGeographicZones(),
+    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
   ])
 
-  // Get unique locations from visits for filter
-  const locations = Array.from(
-    new Map(
-      visits
-        .filter(v => v.location)
-        .map(v => [v.location!.id, { id: v.location!.id, name: v.location!.name }])
-    ).values()
-  ).sort((a, b) => a.name.localeCompare(b.name))
-
+  const locations = (allLocations ?? []).map(l => ({ id: l.id, name: l.name }))
   const canPlan = ['super_admin', 'skill_master', 'manager', 'resp_audiologie'].includes(profile.role)
 
   return (
