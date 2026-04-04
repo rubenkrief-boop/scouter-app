@@ -10,14 +10,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import type { Location } from '@/lib/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { Location, GeographicZone } from '@/lib/types'
 import { LocationExcelImportDialog } from '@/components/locations/location-excel-import-dialog'
 
 interface LocationManagementProps {
   locations: Location[]
+  zones?: GeographicZone[]
 }
 
-export function LocationManagement({ locations }: LocationManagementProps) {
+export function LocationManagement({ locations, zones = [] }: LocationManagementProps) {
+  const [selectedZoneId, setSelectedZoneId] = useState<string>('')
+  const [editZoneId, setEditZoneId] = useState<string>('')
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [editingLocation, setEditingLocation] = useState<Location | null>(null)
@@ -36,11 +40,13 @@ export function LocationManagement({ locations }: LocationManagementProps) {
         address: formData.get('address') || null,
         city: formData.get('city') || null,
         postal_code: formData.get('postal_code') || null,
+        zone_id: selectedZoneId || null,
       }),
     })
 
     if (res.ok) {
       setIsOpen(false)
+      setSelectedZoneId('')
       router.refresh()
     }
     setLoading(false)
@@ -61,6 +67,7 @@ export function LocationManagement({ locations }: LocationManagementProps) {
         address: formData.get('address') || null,
         city: formData.get('city') || null,
         postal_code: formData.get('postal_code') || null,
+        zone_id: editZoneId || null,
       }),
     })
 
@@ -123,6 +130,27 @@ export function LocationManagement({ locations }: LocationManagementProps) {
                   <Input name="postal_code" placeholder="Ex: 75002" />
                 </div>
               </div>
+              {zones.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Zone geographique</Label>
+                  <Select value={selectedZoneId} onValueChange={setSelectedZoneId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Aucune zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Aucune zone</SelectItem>
+                      {zones.map(z => (
+                        <SelectItem key={z.id} value={z.id}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: z.color || '#3B82F6' }} />
+                            {z.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={loading}>
                 {loading ? 'Ajout...' : 'Ajouter'}
               </Button>
@@ -156,6 +184,27 @@ export function LocationManagement({ locations }: LocationManagementProps) {
                 <Input name="postal_code" defaultValue={editingLocation?.postal_code || ''} />
               </div>
             </div>
+            {zones.length > 0 && (
+              <div className="space-y-2">
+                <Label>Zone geographique</Label>
+                <Select value={editZoneId} onValueChange={setEditZoneId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucune zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Aucune zone</SelectItem>
+                    {zones.map(z => (
+                      <SelectItem key={z.id} value={z.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: z.color || '#3B82F6' }} />
+                          {z.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button type="submit" className="w-full bg-rose-600 hover:bg-rose-700" disabled={loading}>
               {loading ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
@@ -179,6 +228,7 @@ export function LocationManagement({ locations }: LocationManagementProps) {
                   <TableHead>Adresse</TableHead>
                   <TableHead>Ville</TableHead>
                   <TableHead>Code postal</TableHead>
+                  <TableHead>Zone</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
@@ -202,6 +252,16 @@ export function LocationManagement({ locations }: LocationManagementProps) {
                       {location.postal_code || '-'}
                     </TableCell>
                     <TableCell>
+                      {(() => {
+                        const zone = zones.find(z => z.id === location.zone_id)
+                        return zone ? (
+                          <Badge variant="outline" className="text-xs" style={{ borderColor: zone.color || undefined, color: zone.color || undefined }}>
+                            {zone.name}
+                          </Badge>
+                        ) : <span className="text-xs text-muted-foreground">-</span>
+                      })()}
+                    </TableCell>
+                    <TableCell>
                       <Badge
                         variant={location.is_active ? 'default' : 'secondary'}
                         className="cursor-pointer"
@@ -215,7 +275,7 @@ export function LocationManagement({ locations }: LocationManagementProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setEditingLocation(location)}
+                          onClick={() => { setEditingLocation(location); setEditZoneId(location.zone_id || '__none__') }}
                           title="Modifier"
                         >
                           <Pencil className="h-4 w-4 text-blue-500" />

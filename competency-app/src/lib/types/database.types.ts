@@ -40,8 +40,10 @@ export type VisitStatus = 'planned' | 'completed' | 'cancelled'
 export interface GeographicZone {
   id: string
   name: string
+  freq_days_admin: number
   freq_days_manager: number
   freq_days_resp: number
+  target_visits_admin: number
   target_visits_manager: number
   target_visits_resp: number
   color: string | null

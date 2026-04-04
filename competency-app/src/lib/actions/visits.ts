@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
-import type { VisitWithRelations, UserRole } from '@/lib/types'
+import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
 
 const REVALIDATE_PATH = '/visits'
 
@@ -110,7 +110,7 @@ export async function getVisits(filters?: {
     .from('visits')
     .select(`
       *,
-      location:locations!location_id(id, name, city, zone_id, zone:geographic_zones!zone_id(id, name, color, freq_days_manager, freq_days_resp)),
+      location:locations!location_id(id, name, city, zone_id, zone:geographic_zones!zone_id(id, name, color, freq_days_admin, freq_days_manager, freq_days_resp, target_visits_admin, target_visits_manager, target_visits_resp)),
       creator:profiles!created_by(id, first_name, last_name, role)
     `)
     .order('start_date', { ascending: false })
@@ -294,7 +294,7 @@ export async function getOverdueCenters(): Promise<OverdueCenter[]> {
   // Get all active locations with zones
   const { data: locations } = await supabase
     .from('locations')
-    .select('id, name, zone_id, zone:geographic_zones!zone_id(id, name, color, freq_days_manager, freq_days_resp)')
+    .select('id, name, zone_id, zone:geographic_zones!zone_id(id, name, color, freq_days_admin, freq_days_manager, freq_days_resp, target_visits_admin, target_visits_manager, target_visits_resp)')
     .eq('is_active', true)
     .not('zone_id', 'is', null)
 
@@ -315,16 +315,17 @@ export async function getOverdueCenters(): Promise<OverdueCenter[]> {
   }
 
   // Determine target frequency based on viewer's role
+  const isAdmin = profile.role === 'super_admin'
   const isManager = profile.role === 'manager'
   const now = new Date()
 
   const overdue: OverdueCenter[] = []
 
   for (const loc of locations) {
-    const zone = loc.zone as unknown as { id: string; name: string; color: string | null; freq_days_manager: number; freq_days_resp: number } | null
+    const zone = loc.zone as unknown as GeographicZone | null
     if (!zone) continue
 
-    const targetDays = isManager ? zone.freq_days_manager : zone.freq_days_resp
+    const targetDays = isAdmin ? zone.freq_days_admin : isManager ? zone.freq_days_manager : zone.freq_days_resp
     if (targetDays === 0) continue // 0 = non concerné, pas d'alerte
     const lastVisit = lastVisitByLocation.get(loc.id)
     const daysSince = lastVisit

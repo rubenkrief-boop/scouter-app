@@ -82,10 +82,9 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Zone</TableHead>
-                <TableHead>Objectif Manager</TableHead>
-                <TableHead>Objectif Resp.</TableHead>
-                <TableHead>Freq. max Manager</TableHead>
-                <TableHead>Freq. max Resp.</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Manager</TableHead>
+                <TableHead>Resp.</TableHead>
                 <TableHead>Couleur</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -95,16 +94,13 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
                 <TableRow key={zone.id}>
                   <TableCell className="font-medium">{zone.name}</TableCell>
                   <TableCell>
-                    <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">{zone.target_visits_manager}/an</Badge>
+                    <span className="text-xs">{zone.target_visits_admin === 0 ? '-' : `${zone.target_visits_admin}/an`}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge className="bg-purple-100 text-purple-700 border-0 text-xs">{zone.target_visits_resp}/an</Badge>
+                    <span className="text-xs">{zone.target_visits_manager === 0 ? '-' : `${zone.target_visits_manager}/an`}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">{freqLabel(zone.freq_days_manager)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-xs">{freqLabel(zone.freq_days_resp)}</Badge>
+                    <span className="text-xs">{zone.target_visits_resp === 0 ? '-' : `${zone.target_visits_resp}/an`}</span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -150,8 +146,10 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
 function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () => void }) {
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(zone?.name ?? '')
+  const [targetAdmin, setTargetAdmin] = useState(zone?.target_visits_admin ?? 0)
   const [targetManager, setTargetManager] = useState(zone?.target_visits_manager ?? 12)
   const [targetResp, setTargetResp] = useState(zone?.target_visits_resp ?? 6)
+  const [freqAdmin, setFreqAdmin] = useState(zone?.freq_days_admin ?? 0)
   const [freqManager, setFreqManager] = useState(zone?.freq_days_manager ?? 30)
   const [freqResp, setFreqResp] = useState(zone?.freq_days_resp ?? 60)
   const [color, setColor] = useState(zone?.color ?? '#3B82F6')
@@ -161,8 +159,10 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
     startTransition(async () => {
       const data = {
         name,
+        target_visits_admin: targetAdmin,
         target_visits_manager: targetManager,
         target_visits_resp: targetResp,
+        freq_days_admin: freqAdmin,
         freq_days_manager: freqManager,
         freq_days_resp: freqResp,
         color,
@@ -190,9 +190,14 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
           <Label>Nom *</Label>
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="IDF, Province, Maroc..." required />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label>Objectif annuel Manager</Label>
+            <Label>Objectif Admin</Label>
+            <Input type="number" min={0} value={targetAdmin} onChange={e => setTargetAdmin(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{targetAdmin === 0 ? 'Non concerne' : `${targetAdmin}/an`}</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Objectif Manager</Label>
             <Input type="number" min={0} value={targetManager} onChange={e => setTargetManager(parseInt(e.target.value) ?? 0)} />
             <p className="text-xs text-muted-foreground">{targetManager === 0 ? 'Non concerne' : `${targetManager} visite${targetManager > 1 ? 's' : ''}/an`}</p>
           </div>
@@ -202,9 +207,14 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
             <p className="text-xs text-muted-foreground">{targetResp === 0 ? 'Non concerne' : `${targetResp} visite${targetResp > 1 ? 's' : ''}/an`}</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label>Frequence max Manager (jours)</Label>
+            <Label>Freq. max Admin (jours)</Label>
+            <Input type="number" min={0} value={freqAdmin} onChange={e => setFreqAdmin(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{freqAdmin === 0 ? 'Pas d\'alerte' : `Alerte si depasse ${freqLabel(freqAdmin).toLowerCase()}`}</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Freq. max Manager (jours)</Label>
             <Input type="number" min={0} value={freqManager} onChange={e => setFreqManager(parseInt(e.target.value) ?? 0)} />
             <p className="text-xs text-muted-foreground">{freqManager === 0 ? 'Pas d\'alerte' : `Alerte si depasse ${freqLabel(freqManager).toLowerCase()}`}</p>
           </div>

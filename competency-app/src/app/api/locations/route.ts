@@ -95,6 +95,7 @@ export async function PATCH(request: Request) {
   if (body.city !== undefined) updates.city = body.city
   if (body.postal_code !== undefined) updates.postal_code = body.postal_code
   if (body.is_active !== undefined) updates.is_active = body.is_active
+  if (body.zone_id !== undefined) updates.zone_id = body.zone_id
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Aucun champ à mettre à jour' }, { status: 400 })

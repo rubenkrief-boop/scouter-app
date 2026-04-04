@@ -24,8 +24,10 @@ export async function getGeographicZones(): Promise<GeographicZone[]> {
 
 export async function createGeographicZone(data: {
   name: string
+  target_visits_admin?: number
   target_visits_manager?: number
   target_visits_resp?: number
+  freq_days_admin?: number
   freq_days_manager: number
   freq_days_resp: number
   color?: string
@@ -42,8 +44,10 @@ export async function createGeographicZone(data: {
   const supabase = await createClient()
   const { error } = await supabase.from('geographic_zones').insert({
     name: data.name.trim(),
+    target_visits_admin: data.target_visits_admin ?? 0,
     target_visits_manager: data.target_visits_manager ?? 12,
     target_visits_resp: data.target_visits_resp ?? 6,
+    freq_days_admin: data.freq_days_admin ?? 0,
     freq_days_manager: data.freq_days_manager,
     freq_days_resp: data.freq_days_resp,
     color: data.color || '#3B82F6',
