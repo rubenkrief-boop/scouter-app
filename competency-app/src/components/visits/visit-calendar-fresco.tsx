@@ -10,6 +10,23 @@ import type { VisitWithRelations, GeographicZone } from '@/lib/types'
 // Annual calendar fresco — visual timeline
 // ============================================
 
+// Generate a consistent color from a string (name hash → HSL)
+const PLANNER_COLORS = [
+  '#3B82F6', '#8B5CF6', '#EC4899', '#F97316', '#10B981',
+  '#06B6D4', '#F59E0B', '#6366F1', '#14B8A6', '#EF4444',
+  '#84CC16', '#A855F7',
+]
+
+function plannerColor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0
+  return PLANNER_COLORS[Math.abs(hash) % PLANNER_COLORS.length]
+}
+
+function initials(firstName?: string, lastName?: string): string {
+  return ((firstName?.[0] ?? '') + (lastName?.[0] ?? '')).toUpperCase() || '?'
+}
+
 const MONTH_LABELS = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -170,28 +187,37 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
                     />
                   )}
 
-                  {/* Visit bars */}
+                  {/* Visit bars with planner initials + color */}
                   {loc.visits.map(v => {
                     const startDay = dateToDayOfYear(v.start_date)
                     const endDay = dateToDayOfYear(v.end_date)
                     const leftPct = (startDay / totalDays) * 100
-                    const widthPct = Math.max(0.3, ((endDay - startDay + 1) / totalDays) * 100)
+                    const widthPct = Math.max(1.5, ((endDay - startDay + 1) / totalDays) * 100)
                     const isCompleted = v.status === 'completed'
                     const isCancelled = v.status === 'cancelled'
-                    const bgColor = isCancelled ? '#D1D5DB' : isCompleted ? '#10B981' : zoneColor
+                    const creator = v.creator as { id: string; first_name: string; last_name: string } | undefined
+                    const pColor = creator ? plannerColor(creator.id) : '#6B7280'
+                    const pInitials = creator ? initials(creator.first_name, creator.last_name) : '?'
+                    const bgColor = isCancelled ? '#D1D5DB' : pColor
+                    const borderColor = isCompleted ? '#10B981' : 'transparent'
 
                     return (
                       <div
                         key={v.id}
-                        className="absolute top-1 bottom-1 rounded-sm cursor-pointer transition-opacity hover:opacity-80"
+                        className="absolute top-0.5 bottom-0.5 rounded-sm cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center overflow-hidden"
                         style={{
                           left: `${leftPct}%`,
                           width: `${widthPct}%`,
                           backgroundColor: bgColor,
-                          opacity: isCancelled ? 0.4 : 0.85,
+                          opacity: isCancelled ? 0.3 : 0.9,
+                          border: `2px solid ${borderColor}`,
                         }}
-                        title={`${v.location?.name} — ${new Date(v.start_date + 'T00:00:00').toLocaleDateString('fr-FR')}${v.start_date !== v.end_date ? ' → ' + new Date(v.end_date + 'T00:00:00').toLocaleDateString('fr-FR') : ''} — ${v.status === 'completed' ? 'Terminée' : v.status === 'cancelled' ? 'Annulée' : 'Planifiée'}`}
-                      />
+                        title={`${pInitials} — ${v.location?.name} — ${new Date(v.start_date + 'T00:00:00').toLocaleDateString('fr-FR')}${v.start_date !== v.end_date ? ' → ' + new Date(v.end_date + 'T00:00:00').toLocaleDateString('fr-FR') : ''} — ${v.status === 'completed' ? 'Terminée' : v.status === 'cancelled' ? 'Annulée' : 'Planifiée'}${creator ? ' — ' + creator.first_name + ' ' + creator.last_name : ''}`}
+                      >
+                        <span className="text-[7px] font-bold text-white leading-none drop-shadow-sm">
+                          {pInitials}
+                        </span>
+                      </div>
                     )
                   })}
                 </div>
@@ -199,18 +225,39 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
             )
           })}
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-3 pt-2 border-t border-border">
+          {/* Legend: planners + status */}
+          <div className="flex flex-wrap items-center gap-4 mt-3 pt-2 border-t border-border">
+            {/* Planner colors */}
+            {(() => {
+              const planners = new Map<string, { name: string; color: string; initials: string }>()
+              for (const loc of locationRows) {
+                for (const v of loc.visits) {
+                  const c = v.creator as { id: string; first_name: string; last_name: string } | undefined
+                  if (c && !planners.has(c.id)) {
+                    planners.set(c.id, {
+                      name: `${c.first_name} ${c.last_name}`,
+                      color: plannerColor(c.id),
+                      initials: initials(c.first_name, c.last_name),
+                    })
+                  }
+                }
+              }
+              return Array.from(planners.values()).map(p => (
+                <div key={p.name} className="flex items-center gap-1.5">
+                  <div className="w-4 h-3 rounded-sm flex items-center justify-center" style={{ backgroundColor: p.color }}>
+                    <span className="text-[6px] font-bold text-white">{p.initials}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{p.name}</span>
+                </div>
+              ))
+            })()}
+            <div className="h-3 w-px bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-2 rounded-sm bg-blue-500 opacity-85" />
-              <span className="text-[10px] text-muted-foreground">Planifiee</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-2 rounded-sm bg-emerald-500" />
+              <div className="w-3 h-2 rounded-sm bg-gray-400 border-2 border-emerald-500" />
               <span className="text-[10px] text-muted-foreground">Terminee</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-2 rounded-sm bg-gray-300 opacity-40" />
+              <div className="w-3 h-2 rounded-sm bg-gray-300 opacity-30" />
               <span className="text-[10px] text-muted-foreground">Annulee</span>
             </div>
             <div className="flex items-center gap-1.5">
