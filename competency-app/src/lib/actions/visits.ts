@@ -325,6 +325,7 @@ export async function getOverdueCenters(): Promise<OverdueCenter[]> {
     if (!zone) continue
 
     const targetDays = isManager ? zone.freq_days_manager : zone.freq_days_resp
+    if (targetDays === 0) continue // 0 = non concerné, pas d'alerte
     const lastVisit = lastVisitByLocation.get(loc.id)
     const daysSince = lastVisit
       ? Math.floor((now.getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24))

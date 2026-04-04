@@ -36,8 +36,8 @@ export async function createGeographicZone(data: {
   }
 
   if (!data.name?.trim()) return { error: 'Le nom est requis' }
-  if (data.freq_days_manager < 1) return { error: 'Fréquence manager invalide' }
-  if (data.freq_days_resp < 1) return { error: 'Fréquence resp invalide' }
+  if (data.freq_days_manager < 0) return { error: 'Fréquence manager invalide' }
+  if (data.freq_days_resp < 0) return { error: 'Fréquence resp invalide' }
 
   const supabase = await createClient()
   const { error } = await supabase.from('geographic_zones').insert({

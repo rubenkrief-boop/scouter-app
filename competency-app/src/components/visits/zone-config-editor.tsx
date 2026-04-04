@@ -193,25 +193,25 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Objectif annuel Manager</Label>
-            <Input type="number" min={1} value={targetManager} onChange={e => setTargetManager(parseInt(e.target.value) || 12)} />
-            <p className="text-xs text-muted-foreground">{targetManager} visite{targetManager > 1 ? 's' : ''}/an</p>
+            <Input type="number" min={0} value={targetManager} onChange={e => setTargetManager(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{targetManager === 0 ? 'Non concerne' : `${targetManager} visite${targetManager > 1 ? 's' : ''}/an`}</p>
           </div>
           <div className="space-y-2">
             <Label>Objectif annuel Resp. Audio</Label>
-            <Input type="number" min={1} value={targetResp} onChange={e => setTargetResp(parseInt(e.target.value) || 6)} />
-            <p className="text-xs text-muted-foreground">{targetResp} visite{targetResp > 1 ? 's' : ''}/an</p>
+            <Input type="number" min={0} value={targetResp} onChange={e => setTargetResp(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{targetResp === 0 ? 'Non concerne' : `${targetResp} visite${targetResp > 1 ? 's' : ''}/an`}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Frequence max Manager (jours)</Label>
-            <Input type="number" min={1} value={freqManager} onChange={e => setFreqManager(parseInt(e.target.value) || 30)} />
-            <p className="text-xs text-muted-foreground">Alerte si depasse {freqLabel(freqManager).toLowerCase()}</p>
+            <Input type="number" min={0} value={freqManager} onChange={e => setFreqManager(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{freqManager === 0 ? 'Pas d\'alerte' : `Alerte si depasse ${freqLabel(freqManager).toLowerCase()}`}</p>
           </div>
           <div className="space-y-2">
             <Label>Frequence max Resp. Audio (jours)</Label>
-            <Input type="number" min={1} value={freqResp} onChange={e => setFreqResp(parseInt(e.target.value) || 60)} />
-            <p className="text-xs text-muted-foreground">Alerte si depasse {freqLabel(freqResp).toLowerCase()}</p>
+            <Input type="number" min={0} value={freqResp} onChange={e => setFreqResp(parseInt(e.target.value) ?? 0)} />
+            <p className="text-xs text-muted-foreground">{freqResp === 0 ? 'Pas d\'alerte' : `Alerte si depasse ${freqLabel(freqResp).toLowerCase()}`}</p>
           </div>
         </div>
         <div className="space-y-2">
