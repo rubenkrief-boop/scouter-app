@@ -15,7 +15,7 @@ export default async function SettingsPage() {
     supabase
       .from('profiles')
       .select('id, first_name, last_name, role')
-      .in('role', ['resp_audiologie', 'manager'])
+      .eq('role', 'resp_audiologie')
       .eq('is_active', true)
       .order('last_name'),
     supabase

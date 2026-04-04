@@ -82,8 +82,10 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Zone</TableHead>
-                <TableHead>Freq. Manager</TableHead>
-                <TableHead>Freq. Resp.</TableHead>
+                <TableHead>Objectif Manager</TableHead>
+                <TableHead>Objectif Resp.</TableHead>
+                <TableHead>Freq. max Manager</TableHead>
+                <TableHead>Freq. max Resp.</TableHead>
                 <TableHead>Couleur</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -92,6 +94,12 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
               {zones.map(zone => (
                 <TableRow key={zone.id}>
                   <TableCell className="font-medium">{zone.name}</TableCell>
+                  <TableCell>
+                    <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">{zone.target_visits_manager}/an</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className="bg-purple-100 text-purple-700 border-0 text-xs">{zone.target_visits_resp}/an</Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="text-xs">{freqLabel(zone.freq_days_manager)}</Badge>
                   </TableCell>
@@ -142,6 +150,8 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
 function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () => void }) {
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(zone?.name ?? '')
+  const [targetManager, setTargetManager] = useState(zone?.target_visits_manager ?? 12)
+  const [targetResp, setTargetResp] = useState(zone?.target_visits_resp ?? 6)
   const [freqManager, setFreqManager] = useState(zone?.freq_days_manager ?? 30)
   const [freqResp, setFreqResp] = useState(zone?.freq_days_resp ?? 60)
   const [color, setColor] = useState(zone?.color ?? '#3B82F6')
@@ -149,7 +159,14 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      const data = { name, freq_days_manager: freqManager, freq_days_resp: freqResp, color }
+      const data = {
+        name,
+        target_visits_manager: targetManager,
+        target_visits_resp: targetResp,
+        freq_days_manager: freqManager,
+        freq_days_resp: freqResp,
+        color,
+      }
       const result = zone
         ? await updateGeographicZone(zone.id, data)
         : await createGeographicZone(data)
@@ -175,14 +192,26 @@ function ZoneForm({ zone, onClose }: { zone: GeographicZone | null; onClose: () 
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Frequence Manager (jours)</Label>
-            <Input type="number" min={1} value={freqManager} onChange={e => setFreqManager(parseInt(e.target.value) || 30)} />
-            <p className="text-xs text-muted-foreground">{freqLabel(freqManager)}</p>
+            <Label>Objectif annuel Manager</Label>
+            <Input type="number" min={1} value={targetManager} onChange={e => setTargetManager(parseInt(e.target.value) || 12)} />
+            <p className="text-xs text-muted-foreground">{targetManager} visite{targetManager > 1 ? 's' : ''}/an</p>
           </div>
           <div className="space-y-2">
-            <Label>Frequence Resp. Audio (jours)</Label>
+            <Label>Objectif annuel Resp. Audio</Label>
+            <Input type="number" min={1} value={targetResp} onChange={e => setTargetResp(parseInt(e.target.value) || 6)} />
+            <p className="text-xs text-muted-foreground">{targetResp} visite{targetResp > 1 ? 's' : ''}/an</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Frequence max Manager (jours)</Label>
+            <Input type="number" min={1} value={freqManager} onChange={e => setFreqManager(parseInt(e.target.value) || 30)} />
+            <p className="text-xs text-muted-foreground">Alerte si depasse {freqLabel(freqManager).toLowerCase()}</p>
+          </div>
+          <div className="space-y-2">
+            <Label>Frequence max Resp. Audio (jours)</Label>
             <Input type="number" min={1} value={freqResp} onChange={e => setFreqResp(parseInt(e.target.value) || 60)} />
-            <p className="text-xs text-muted-foreground">{freqLabel(freqResp)}</p>
+            <p className="text-xs text-muted-foreground">Alerte si depasse {freqLabel(freqResp).toLowerCase()}</p>
           </div>
         </div>
         <div className="space-y-2">

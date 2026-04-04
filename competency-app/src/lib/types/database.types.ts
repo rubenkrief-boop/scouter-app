@@ -42,6 +42,8 @@ export interface GeographicZone {
   name: string
   freq_days_manager: number
   freq_days_resp: number
+  target_visits_manager: number
+  target_visits_resp: number
   color: string | null
   sort_order: number
   is_active: boolean

@@ -127,12 +127,11 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
                   />
                   <span className="text-xs font-medium truncate">{loc.name}</span>
                   {loc.zone && (() => {
-                    const freqDays = loc.zone.freq_days_manager // Default to manager freq for display
-                    const targetPerYear = Math.ceil(365 / freqDays)
+                    const target = loc.zone.target_visits_manager ?? Math.ceil(365 / loc.zone.freq_days_manager)
                     const completedCount = loc.visits.filter(v => v.status === 'completed').length
                     const plannedCount = loc.visits.filter(v => v.status === 'planned').length
                     const totalActive = completedCount + plannedCount
-                    const isOnTrack = totalActive >= targetPerYear
+                    const isOnTrack = totalActive >= target
                     return (
                       <Badge
                         variant="outline"
@@ -140,7 +139,7 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
                           isOnTrack ? 'border-green-400 text-green-600' : 'border-orange-400 text-orange-600'
                         }`}
                       >
-                        {totalActive}/{targetPerYear}
+                        {totalActive}/{target}
                       </Badge>
                     )
                   })()}
