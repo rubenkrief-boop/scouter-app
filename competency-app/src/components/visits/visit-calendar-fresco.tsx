@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
-import type { VisitWithRelations, GeographicZone } from '@/lib/types'
+import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
 
 // ============================================
 // Planner colors + initials
@@ -41,9 +41,11 @@ const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 interface CalendarFrescoProps {
   visits: VisitWithRelations[]
   year?: number
+  userRole?: UserRole
+  myLocationIds?: string[]
 }
 
-export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoProps) {
+export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocationIds = [] }: CalendarFrescoProps) {
   const year = propYear ?? new Date().getFullYear()
   const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
   const daysInMonth = [...MONTH_DAYS]
@@ -158,7 +160,12 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
             {/* Location rows */}
             {locationRows.map(loc => {
               const zoneColor = loc.zone?.color || '#6B7280'
-              const target = loc.zone?.target_visits_manager ?? 0
+              const target = userRole === 'super_admin'
+                ? (loc.zone?.target_visits_admin ?? 0)
+                : userRole === 'manager'
+                  ? (loc.zone?.target_visits_manager ?? 0)
+                  : (loc.zone?.target_visits_resp ?? 0)
+              const isMyCenter = myLocationIds.length === 0 || myLocationIds.includes(loc.id)
               const completedCount = loc.visits.filter(v => v.status === 'completed').length
               const plannedCount = loc.visits.filter(v => v.status === 'planned').length
               const totalActive = completedCount + plannedCount
@@ -174,7 +181,7 @@ export function VisitCalendarFresco({ visits, year: propYear }: CalendarFrescoPr
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold truncate">{loc.name}</span>
-                        {target > 0 && (
+                        {target > 0 && isMyCenter && (
                           <Badge
                             variant="outline"
                             className={`text-[10px] px-1.5 py-0 h-5 font-mono flex-shrink-0 ${

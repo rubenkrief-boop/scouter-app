@@ -70,7 +70,7 @@ export function PlannerAttributionEditor({ planners, locations }: PlannerAttribu
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Attribuez des centres a chaque responsable audiologie pour definir leur perimetre de visites.
+          Attribuez des centres a chaque planificateur pour definir son perimetre de visites et ses objectifs.
           Les managers ont automatiquement acces aux centres de leur equipe.
         </p>
 
