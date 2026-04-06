@@ -156,9 +156,9 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
   let lastSection: string | undefined
 
   return (
-    <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0">
+    <aside className="flex flex-col w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0 shadow-sm">
       {/* Logo */}
-      <div className="p-4 flex flex-col items-center gap-2">
+      <div className="p-5 flex flex-col items-center gap-3">
         {branding.logoUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -195,24 +195,28 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
           return (
             <div key={item.href}>
               {showSection && (
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 mt-4 mb-1 px-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30 mt-5 mb-2 px-3">
                   {item.section}
                 </p>
               )}
               <Link
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                  'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground hover:translate-x-0.5'
                 )}
                 style={isActive && branding.accentColor ? {
                   backgroundColor: branding.accentColor + '15',
                   borderLeft: `3px solid ${branding.accentColor}`,
+                } : isActive ? {
+                  borderLeft: '3px solid hsl(var(--primary))',
                 } : undefined}
               >
-                {item.icon}
+                <span className={cn('transition-transform duration-200', isActive && 'scale-110')}>
+                  {item.icon}
+                </span>
                 {item.label}
               </Link>
             </div>
@@ -224,8 +228,8 @@ export function AppSidebar({ userRole, userName, userEmail }: AppSidebarProps) {
 
       {/* User info */}
       <div className="p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-sm font-bold text-primary ring-2 ring-primary/10">
             {userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
           </div>
           <div className="flex-1 min-w-0">
