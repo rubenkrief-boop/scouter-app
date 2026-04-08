@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeName } from '@/lib/utils'
@@ -53,7 +54,7 @@ export async function getFormationSessions(): Promise<FormationSession[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Error fetching formation sessions:', error)
+    logger.error('formations.getFormationSessions', error)
     return []
   }
   return (data ?? []) as FormationSession[]
@@ -79,7 +80,7 @@ export async function getFormationAteliers(
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching formation ateliers:', error)
+    logger.error('formations.getFormationAteliers', error)
     return []
   }
   return (data ?? []) as FormationAtelierWithSession[]
@@ -105,7 +106,7 @@ async function paginatedFetch<T>(buildQuery: () => any, pageSize = 1000): Promis
   while (true) {
     const { data, error } = await buildQuery().range(offset, offset + pageSize - 1)
     if (error) {
-      console.error('Paginated fetch error:', error)
+      logger.error('formations.paginatedFetch', error)
       break
     }
     if (!data || data.length === 0) break
@@ -201,7 +202,7 @@ export async function getWorkerFormations(profileId: string): Promise<FormationI
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching worker formations:', error)
+    logger.error('formations.getWorkerFormations', error)
     return []
   }
   return (data ?? []) as FormationInscriptionWithSession[]
@@ -225,7 +226,7 @@ export async function getFormationProgrammeAteliers(
     .eq('programme', programme)
 
   if (error) {
-    console.error('Error fetching programme ateliers:', error)
+    logger.error('formations.getFormationProgrammeAteliers', error)
     return []
   }
 
@@ -268,7 +269,7 @@ export async function getAllProgrammeAtelierMappings(): Promise<ProgrammeAtelier
     .select('session_id, type, programme, atelier_id, atelier:formation_ateliers!formation_programme_ateliers_atelier_id_fkey(nom)')
 
   if (error) {
-    console.error('Error fetching programme-atelier mappings:', error)
+    logger.error('formations.getAllProgrammeAtelierMappings', error)
     return []
   }
 
@@ -325,7 +326,7 @@ export async function getTeamProfiles(): Promise<TeamProfile[]> {
 
   const { data, error } = await query
   if (error) {
-    console.error('Error fetching team profiles:', error)
+    logger.error('formations.getTeamProfiles', error)
     return []
   }
 
@@ -654,7 +655,7 @@ export async function getFormationProgrammeFiles(
 
   const { data, error } = await query
   if (error) {
-    console.error('Error fetching programme files:', error)
+    logger.error('formations.getFormationProgrammeFiles', error)
     return []
   }
   return (data ?? []) as FormationProgrammeFile[]
@@ -680,7 +681,7 @@ export async function getFormationProgrammeSettings(
 
   const { data: settings, error: settingsError } = await settingsQuery
   if (settingsError) {
-    console.error('Error fetching programme settings:', settingsError)
+    logger.error('formations.getFormationProgrammeSettings', settingsError)
     return []
   }
   if (!settings || settings.length === 0) return []

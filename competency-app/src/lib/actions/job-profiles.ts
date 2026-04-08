@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { JobProfile, JobProfileCompetency } from '@/lib/types'
 
@@ -13,7 +14,7 @@ export async function getJobProfiles(): Promise<JobProfile[]> {
     .order('name', { ascending: true })
 
   if (error) {
-    console.error('Error fetching job profiles:', error)
+    logger.error('job-profiles.getJobProfiles', error)
     return []
   }
 
@@ -32,7 +33,7 @@ export async function getJobProfile(
     .single()
 
   if (profileError) {
-    console.error('Error fetching job profile:', profileError)
+    logger.error('job-profiles.getJobProfile', profileError)
     return null
   }
 
@@ -42,7 +43,7 @@ export async function getJobProfile(
     .eq('job_profile_id', id)
 
   if (scoresError) {
-    console.error('Error fetching expected scores:', scoresError)
+    logger.error('job-profiles.getJobProfile', scoresError, { stage: 'expected_scores' })
     return null
   }
 

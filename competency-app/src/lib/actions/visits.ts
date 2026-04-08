@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
@@ -134,7 +135,7 @@ export async function getVisits(filters?: {
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching visits:', error)
+    logger.error('visits.getVisits', error)
     return []
   }
 
@@ -157,7 +158,7 @@ export async function getVisit(id: string): Promise<VisitWithRelations | null> {
     .single()
 
   if (error) {
-    console.error('Error fetching visit:', error)
+    logger.error('visits.getVisit', error)
     return null
   }
 
@@ -385,7 +386,7 @@ export async function getUpcomingVisits(days: number = 30): Promise<VisitWithRel
 
   const { data, error } = await query
   if (error) {
-    console.error('Error fetching upcoming visits:', error)
+    logger.error('visits.getUpcomingVisits', error)
     return []
   }
 

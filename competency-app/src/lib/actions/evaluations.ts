@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type {
   EvaluationWithRelations,
@@ -42,7 +43,7 @@ export async function getEvaluations(): Promise<EvaluationWithRelations[]> {
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching evaluations:', error)
+    logger.error('evaluations.getEvaluations', error)
     return []
   }
 
@@ -96,7 +97,7 @@ export async function getEvaluation(id: string): Promise<{
     .single()
 
   if (evalError) {
-    console.error('Error fetching evaluation:', evalError)
+    logger.error('evaluations.getEvaluation', evalError)
     return null
   }
 
@@ -107,7 +108,7 @@ export async function getEvaluation(id: string): Promise<{
     .eq('evaluation_id', id)
 
   if (resultsError) {
-    console.error('Error fetching evaluation results:', resultsError)
+    logger.error('evaluations.getEvaluation', resultsError, { stage: 'results' })
     return null
   }
 
@@ -122,7 +123,7 @@ export async function getEvaluation(id: string): Promise<{
       .in('evaluation_result_id', resultIds)
 
     if (answersError) {
-      console.error('Error fetching qualifier answers:', answersError)
+      logger.error('evaluations.getEvaluation', answersError, { stage: 'qualifier_answers' })
       return null
     }
 
@@ -513,7 +514,7 @@ export async function getOrCreateContinuousEvaluation(
     }
   } catch {
     // Pas grave si le pré-remplissage échoue
-    console.warn('Pre-fill from previous evaluation failed')
+    logger.warn('evaluations.createFromPrevious', 'pre-fill failed')
   }
 
   return { evaluationId: newEval.id }
@@ -613,7 +614,7 @@ export async function saveEvaluationWithSnapshot(
     .rpc('get_module_scores', { p_evaluation_id: evaluationId })
 
   if (rpcError) {
-    console.error('Erreur calcul scores:', rpcError)
+    logger.error('evaluations.saveEvaluationWithSnapshot', rpcError, { stage: 'calcul_scores' })
   }
 
   // 4. Créer le snapshot (best effort — don't fail the whole save)
@@ -627,7 +628,7 @@ export async function saveEvaluationWithSnapshot(
     })
 
   if (snapshotError) {
-    console.error('Erreur creation snapshot:', snapshotError)
+    logger.error('evaluations.saveEvaluationWithSnapshot', snapshotError, { stage: 'creation_snapshot' })
   }
 
   revalidatePath(`/evaluator/evaluations/${evaluationId}`)
@@ -648,7 +649,7 @@ export async function getSnapshotHistory(
     .rpc('get_snapshot_history', { p_evaluation_id: evaluationId })
 
   if (error) {
-    console.error('Error fetching snapshot history:', error)
+    logger.error('evaluations.getSnapshotHistory', error)
     return []
   }
 

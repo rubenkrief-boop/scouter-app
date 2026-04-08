@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Profile, UserRole } from '@/lib/types'
@@ -27,7 +28,7 @@ export async function getUsers(): Promise<Profile[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching users:', error)
+    logger.error('users.getUsers', error)
     return []
   }
 
@@ -181,7 +182,7 @@ export async function createUser(formData: FormData) {
     .eq('id', newUser.user.id)
 
   if (updateError) {
-    console.error('Error updating profile after user creation:', updateError)
+    logger.error('users.createUser', updateError, { stage: 'profile_update' })
   }
 
   revalidatePath('/admin/users')

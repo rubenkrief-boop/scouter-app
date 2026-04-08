@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { Module, ModuleWithChildren, QualifierWithOptions } from '@/lib/types'
 
@@ -14,7 +15,7 @@ export async function getModules(): Promise<ModuleWithChildren[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Error fetching modules:', error)
+    logger.error('modules.getModules', error)
     return []
   }
 
@@ -65,7 +66,7 @@ export async function getModule(id: string): Promise<ModuleWithChildren | null> 
     .single()
 
   if (moduleError) {
-    console.error('Error fetching module:', moduleError)
+    logger.error('modules.getModule', moduleError)
     return null
   }
 
@@ -233,7 +234,7 @@ export async function getModuleQualifiersMap(): Promise<Record<string, string[]>
     .select('module_id, qualifier_id')
 
   if (error) {
-    console.error('Error fetching module_qualifiers:', error)
+    logger.error('modules.getModuleQualifiersMap', error)
     return {}
   }
 
@@ -259,7 +260,7 @@ export async function getModuleQualifierIds(moduleId: string): Promise<string[]>
     .eq('module_id', moduleId)
 
   if (error) {
-    console.error('Error fetching module qualifier IDs:', error)
+    logger.error('modules.getModuleQualifierIds', error)
     return []
   }
 
@@ -366,7 +367,7 @@ export async function getCompetencyQualifiersMap(): Promise<Record<string, strin
     .select('competency_id, qualifier_id')
 
   if (error) {
-    console.error('Error fetching competency_qualifiers:', error)
+    logger.error('modules.getCompetencyQualifiersMap', error)
     return {}
   }
 
@@ -392,7 +393,7 @@ export async function getCompetencyQualifierIds(competencyId: string): Promise<s
     .eq('competency_id', competencyId)
 
   if (error) {
-    console.error('Error fetching competency qualifier IDs:', error)
+    logger.error('modules.getCompetencyQualifierIds', error)
     return []
   }
 

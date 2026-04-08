@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { EvaluationCommentWithAuthor } from '@/lib/types'
 
@@ -17,7 +18,7 @@ export async function getComments(evaluationId: string): Promise<EvaluationComme
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error('Error fetching comments:', error)
+    logger.error('comments.getComments', error)
     return []
   }
 

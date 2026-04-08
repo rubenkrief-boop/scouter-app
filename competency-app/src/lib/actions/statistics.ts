@@ -1,5 +1,6 @@
 'use server'
 
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 
 // Type for Supabase joined profile relation
@@ -115,7 +116,7 @@ export async function getGlobalStatistics(): Promise<{
       try {
         const { data: scores, error } = await supabase.rpc('get_module_scores', { p_evaluation_id: evaluation.id })
         if (error || !scores) {
-          console.warn(`Score fetch failed for evaluation ${evaluation.id}:`, error?.message)
+          logger.warn('statistics.getGlobalStatistics', 'score fetch failed', { evaluationId: evaluation.id, error: error?.message })
           return
         }
         const audio = evaluation.audioprothesiste as unknown as AudioJoin
@@ -133,7 +134,7 @@ export async function getGlobalStatistics(): Promise<{
           })
         }
       } catch (err) {
-        console.warn(`Score fetch error for evaluation ${evaluation.id}:`, err)
+        logger.warn('statistics.getGlobalStatistics', 'score fetch error', { evaluationId: evaluation.id, error: err instanceof Error ? err.message : String(err) })
       }
     })
     await Promise.all(scorePromises)

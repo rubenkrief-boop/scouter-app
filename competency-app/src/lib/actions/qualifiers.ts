@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { QualifierWithOptions, QualifierType } from '@/lib/types'
 
@@ -13,7 +14,7 @@ export async function getQualifiers(): Promise<QualifierWithOptions[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Error fetching qualifiers:', error)
+    logger.error('qualifiers.getQualifiers', error)
     return []
   }
 
@@ -36,7 +37,7 @@ export async function getQualifier(id: string): Promise<QualifierWithOptions | n
     .single()
 
   if (error) {
-    console.error('Error fetching qualifier:', error)
+    logger.error('qualifiers.getQualifier', error)
     return null
   }
 

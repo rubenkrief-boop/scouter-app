@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import type { GeographicZone } from '@/lib/types'
@@ -16,7 +17,7 @@ export async function getGeographicZones(): Promise<GeographicZone[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Error fetching zones:', error)
+    logger.error('geographic-zones.getGeographicZones', error)
     return []
   }
   return (data ?? []) as GeographicZone[]

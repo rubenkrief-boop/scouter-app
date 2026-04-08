@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { Competency } from '@/lib/types'
 
@@ -14,7 +15,7 @@ export async function getCompetencies(moduleId: string): Promise<Competency[]> {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Error fetching competencies:', error)
+    logger.error('competencies.getCompetencies', error)
     return []
   }
 

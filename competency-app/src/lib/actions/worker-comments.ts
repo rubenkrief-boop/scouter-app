@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { logger } from '@/lib/logger'
 import { createClient } from '@/lib/supabase/server'
 import type { WorkerCommentWithAuthor } from '@/lib/types'
 
@@ -17,7 +18,7 @@ export async function getWorkerComments(workerId: string): Promise<WorkerComment
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching worker comments:', error)
+    logger.error('worker-comments.getWorkerComments', error)
     return []
   }
 
