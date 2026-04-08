@@ -4,7 +4,7 @@ import {
   getFormationSessions, getFormationAteliers, getFormationInscriptions,
   getFormationProgrammeSettings, getFormationProgrammeFiles, getTeamProfiles,
 } from '@/lib/actions/formations'
-import { FormationsAdmin } from '@/components/formations/formations-admin'
+import { FormationsAdmin } from '@/components/formations/admin/formations-admin'
 import { redirect } from 'next/navigation'
 
 export default async function FormationsAdminPage() {
