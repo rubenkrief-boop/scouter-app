@@ -109,6 +109,7 @@ export function WorkerJobProfileCard({
             onClick={handleRemove}
             disabled={removing}
             title="Retirer ce profil"
+            aria-label="Retirer ce profil"
           >
             {removing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

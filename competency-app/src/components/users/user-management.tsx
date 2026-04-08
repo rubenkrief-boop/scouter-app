@@ -389,6 +389,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                         size="icon"
                         onClick={() => openEditDialog(user)}
                         title="Modifier"
+                        aria-label="Modifier l'utilisateur"
                       >
                         <Pencil className="h-4 w-4 text-blue-500" />
                       </Button>
@@ -397,6 +398,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                         size="icon"
                         onClick={() => handleToggleActive(user.id, user.is_active)}
                         title={user.is_active ? 'Desactiver' : 'Activer'}
+                        aria-label={user.is_active ? "Desactiver l'utilisateur" : "Activer l'utilisateur"}
                       >
                         {user.is_active ? (
                           <UserX className="h-4 w-4 text-red-500" />

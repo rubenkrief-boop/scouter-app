@@ -12,7 +12,7 @@
  * touching call sites.
  */
 
-type LogMetadata = Record<string, unknown>
+export type LogMetadata = Record<string, unknown>
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 

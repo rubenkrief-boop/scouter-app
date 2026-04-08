@@ -75,7 +75,7 @@ function TreeNode({ module, depth, selectedId, onSelect }: TreeNodeProps) {
         ) : (
           <span className="w-4" />
         )}
-        <span className="mr-1">{module.icon}</span>
+        <span className="mr-1" aria-hidden="true">{module.icon}</span>
         <span className="truncate">{module.code} - {module.name}</span>
       </button>
       {expanded && module.children.map(child => (
@@ -381,7 +381,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
               if (!open) setNewModuleIcon('')
             }}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Ajouter un module">
                   <Plus className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
@@ -456,7 +456,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
               <div className="p-4 border-b flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold">
-                    {selectedModule.icon} {selectedModule.code} - {selectedModule.name}
+                    <span aria-hidden="true">{selectedModule.icon}</span> {selectedModule.code} - {selectedModule.name}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {competencies.length} competence(s)
@@ -475,7 +475,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                     if (open && selectedModule) setEditModuleIcon(selectedModule.icon ?? '')
                   }}>
                     <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Modifier le module">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </DialogTrigger>
@@ -530,6 +530,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                     className="h-8 w-8 text-orange-500 hover:text-orange-700"
                     onClick={handleDeactivateModule}
                     title="Desactiver ce module"
+                    aria-label="Desactiver ce module"
                   >
                     <EyeOff className="h-4 w-4" />
                   </Button>
@@ -617,6 +618,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                                 setEditingComp(comp)
                                 setIsEditCompOpen(true)
                               }}
+                              aria-label="Modifier la competence"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
@@ -625,6 +627,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                               size="icon"
                               className="h-7 w-7 text-red-500 hover:text-red-700"
                               onClick={() => handleDeleteCompetency(comp.id)}
+                              aria-label="Supprimer la competence"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>

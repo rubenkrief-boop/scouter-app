@@ -130,6 +130,7 @@ export function QualifierList({ qualifiers }: QualifierListProps) {
                     variant="ghost"
                     size="icon"
                     onClick={() => router.push(`/skill-master/qualifiers/${qualifier.id}`)}
+                    aria-label="Modifier"
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -138,6 +139,7 @@ export function QualifierList({ qualifiers }: QualifierListProps) {
                     size="icon"
                     onClick={() => handleDelete(qualifier.id)}
                     className="text-red-500 hover:text-red-700"
+                    aria-label="Supprimer"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

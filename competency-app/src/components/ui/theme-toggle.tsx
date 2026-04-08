@@ -13,7 +13,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+      <Button variant="ghost" size="icon" className="h-8 w-8" disabled aria-label="Changer le thème">
         <Sun className="h-4 w-4" />
       </Button>
     )
@@ -35,6 +35,11 @@ export function ThemeToggle() {
         theme === 'light' ? 'Mode clair' :
         theme === 'dark' ? 'Mode sombre' :
         'Système'
+      }
+      aria-label={
+        theme === 'light' ? 'Mode clair' :
+        theme === 'dark' ? 'Mode sombre' :
+        'Mode système'
       }
     >
       {theme === 'light' && <Sun className="h-4 w-4" />}

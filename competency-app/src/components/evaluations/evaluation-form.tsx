@@ -130,7 +130,7 @@ export function EvaluationForm({
           <Card key={module.id}>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <span>{module.icon}</span>
+                <span aria-hidden="true">{module.icon}</span>
                 Module {module.code} - {module.name}
                 <Badge variant="secondary" className="ml-auto">
                   {module.competencies.length} compétences

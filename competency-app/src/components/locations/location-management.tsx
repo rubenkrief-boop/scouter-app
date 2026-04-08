@@ -277,6 +277,7 @@ export function LocationManagement({ locations, zones = [] }: LocationManagement
                           size="icon"
                           onClick={() => { setEditingLocation(location); setEditZoneId(location.zone_id || '__none__') }}
                           title="Modifier"
+                          aria-label="Modifier"
                         >
                           <Pencil className="h-4 w-4 text-blue-500" />
                         </Button>
@@ -285,6 +286,7 @@ export function LocationManagement({ locations, zones = [] }: LocationManagement
                           size="icon"
                           onClick={() => handleDeleteLocation(location.id)}
                           title="Supprimer"
+                          aria-label="Supprimer"
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>

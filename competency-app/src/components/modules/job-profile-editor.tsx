@@ -392,7 +392,7 @@ export function JobProfileEditor({
                       <ChevronRight className="h-4 w-4 text-slate-400" />
                     )
                   )}
-                  <span className="text-lg">{module.icon}</span>
+                  <span className="text-lg" aria-hidden="true">{module.icon}</span>
                   <div>
                     <p className="font-semibold text-sm">
                       {module.code} - {module.name}

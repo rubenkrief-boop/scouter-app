@@ -662,7 +662,7 @@ function ParticipantModal({
             <Badge variant="outline" className="text-sm">
               {personInscriptions.length} session{personInscriptions.length > 1 ? 's' : ''}
             </Badge>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Fermer">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -853,7 +853,7 @@ function AtelierModal({
               </Badge>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4" aria-label="Fermer">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -937,7 +937,7 @@ function ProgrammeModal({
               <p className="text-sm text-muted-foreground mt-1">{session.date_info}</p>
             )}
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-4" aria-label="Fermer">
             <X className="h-5 w-5" />
           </button>
         </div>

@@ -1,21 +1,20 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { logger, setLoggerSink, type LogLevel } from './logger'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import { logger, setLoggerSink, type LogLevel, type LogMetadata } from './logger'
+
+type SinkMock = Mock<(level: LogLevel, context: string, message: unknown, metadata?: LogMetadata) => void>
 
 describe('logger', () => {
-  const originalEnv = process.env.NODE_ENV
-  let sink: ReturnType<typeof vi.fn>
+  let sink: SinkMock
 
   beforeEach(() => {
-    // Force a non-test env so the console sink actually writes
     vi.stubEnv('NODE_ENV', 'development')
-    sink = vi.fn()
+    sink = vi.fn() as SinkMock
     setLoggerSink(sink)
   })
 
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.restoreAllMocks()
-    process.env.NODE_ENV = originalEnv
   })
 
   it('forwards info calls to the sink with the right level and context', () => {

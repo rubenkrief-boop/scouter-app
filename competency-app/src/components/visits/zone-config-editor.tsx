@@ -115,6 +115,7 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => { setEditingZone(zone); setShowDialog(true) }}
+                        aria-label="Modifier la zone"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -124,6 +125,7 @@ export function ZoneConfigEditor({ zones }: ZoneConfigEditorProps) {
                         className="h-7 w-7 text-red-500"
                         disabled={isPending}
                         onClick={() => handleDelete(zone.id)}
+                        aria-label="Supprimer la zone"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

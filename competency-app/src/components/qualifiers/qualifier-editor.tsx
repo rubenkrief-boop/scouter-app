@@ -171,6 +171,7 @@ export function QualifierEditor({ qualifier }: QualifierEditorProps) {
                       size="icon"
                       onClick={() => handleDeleteOption(option.id)}
                       className="text-red-500 hover:text-red-700"
+                      aria-label="Supprimer l'option"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -215,6 +216,7 @@ export function QualifierEditor({ qualifier }: QualifierEditorProps) {
                     size="icon"
                     onClick={handleAddOption}
                     className="text-green-600 hover:text-green-700"
+                    aria-label="Ajouter l'option"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
