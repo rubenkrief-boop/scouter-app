@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { WorkerFilters } from '@/components/workers/worker-filters'
+import { relLocationName, readAvatarUrl } from '@/lib/types/relations'
 
 export default async function WorkersListPage({
   searchParams,
@@ -66,7 +67,7 @@ export default async function WorkersListPage({
   // Get eval count + latest score for each worker
   const workersWithStats = await Promise.all(
     filteredWorkers.map(async (w) => {
-      const loc = w.location as any
+      const loc = relLocationName(w.location)
 
       const { count } = await supabase
         .from('evaluations')
@@ -131,7 +132,9 @@ export default async function WorkersListPage({
 
         {/* Worker cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {workersWithStats.map((w) => (
+          {workersWithStats.map((w) => {
+            const avatarUrl = readAvatarUrl(w)
+            return (
             <Link key={w.id} href={`/workers/${w.id}`}>
               <Card className="hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer group">
                 <CardContent className="p-4">
@@ -139,9 +142,9 @@ export default async function WorkersListPage({
                     <div className="flex items-center gap-3">
                       {/* Avatar */}
                       <div className="w-11 h-11 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0 overflow-hidden relative">
-                        {(w as any).avatar_url ? (
+                        {avatarUrl ? (
                           <img
-                            src={(w as any).avatar_url}
+                            src={avatarUrl}
                             alt={`${w.first_name} ${w.last_name}`}
                             className="w-full h-full object-cover"
                           />
@@ -190,7 +193,8 @@ export default async function WorkersListPage({
                 </CardContent>
               </Card>
             </Link>
-          ))}
+            )
+          })}
         </div>
 
         {workersWithStats.length === 0 && (

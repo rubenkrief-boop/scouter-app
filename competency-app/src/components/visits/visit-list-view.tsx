@@ -216,7 +216,7 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
               </h3>
               <div className="space-y-2">
                 {monthVisits.map(visit => {
-                  const zone = (visit.location as any)?.zone as GeographicZone | null
+                  const zone: GeographicZone | null = visit.location?.zone ?? null
                   const zoneColor = zone?.color || '#6B7280'
                   return (
                     <Card key={visit.id} className="hover:shadow-md transition-shadow">

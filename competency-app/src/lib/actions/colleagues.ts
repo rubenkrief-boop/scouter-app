@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { RadarDataPoint } from '@/lib/types'
+import { relLocationName, relJobProfile, readAvatarUrl } from '@/lib/types/relations'
 
 export interface ColleagueSummary {
   id: string
@@ -124,7 +125,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
 
   if (!profile) return null
 
-  const loc = profile.location as any
+  const loc = relLocationName(profile.location)
 
   // Get latest completed evaluation
   const { data: latestEval } = await supabase
@@ -140,7 +141,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
   let jobProfileName: string | null = null
 
   if (latestEval) {
-    jobProfileName = (latestEval.job_profile as any)?.name ?? null
+    jobProfileName = relJobProfile(latestEval.job_profile)?.name ?? null
 
     const { data: moduleScores } = await supabase
       .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
@@ -179,7 +180,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
       first_name: profile.first_name,
       last_name: profile.last_name,
       email: profile.email,
-      avatar_url: (profile as any).avatar_url ?? null,
+      avatar_url: readAvatarUrl(profile),
       location_name: loc?.name ?? null,
     },
     radarData,

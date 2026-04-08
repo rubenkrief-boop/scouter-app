@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, JobProfile } from '@/lib/types'
+import { relResultQualifiers } from '@/lib/types/relations'
 
 interface NewEvaluationFormProps {
   workers: Profile[]
@@ -104,15 +105,13 @@ export function NewEvaluationForm({ workers, jobProfiles, preselectedWorkerId }:
             for (const prevResult of prevResults) {
               const newResultId = resultMap.get(prevResult.competency_id)
               if (!newResultId) continue
-              const qualifiers = prevResult.evaluation_result_qualifiers as any[]
-              if (qualifiers && qualifiers.length > 0) {
-                for (const erq of qualifiers) {
-                  allQualifierRows.push({
-                    evaluation_result_id: newResultId,
-                    qualifier_id: erq.qualifier_id,
-                    qualifier_option_id: erq.qualifier_option_id,
-                  })
-                }
+              const qualifiers = relResultQualifiers(prevResult.evaluation_result_qualifiers)
+              for (const erq of qualifiers) {
+                allQualifierRows.push({
+                  evaluation_result_id: newResultId,
+                  qualifier_id: erq.qualifier_id,
+                  qualifier_option_id: erq.qualifier_option_id,
+                })
               }
             }
 

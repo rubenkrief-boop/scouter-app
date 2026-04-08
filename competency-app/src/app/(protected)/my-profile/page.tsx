@@ -11,6 +11,7 @@ import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
 import { getWorkerFormations } from '@/lib/actions/formations'
 import { GraduationCap, MapPin, Briefcase } from 'lucide-react'
+import { relLocationName, relJobProfile } from '@/lib/types/relations'
 
 export default async function MyProfilePage() {
   const supabase = await createClient()
@@ -55,10 +56,10 @@ export default async function MyProfilePage() {
                       {profile.job_title}
                     </p>
                   )}
-                  {(profile.location as any)?.name && (
+                  {relLocationName(profile.location)?.name && (
                     <p className="text-white/70 text-sm flex items-center gap-1.5 mt-0.5">
                       <MapPin className="h-3.5 w-3.5" />
-                      {(profile.location as any).name}
+                      {relLocationName(profile.location)?.name}
                     </p>
                   )}
                 </div>
@@ -142,7 +143,7 @@ export default async function MyProfilePage() {
   const modulesAboveExpected = radarData.filter(d => d.actual >= d.expected).length
   const modulesWithExpected = radarData.filter(d => d.expected > 0).length
   const shouldTriggerScouter = (modulesWithExpected > 0 && modulesAboveExpected === modulesWithExpected) || avgScore >= 90
-  const jobProfileName = (latestEval?.job_profile as any)?.name
+  const jobProfileName = latestEval ? relJobProfile(latestEval.job_profile)?.name : undefined
 
   return (
     <div>

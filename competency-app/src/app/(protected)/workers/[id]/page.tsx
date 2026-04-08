@@ -13,6 +13,7 @@ import { WorkerComments } from '@/components/workers/worker-comments'
 import { getWorkerComments } from '@/lib/actions/worker-comments'
 import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
 import { getWorkerFormations } from '@/lib/actions/formations'
+import { relLocationName, relManager, relJobProfile, readAvatarUrl } from '@/lib/types/relations'
 
 export default async function WorkerProfilePage({
   params,
@@ -45,8 +46,8 @@ export default async function WorkerProfilePage({
 
   if (!worker) notFound()
 
-  const loc = worker.location as any
-  const mgr = worker.manager as any
+  const loc = relLocationName(worker.location)
+  const mgr = relManager(worker.manager)
   const fullName = `${worker.first_name} ${worker.last_name}`
 
   // Fetch assigned job profiles (N-N via audioprothesiste_assignments)
@@ -55,10 +56,10 @@ export default async function WorkerProfilePage({
     .select('job_profile_id, job_profile:job_profiles(id, name)')
     .eq('audioprothesiste_id', id)
 
-  const assignedProfiles = (assignments ?? []).map(a => ({
-    id: (a.job_profile as any)?.id as string,
-    name: (a.job_profile as any)?.name as string,
-  })).filter(p => p.id)
+  const assignedProfiles = (assignments ?? []).map(a => {
+    const jp = relJobProfile(a.job_profile)
+    return { id: jp?.id ?? '', name: jp?.name ?? '' }
+  }).filter(p => p.id)
 
   const assignedProfileIds = assignedProfiles.map(p => p.id)
 
@@ -144,7 +145,7 @@ export default async function WorkerProfilePage({
                 userId={id}
                 firstName={worker.first_name}
                 lastName={worker.last_name}
-                currentAvatarUrl={(worker as any).avatar_url}
+                currentAvatarUrl={readAvatarUrl(worker)}
                 size="lg"
               />
               <div className="flex-1">
