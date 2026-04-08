@@ -58,8 +58,38 @@ const consoleSink: LoggerSink = (level, context, message, metadata) => {
   }
 }
 
-// Active sink — can be swapped at boot for Sentry / server telemetry.
-let activeSink: LoggerSink = consoleSink
+// Forward errors to Sentry when a DSN is configured. Sentry's SDK is a no-op
+// when the init() call never ran (empty DSN), so this stays cheap.
+async function forwardToSentry(level: LogLevel, context: string, message: unknown, metadata?: LogMetadata) {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN
+  if (!dsn) return
+  try {
+    const Sentry = await import('@sentry/nextjs')
+    if (level === 'error') {
+      if (message instanceof Error) {
+        Sentry.captureException(message, { tags: { context }, extra: metadata })
+      } else {
+        Sentry.captureMessage(String((message as { message?: unknown })?.message ?? message), {
+          level: 'error',
+          tags: { context },
+          extra: metadata,
+        })
+      }
+    } else if (level === 'warn') {
+      Sentry.captureMessage(String(message), { level: 'warning', tags: { context }, extra: metadata })
+    }
+  } catch {
+    // swallow — logger must never throw
+  }
+}
+
+const sentryPlusConsoleSink: LoggerSink = (level, context, message, metadata) => {
+  consoleSink(level, context, message, metadata)
+  if (level === 'error' || level === 'warn') void forwardToSentry(level, context, message, metadata)
+}
+
+// Active sink — can be swapped at boot for alternative telemetry.
+let activeSink: LoggerSink = sentryPlusConsoleSink
 
 export function setLoggerSink(sink: LoggerSink) {
   activeSink = sink
