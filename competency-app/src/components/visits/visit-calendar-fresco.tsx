@@ -47,10 +47,14 @@ interface CalendarFrescoProps {
 
 export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocationIds = [] }: CalendarFrescoProps) {
   const year = propYear ?? new Date().getFullYear()
-  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
-  const daysInMonth = [...MONTH_DAYS]
-  if (isLeap) daysInMonth[1] = 29
-  const totalDays = daysInMonth.reduce((a, b) => a + b, 0)
+
+  // Calendar constants derived from year (memoized: only recompute when year changes)
+  const { daysInMonth, totalDays } = useMemo(() => {
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+    const days = [...MONTH_DAYS]
+    if (isLeap) days[1] = 29
+    return { daysInMonth: days, totalDays: days.reduce((a, b) => a + b, 0) }
+  }, [year])
 
   const yearVisits = useMemo(() => {
     return visits.filter(v => {

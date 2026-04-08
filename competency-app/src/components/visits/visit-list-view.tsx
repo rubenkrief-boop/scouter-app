@@ -76,6 +76,19 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
     })
   }, [visits, statusFilter, locationFilter])
 
+  // Header stats (memoized: avoid 3 filters + Set build per render on unrelated state changes)
+  const headerStats = useMemo(() => {
+    let planned = 0
+    let completed = 0
+    const activeLocationIds = new Set<string>()
+    for (const v of visits) {
+      if (v.status === 'planned') planned++
+      else if (v.status === 'completed') completed++
+      if (v.status !== 'cancelled') activeLocationIds.add(v.location_id)
+    }
+    return { planned, completed, centersCovered: activeLocationIds.size }
+  }, [visits])
+
   // Group by month for timeline
   const groupedByMonth = useMemo(() => {
     const groups: Record<string, VisitWithRelations[]> = {}
@@ -163,7 +176,7 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Planifiees</p>
-                <p className="text-xl font-bold">{visits.filter(v => v.status === 'planned').length}</p>
+                <p className="text-xl font-bold">{headerStats.planned}</p>
               </div>
             </div>
           </CardContent>
@@ -176,7 +189,7 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Terminees</p>
-                <p className="text-xl font-bold">{visits.filter(v => v.status === 'completed').length}</p>
+                <p className="text-xl font-bold">{headerStats.completed}</p>
               </div>
             </div>
           </CardContent>
@@ -190,7 +203,7 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
               <div>
                 <p className="text-sm text-muted-foreground">Centres couverts</p>
                 <p className="text-xl font-bold">
-                  {new Set(visits.filter(v => v.status !== 'cancelled').map(v => v.location_id)).size}
+                  {headerStats.centersCovered}
                 </p>
               </div>
             </div>

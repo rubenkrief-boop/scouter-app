@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronRight, ChevronDown, Pencil, Trash2, EyeOff, Sliders, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -113,8 +113,13 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
   const [savingQualifiers, setSavingQualifiers] = useState(false)
   const [loadingQualifiers, setLoadingQualifiers] = useState(false)
 
-  const tree = buildTree(modules)
-  const selectedModule = modules.find(m => m.id === selectedModuleId)
+  // Tree rebuild is O(n) with Map allocations — only redo when modules change
+  const tree = useMemo(() => buildTree(modules), [modules])
+  // Linear scan memoized on selection/module list
+  const selectedModule = useMemo(
+    () => modules.find(m => m.id === selectedModuleId),
+    [modules, selectedModuleId]
+  )
 
   useEffect(() => {
     if (!selectedModuleId) return

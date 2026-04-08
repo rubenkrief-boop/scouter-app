@@ -160,13 +160,20 @@ export function StatisticsDashboard({
     return users
   }, [userSummaries, filterLocation, filterJobProfile])
 
-  // KPIs
-  const totalUsers = filteredUsers.length
-  const totalEvals = filteredUsers.reduce((sum, u) => sum + u.eval_count, 0)
-  const globalAvg = totalUsers > 0
-    ? Math.round((filteredUsers.reduce((sum, u) => sum + u.overall_avg, 0) / totalUsers) * 10) / 10
-    : 0
-  const topPerformer = filteredUsers[0]
+  // KPIs (memoized: only recompute when filteredUsers changes, not every render)
+  const { totalUsers, totalEvals, globalAvg, topPerformer } = useMemo(() => {
+    const total = filteredUsers.length
+    const evals = filteredUsers.reduce((sum, u) => sum + u.eval_count, 0)
+    const avg = total > 0
+      ? Math.round((filteredUsers.reduce((sum, u) => sum + u.overall_avg, 0) / total) * 10) / 10
+      : 0
+    return {
+      totalUsers: total,
+      totalEvals: evals,
+      globalAvg: avg,
+      topPerformer: filteredUsers[0],
+    }
+  }, [filteredUsers])
 
   // Bar chart data: average score per module
   const barData = useMemo(() => {
@@ -238,9 +245,35 @@ export function StatisticsDashboard({
       }))
   }, [gapAnalysis.modules])
 
-  // Alerts KPIs
-  const criticalAlerts = gapAnalysis.alerts.filter(a => a.gap > 30).length
-  const warningAlerts = gapAnalysis.alerts.filter(a => a.gap > 15 && a.gap <= 30).length
+  // Alerts KPIs (memoized: two filters over alerts array)
+  const { criticalAlerts, warningAlerts } = useMemo(() => {
+    let critical = 0
+    let warning = 0
+    for (const a of gapAnalysis.alerts) {
+      if (a.gap > 30) critical++
+      else if (a.gap > 15) warning++
+    }
+    return { criticalAlerts: critical, warningAlerts: warning }
+  }, [gapAnalysis.alerts])
+
+  // Grouped alerts by user (memoized: heavy Map build + sort that was previously in an IIFE)
+  const groupedAlerts = useMemo(() => {
+    const alertsByUser = new Map<string, typeof gapAnalysis.alerts>()
+    for (const alert of gapAnalysis.alerts) {
+      const list = alertsByUser.get(alert.userId) ?? []
+      list.push(alert)
+      alertsByUser.set(alert.userId, list)
+    }
+    return Array.from(alertsByUser.entries())
+      .map(([userId, alerts]) => ({
+        userId,
+        name: alerts[0].name,
+        locationName: alerts[0].locationName,
+        maxGap: Math.max(...alerts.map(a => a.gap)),
+        alerts,
+      }))
+      .sort((a, b) => b.maxGap - a.maxGap)
+  }, [gapAnalysis.alerts])
 
   // Color scale for bars
   function getBarColor(score: number) {
@@ -575,25 +608,7 @@ export function StatisticsDashboard({
       </Card>
 
       {/* ===== SECTION: Alertes (groupees par collaborateur) ===== */}
-      {gapAnalysis.alerts.length > 0 && (() => {
-        // Group alerts by user
-        const alertsByUser = new Map<string, typeof gapAnalysis.alerts>()
-        for (const alert of gapAnalysis.alerts) {
-          const list = alertsByUser.get(alert.userId) ?? []
-          list.push(alert)
-          alertsByUser.set(alert.userId, list)
-        }
-        const groupedAlerts = Array.from(alertsByUser.entries())
-          .map(([userId, alerts]) => ({
-            userId,
-            name: alerts[0].name,
-            locationName: alerts[0].locationName,
-            maxGap: Math.max(...alerts.map(a => a.gap)),
-            alerts,
-          }))
-          .sort((a, b) => b.maxGap - a.maxGap)
-
-        return (
+      {gapAnalysis.alerts.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -666,8 +681,7 @@ export function StatisticsDashboard({
               )}
             </CardContent>
           </Card>
-        )
-      })()}
+      )}
 
       {/* Users table */}
       <Card>
