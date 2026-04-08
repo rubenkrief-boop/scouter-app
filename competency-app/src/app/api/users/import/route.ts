@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { importRowSchema, type ImportRow, type ImportResult, type ImportResponse } from '@/lib/utils-app/excel-import'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { UsersImportBodySchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   // Rate limit: 5 imports par minute par IP
@@ -29,12 +31,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { rows } = body as { rows: ImportRow[] }
-
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return NextResponse.json({ error: 'Aucune donnée à importer' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+
+  const parsed = UsersImportBodySchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  // Cast to ImportRow[]: per-row shape is re-validated below via importRowSchema.
+  const rows = parsed.data.rows as unknown as ImportRow[]
 
   const adminClient = createAdminClient()
 
@@ -184,6 +196,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (err) {
+      logger.error('api.users.import', err, { rowIndex: i + 1, email: data.email })
       results.push({
         rowIndex: i + 1,
         email: data.email,

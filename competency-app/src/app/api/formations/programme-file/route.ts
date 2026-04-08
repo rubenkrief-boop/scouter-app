@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import {
+  FormationProgrammeTypeEnum,
+  PROGRAMME_FILE_MAX_SIZE_BYTES,
+  PROGRAMME_FILE_MIME_TYPES,
+  UuidSchema,
+} from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
-const ALLOWED_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'image/webp',
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-  'application/vnd.ms-excel', // .xls
-]
-const MAX_SIZE = 10 * 1024 * 1024 // 10 Mo
+const ALLOWED_TYPES: readonly string[] = PROGRAMME_FILE_MIME_TYPES
+const MAX_SIZE = PROGRAMME_FILE_MAX_SIZE_BYTES
 
 // POST /api/formations/programme-file — Upload programme file
 export async function POST(request: NextRequest) {
@@ -43,16 +42,24 @@ export async function POST(request: NextRequest) {
   // Parse form data
   const formData = await request.formData()
   const file = formData.get('file') as File | null
-  const sessionId = formData.get('session_id') as string | null
-  const type = formData.get('type') as string | null
+  const sessionIdRaw = formData.get('session_id')
+  const typeRaw = formData.get('type')
 
-  if (!file || !sessionId || !type) {
+  if (!file || typeof sessionIdRaw !== 'string' || typeof typeRaw !== 'string') {
     return NextResponse.json({ error: 'Paramètres manquants (file, session_id, type)' }, { status: 400 })
   }
 
-  if (!['Audio', 'Assistante'].includes(type)) {
+  const sessionIdParsed = UuidSchema.safeParse(sessionIdRaw)
+  if (!sessionIdParsed.success) {
+    return NextResponse.json({ error: 'session_id invalide' }, { status: 400 })
+  }
+  const sessionId = sessionIdParsed.data
+
+  const typeParsed = FormationProgrammeTypeEnum.safeParse(typeRaw)
+  if (!typeParsed.success) {
     return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
   }
+  const type = typeParsed.data
 
   // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {
@@ -91,7 +98,7 @@ export async function POST(request: NextRequest) {
     })
 
   if (uploadError) {
-    console.error('Programme file upload error:', uploadError.message)
+    logger.error('api.formations.programmeFile.upload', uploadError, { sessionId, type })
     return NextResponse.json({ error: `Erreur upload: ${uploadError.message}` }, { status: 500 })
   }
 
@@ -116,7 +123,7 @@ export async function POST(request: NextRequest) {
     )
 
   if (dbError) {
-    console.error('DB upsert error:', dbError.message)
+    logger.error('api.formations.programmeFile.dbUpsert', dbError, { sessionId, type })
     return NextResponse.json({ error: `Erreur base de données: ${dbError.message}` }, { status: 500 })
   }
 
@@ -125,6 +132,11 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/formations/programme-file — Remove programme file
 export async function DELETE(request: NextRequest) {
+  // Rate limit: 10 suppressions par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`prog-file-delete:${ip}`, { maxRequests: 10, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
 
   // Auth check
@@ -145,12 +157,19 @@ export async function DELETE(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url)
-  const sessionId = searchParams.get('session_id')
-  const type = searchParams.get('type')
+  const sessionIdRaw = searchParams.get('session_id')
+  const typeRaw = searchParams.get('type')
 
-  if (!sessionId || !type) {
-    return NextResponse.json({ error: 'Paramètres manquants (session_id, type)' }, { status: 400 })
+  const sessionIdParsed = UuidSchema.safeParse(sessionIdRaw)
+  if (!sessionIdParsed.success) {
+    return NextResponse.json({ error: 'session_id invalide' }, { status: 400 })
   }
+  const typeParsed = FormationProgrammeTypeEnum.safeParse(typeRaw)
+  if (!typeParsed.success) {
+    return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
+  }
+  const sessionId = sessionIdParsed.data
+  const type = typeParsed.data
 
   const adminClient = createAdminClient()
 

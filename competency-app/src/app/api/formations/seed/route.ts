@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { SEED_SESSIONS, SEED_PROG_ATELIERS_MAP } from '@/lib/data/formations-seed'
 import { normalizeName } from '@/lib/utils'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { logger } from '@/lib/logger'
 
-export async function POST() {
+export async function POST(request: Request) {
+  // Rate limit: 2 seeds par minute par IP (opération lourde)
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`formations-seed:${ip}`, { maxRequests: 2, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   try {
     const supabase = await createClient()
 
@@ -186,7 +193,7 @@ export async function POST() {
       },
     })
   } catch (error) {
-    console.error('Seed error:', error)
+    logger.error('api.formations.seed', error)
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

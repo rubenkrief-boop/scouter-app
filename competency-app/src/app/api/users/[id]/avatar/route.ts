@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { AVATAR_MAX_SIZE_BYTES, IMAGE_MIME_TYPES } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-const MAX_SIZE = 2 * 1024 * 1024 // 2 Mo
+const ALLOWED_TYPES: readonly string[] = IMAGE_MIME_TYPES
+const MAX_SIZE = AVATAR_MAX_SIZE_BYTES
 
 // POST /api/users/[id]/avatar — Upload avatar photo
 export async function POST(
@@ -98,7 +100,7 @@ export async function POST(
     })
 
   if (uploadError) {
-    console.error('Avatar upload error:', uploadError.message)
+    logger.error('api.users.avatar.upload', uploadError, { userId })
     return NextResponse.json({ error: `Erreur upload: ${uploadError.message}` }, { status: 500 })
   }
 
@@ -117,7 +119,7 @@ export async function POST(
     .eq('id', userId)
 
   if (updateError) {
-    console.error('Profile update error:', updateError.message)
+    logger.error('api.users.avatar.update', updateError, { userId })
     return NextResponse.json({ error: 'Photo uploadée mais erreur de mise à jour du profil' }, { status: 500 })
   }
 

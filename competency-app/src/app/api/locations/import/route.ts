@@ -8,6 +8,8 @@ import {
   type LocationImportResponse,
 } from '@/lib/utils-app/location-excel-import'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { LocationsImportBodySchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   // Rate limit: 5 imports par minute par IP
@@ -33,12 +35,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { rows } = body as { rows: LocationImportRow[] }
-
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return NextResponse.json({ error: 'Aucune donnée à importer' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+
+  const parsedBody = LocationsImportBodySchema.safeParse(body)
+  if (!parsedBody.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsedBody.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const rows = parsedBody.data.rows as unknown as LocationImportRow[]
 
   const adminClient = createAdminClient()
 
@@ -124,7 +135,8 @@ export async function POST(request: Request) {
         name: data.name,
         success: true,
       })
-    } catch {
+    } catch (err) {
+      logger.error('api.locations.import', err, { rowIndex: i + 1, name: data.name })
       results.push({
         rowIndex: i + 1,
         name: data.name,

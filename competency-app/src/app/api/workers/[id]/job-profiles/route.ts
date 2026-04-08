@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { JobProfileAssignmentSchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 // POST - Assign a job profile to a worker
 export async function POST(
@@ -29,10 +31,20 @@ export async function POST(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { jobProfileId } = await request.json()
-  if (!jobProfileId) {
-    return NextResponse.json({ error: 'jobProfileId is required' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+  const parsed = JobProfileAssignmentSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { jobProfileId } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -48,7 +60,7 @@ export async function POST(
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Ce profil métier est déjà attribué' }, { status: 409 })
     }
-    console.error('Assign job profile error:', error.message)
+    logger.error('api.workers.jobProfiles.add', error, { workerId, jobProfileId })
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
@@ -95,10 +107,20 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { jobProfileId } = await request.json()
-  if (!jobProfileId) {
-    return NextResponse.json({ error: 'jobProfileId is required' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+  const parsed = JobProfileAssignmentSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { jobProfileId } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -109,7 +131,7 @@ export async function DELETE(
     .eq('job_profile_id', jobProfileId)
 
   if (error) {
-    console.error('Remove job profile error:', error.message)
+    logger.error('api.workers.jobProfiles.remove', error, { workerId, jobProfileId })
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
 

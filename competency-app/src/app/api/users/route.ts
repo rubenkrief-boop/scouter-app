@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { CreateUserSchema, UpdateUserSchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 // POST - Create user (admin only)
 export async function POST(request: Request) {
@@ -27,8 +29,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { email, password, first_name, last_name, role, manager_id, location_id } = body
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
+  }
+
+  const parsed = CreateUserSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { email, password, first_name, last_name, role, manager_id, location_id } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -40,19 +55,22 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    console.error('Create user error:', error.message, error.status)
+    logger.error('api.users.create', error, { email })
     return NextResponse.json({ error: `Impossible de créer cet utilisateur: ${error.message}` }, { status: 400 })
   }
 
   // Update the profile with manager_id and location_id if provided
   if (newUser?.user && (manager_id || location_id)) {
-    await adminClient
+    const { error: updErr } = await adminClient
       .from('profiles')
       .update({
         manager_id: manager_id || null,
         location_id: location_id || null,
       })
       .eq('id', newUser.user.id)
+    if (updErr) {
+      logger.error('api.users.create', updErr, { userId: newUser.user.id, step: 'profile-update' })
+    }
   }
 
   return NextResponse.json({ user: newUser })
@@ -60,6 +78,11 @@ export async function POST(request: Request) {
 
 // PATCH - Update user role/status (admin only)
 export async function PATCH(request: Request) {
+  // Rate limit: 30 updates par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`users-update:${ip}`, { maxRequests: 30, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -77,12 +100,21 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { userId, role, manager_id, location_id, is_active } = body
-
-  if (!userId) {
-    return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+
+  const parsed = UpdateUserSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { userId, role, manager_id, location_id, is_active } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -93,17 +125,13 @@ export async function PATCH(request: Request) {
   if (location_id !== undefined) updates.location_id = location_id
   if (is_active !== undefined) updates.is_active = is_active
 
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
-  }
-
   const { error } = await adminClient
     .from('profiles')
     .update(updates)
     .eq('id', userId)
 
   if (error) {
-    console.error('Update user error:', error.message, error.code)
+    logger.error('api.users.update', error, { userId })
     return NextResponse.json({ error: `Impossible de mettre à jour: ${error.message}` }, { status: 400 })
   }
 

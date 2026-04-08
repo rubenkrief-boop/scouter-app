@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { LOGO_MAX_SIZE_BYTES, LOGO_MIME_TYPES } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp']
-const MAX_SIZE = 2 * 1024 * 1024 // 2MB
+const ALLOWED_TYPES: readonly string[] = LOGO_MIME_TYPES
+const MAX_SIZE = LOGO_MAX_SIZE_BYTES
 
 // POST /api/settings/logo — Upload company logo
 export async function POST(request: NextRequest) {
-  // Rate limit: 5 uploads par minute par IP
+  // Rate limit: 10 uploads par minute par IP
   const ip = getClientIp(request)
-  const rl = checkRateLimit(`logo-upload:${ip}`, { maxRequests: 5, windowSeconds: 60 })
+  const rl = checkRateLimit(`logo-upload:${ip}`, { maxRequests: 10, windowSeconds: 60 })
   if (!rl.allowed) return rateLimitResponse(rl.resetAt)
 
   const supabase = await createClient()
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     })
 
   if (uploadError) {
-    console.error('Logo upload error:', uploadError.message)
+    logger.error('api.settings.logo.upload', uploadError)
     return NextResponse.json({ error: `Erreur upload: ${uploadError.message}` }, { status: 500 })
   }
 
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
     )
 
   if (settingsError) {
-    console.error('Settings update error:', settingsError.message)
+    logger.error('api.settings.logo.update', settingsError)
     return NextResponse.json({ error: 'Logo uploadé mais erreur de sauvegarde des paramètres' }, { status: 500 })
   }
 

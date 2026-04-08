@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { UpdateSettingSchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 // GET /api/settings?key=chart_colors
 export async function GET(request: NextRequest) {
@@ -24,6 +27,11 @@ export async function GET(request: NextRequest) {
 
 // PUT /api/settings
 export async function PUT(request: NextRequest) {
+  // Rate limit: 20 updates par minute par IP
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`settings-update:${ip}`, { maxRequests: 20, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
 
   // Check auth + role
@@ -42,12 +50,21 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { key, value } = body
-
-  if (!key || value === undefined) {
-    return NextResponse.json({ error: 'Missing key or value' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
+
+  const parsed = UpdateSettingSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { key, value } = parsed.data
 
   const { error } = await supabase
     .from('app_settings')
@@ -57,7 +74,7 @@ export async function PUT(request: NextRequest) {
     )
 
   if (error) {
-    console.error('Settings API error:', error.message)
+    logger.error('api.settings.update', error, { key })
     return NextResponse.json({ error: 'Erreur lors de la sauvegarde' }, { status: 500 })
   }
 

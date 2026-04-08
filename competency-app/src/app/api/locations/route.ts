@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
+import { CreateLocationSchema, UpdateLocationSchema, UuidSchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 // GET - List all locations
 export async function GET() {
@@ -17,7 +20,7 @@ export async function GET() {
     .order('name', { ascending: true })
 
   if (error) {
-    console.error('Locations API error:', error.message)
+    logger.error('api.locations.list', error)
     return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
@@ -26,6 +29,10 @@ export async function GET() {
 
 // POST - Create location (admin only)
 export async function POST(request: Request) {
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`locations-write:${ip}`, { maxRequests: 20, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -43,8 +50,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { name, address, city, postal_code } = body
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
+  }
+
+  const parsed = CreateLocationSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { name, address, city, postal_code } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -55,7 +75,7 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('Locations API error:', error.message)
+    logger.error('api.locations.create', error)
     return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
@@ -64,6 +84,10 @@ export async function POST(request: Request) {
 
 // PATCH - Update location (admin only)
 export async function PATCH(request: Request) {
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`locations-write:${ip}`, { maxRequests: 20, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -81,25 +105,29 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const body = await request.json()
-  const { locationId } = body
-
-  if (!locationId) {
-    return NextResponse.json({ error: 'locationId requis' }, { status: 400 })
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
   }
 
-  // Whitelist: only allow known fields
+  const parsed = UpdateLocationSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Données invalides', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const { locationId, ...rest } = parsed.data
+
   const updates: Record<string, unknown> = {}
-  if (body.name !== undefined) updates.name = body.name
-  if (body.address !== undefined) updates.address = body.address
-  if (body.city !== undefined) updates.city = body.city
-  if (body.postal_code !== undefined) updates.postal_code = body.postal_code
-  if (body.is_active !== undefined) updates.is_active = body.is_active
-  if (body.zone_id !== undefined) updates.zone_id = body.zone_id
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'Aucun champ à mettre à jour' }, { status: 400 })
-  }
+  if (rest.name !== undefined) updates.name = rest.name
+  if (rest.address !== undefined) updates.address = rest.address
+  if (rest.city !== undefined) updates.city = rest.city
+  if (rest.postal_code !== undefined) updates.postal_code = rest.postal_code
+  if (rest.is_active !== undefined) updates.is_active = rest.is_active
+  if (rest.zone_id !== undefined) updates.zone_id = rest.zone_id
 
   const adminClient = createAdminClient()
 
@@ -109,7 +137,7 @@ export async function PATCH(request: Request) {
     .eq('id', locationId)
 
   if (error) {
-    console.error('Locations API error:', error.message)
+    logger.error('api.locations.update', error, { locationId })
     return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
@@ -118,6 +146,10 @@ export async function PATCH(request: Request) {
 
 // DELETE - Delete location (admin only)
 export async function DELETE(request: Request) {
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`locations-write:${ip}`, { maxRequests: 20, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -136,11 +168,13 @@ export async function DELETE(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const locationId = searchParams.get('id')
+  const locationIdRaw = searchParams.get('id')
 
-  if (!locationId) {
-    return NextResponse.json({ error: 'Location ID required' }, { status: 400 })
+  const idParsed = UuidSchema.safeParse(locationIdRaw)
+  if (!idParsed.success) {
+    return NextResponse.json({ error: 'Location ID invalide' }, { status: 400 })
   }
+  const locationId = idParsed.data
 
   const adminClient = createAdminClient()
 
@@ -150,7 +184,7 @@ export async function DELETE(request: Request) {
     .eq('id', locationId)
 
   if (error) {
-    console.error('Locations API error:', error.message)
+    logger.error('api.locations.delete', error, { locationId })
     return NextResponse.json({ error: 'Erreur lors de l\'opération' }, { status: 400 })
   }
 
