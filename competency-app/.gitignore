@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 nul
+
+# Maintenance / one-off scripts — contain credentials, must never be committed
+*.py
+audit_*.py
+fix_*.py
+update_*.py
