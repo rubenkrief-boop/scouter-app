@@ -91,7 +91,7 @@ export function EvaluationHistory({ evaluationId }: EvaluationHistoryProps) {
 
   // Construire les data points pour le LineChart
   const chartData = chronological.map(snap => {
-    const point: Record<string, any> = {
+    const point: Record<string, string | number> = {
       date: formatDate(snap.snapshot_date),
       fullDate: snap.snapshot_date,
     }

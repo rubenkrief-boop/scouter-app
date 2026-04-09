@@ -8,36 +8,36 @@ export default function ConfidentialitePage() {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm not-prose">
         <p className="font-semibold text-amber-800">A completer :</p>
         <ul className="mt-2 space-y-1 text-amber-700">
-          <li>Responsable du traitement : <strong>[NOM DE L'ENTREPRISE]</strong></li>
+          <li>Responsable du traitement : <strong>[NOM DE L&apos;ENTREPRISE]</strong></li>
           <li>Adresse : <strong>[ADRESSE]</strong></li>
           <li>Email DPO / contact RGPD : <strong>[EMAIL]</strong></li>
         </ul>
       </div>
 
       <h2>2. Donnees collectees</h2>
-      <p>Dans le cadre de l'utilisation de SCOUTER, nous collectons les donnees suivantes :</p>
+      <p>Dans le cadre de l&apos;utilisation de SCOUTER, nous collectons les donnees suivantes :</p>
 
-      <h3>Donnees d'identification</h3>
+      <h3>Donnees d&apos;identification</h3>
       <ul>
         <li>Nom et prenom</li>
         <li>Adresse email professionnelle</li>
         <li>Poste / emploi occupe</li>
-        <li>Lieu d'exercice</li>
+        <li>Lieu d&apos;exercice</li>
         <li>Rattachement hierarchique (manager)</li>
       </ul>
 
-      <h3>Donnees d'evaluation professionnelle</h3>
+      <h3>Donnees d&apos;evaluation professionnelle</h3>
       <ul>
-        <li>Resultats d'evaluation des competences</li>
+        <li>Resultats d&apos;evaluation des competences</li>
         <li>Scores par module et par competence</li>
-        <li>Commentaires d'evaluation</li>
+        <li>Commentaires d&apos;evaluation</li>
         <li>Historique des evaluations</li>
       </ul>
 
       <h3>Donnees techniques</h3>
       <ul>
         <li>Adresse IP (journaux de connexion)</li>
-        <li>Cookies de session d'authentification</li>
+        <li>Cookies de session d&apos;authentification</li>
         <li>Date et heure de connexion</li>
       </ul>
 
@@ -56,15 +56,15 @@ export default function ConfidentialitePage() {
           </tr>
           <tr>
             <td>Evaluation des competences professionnelles</td>
-            <td>Interet legitime de l'employeur</td>
+            <td>Interet legitime de l&apos;employeur</td>
           </tr>
           <tr>
             <td>Suivi de la progression des collaborateurs</td>
-            <td>Interet legitime de l'employeur</td>
+            <td>Interet legitime de l&apos;employeur</td>
           </tr>
           <tr>
             <td>Statistiques et tableaux de bord</td>
-            <td>Interet legitime de l'employeur</td>
+            <td>Interet legitime de l&apos;employeur</td>
           </tr>
           <tr>
             <td>Securite et authentification</td>
@@ -87,8 +87,8 @@ export default function ConfidentialitePage() {
             <td>Duree du contrat de travail + 3 ans apres le depart</td>
           </tr>
           <tr>
-            <td>Resultats d'evaluation</td>
-            <td>5 ans apres la date d'evaluation</td>
+            <td>Resultats d&apos;evaluation</td>
+            <td>5 ans apres la date d&apos;evaluation</td>
           </tr>
           <tr>
             <td>Journaux de connexion</td>
@@ -126,12 +126,12 @@ export default function ConfidentialitePage() {
         loi Informatique et Libertes, vous disposez des droits suivants :
       </p>
       <ul>
-        <li><strong>Droit d'acces</strong> : obtenir une copie de vos donnees personnelles</li>
+        <li><strong>Droit d&apos;acces</strong> : obtenir une copie de vos donnees personnelles</li>
         <li><strong>Droit de rectification</strong> : corriger des donnees inexactes</li>
-        <li><strong>Droit a l'effacement</strong> : demander la suppression de vos donnees</li>
+        <li><strong>Droit a l&apos;effacement</strong> : demander la suppression de vos donnees</li>
         <li><strong>Droit a la limitation</strong> : restreindre le traitement de vos donnees</li>
         <li><strong>Droit a la portabilite</strong> : recevoir vos donnees dans un format structure</li>
-        <li><strong>Droit d'opposition</strong> : vous opposer au traitement de vos donnees</li>
+        <li><strong>Droit d&apos;opposition</strong> : vous opposer au traitement de vos donnees</li>
       </ul>
       <p>
         Pour exercer ces droits, contactez-nous par email a :{' '}
@@ -173,7 +173,7 @@ export default function ConfidentialitePage() {
 
       <h3>Cookies analytiques</h3>
       <p>
-        Aucun cookie analytique ou de suivi publicitaire n'est utilise sur ce site.
+        Aucun cookie analytique ou de suivi publicitaire n&apos;est utilise sur ce site.
         Si cela venait a changer, votre consentement serait prealablement recueilli.
       </p>
 
@@ -185,7 +185,7 @@ export default function ConfidentialitePage() {
       <ul>
         <li>Chiffrement des donnees en transit (HTTPS/TLS)</li>
         <li>Authentification securisee avec mots de passe haches</li>
-        <li>Controle d'acces base sur les roles (RLS - Row Level Security)</li>
+        <li>Controle d&apos;acces base sur les roles (RLS - Row Level Security)</li>
         <li>Journalisation des acces</li>
       </ul>
     </article>

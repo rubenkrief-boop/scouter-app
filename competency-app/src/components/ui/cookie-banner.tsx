@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Cookie } from 'lucide-react'
 
 export function CookieBanner() {
+  // Start hidden on the server; sync from localStorage on mount via microtask to avoid set-state-in-effect.
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     const consent = localStorage.getItem('cookie-consent')
     if (!consent) {
-      setVisible(true)
+      queueMicrotask(() => setVisible(true))
     }
   }, [])
 
@@ -36,8 +37,8 @@ export function CookieBanner() {
         <div className="flex-1 text-sm text-slate-600">
           <p>
             Ce site utilise uniquement des <strong>cookies strictement necessaires</strong> au
-            fonctionnement de l'application (authentification et session utilisateur).
-            Aucun cookie publicitaire ou de suivi n'est utilise.{' '}
+            fonctionnement de l&apos;application (authentification et session utilisateur).
+            Aucun cookie publicitaire ou de suivi n&apos;est utilise.{' '}
             <Link href="/legal/confidentialite" className="text-rose-600 hover:underline">
               En savoir plus
             </Link>

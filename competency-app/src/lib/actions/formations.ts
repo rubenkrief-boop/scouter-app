@@ -7,12 +7,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeName } from '@/lib/utils'
 import type {
   FormationSession,
-  FormationAtelier,
-  FormationInscription,
   FormationInscriptionWithSession,
   FormationAtelierWithSession,
   FormationProgrammeFile,
-  FormationProgrammeSetting,
   FormationProgrammeSettingWithCount,
   FormationType,
 } from '@/lib/types'

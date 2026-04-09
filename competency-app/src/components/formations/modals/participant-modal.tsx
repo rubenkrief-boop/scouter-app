@@ -16,7 +16,7 @@ import { getAteliersForParticipant, SESSION_COLORS, PROG_COLORS, groupByNormaliz
 // ============================================
 
 export function ParticipantModal({
-  participant, allInscriptions, ateliers, sessions, progMappings, onClose, isAdmin,
+  participant, allInscriptions, ateliers, sessions: _sessions, progMappings, onClose, isAdmin,
 }: {
   participant: GroupedParticipant
   allInscriptions: FormationInscriptionWithSession[]

@@ -21,16 +21,18 @@ export function ScouterExplosion({ score, triggered, storageKey, onDismiss }: Sc
 
   // Only show on client, check sessionStorage
   useEffect(() => {
-    setMounted(true)
-    if (!triggered) return
+    queueMicrotask(() => {
+      setMounted(true)
+      if (!triggered) return
 
-    const dismissed = sessionStorage.getItem(storageKey)
-    if (dismissed) return
+      const dismissed = sessionStorage.getItem(storageKey)
+      if (dismissed) return
 
-    setShow(true)
-    setPhase('scan')
-    setDisplayNumber(0)
-    startTimeRef.current = Date.now()
+      setShow(true)
+      setPhase('scan')
+      setDisplayNumber(0)
+      startTimeRef.current = Date.now()
+    })
   }, [triggered, storageKey])
 
   // Animate number counter during scan phase
@@ -106,10 +108,8 @@ export function ScouterExplosion({ score, triggered, storageKey, onDismiss }: Sc
     onDismiss?.()
   }, [storageKey, onDismiss])
 
-  if (!mounted || !show) return null
-
-  // Generate spark particles for explosion
-  const sparks = Array.from({ length: 12 }, (_, i) => {
+  // Generate spark particles for explosion (computed once via lazy state initializer)
+  const [sparks] = useState(() => Array.from({ length: 12 }, (_, i) => {
     const angle = (i / 12) * 360
     const distance = 150 + Math.random() * 200
     const x = Math.cos((angle * Math.PI) / 180) * distance
@@ -117,7 +117,9 @@ export function ScouterExplosion({ score, triggered, storageKey, onDismiss }: Sc
     const size = 4 + Math.random() * 8
     const delay = Math.random() * 0.3
     return { x, y, size, delay, angle }
-  })
+  }))
+
+  if (!mounted || !show) return null
 
   return createPortal(
     <div

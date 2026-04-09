@@ -87,14 +87,15 @@ export default async function WorkerProfilePage({
 
   // Fetch batch module scores for all evaluations
   const evalIds = Array.from(evalByProfile.values())
-  let batchScores: any[] = []
+  type BatchScore = { evaluation_id: string; module_id: string; module_code: string; module_name: string; completion_pct: number }
+  let batchScores: BatchScore[] = []
   if (evalIds.length > 0) {
     const { data } = await supabase.rpc('get_batch_module_scores', { p_evaluation_ids: evalIds })
     batchScores = data ?? []
   }
 
   // Group scores by evaluation_id
-  const scoresByEval = new Map<string, any[]>()
+  const scoresByEval = new Map<string, BatchScore[]>()
   for (const score of batchScores) {
     const list = scoresByEval.get(score.evaluation_id) ?? []
     list.push(score)
@@ -204,7 +205,7 @@ export default async function WorkerProfilePage({
                 // Filter module scores to only include modules from this job profile
                 const profileModuleIds = new Set(expectedScores.map(es => es.module_id))
                 const moduleScores = profileModuleIds.size > 0
-                  ? allModuleScores.filter((ms: any) => profileModuleIds.has(ms.module_id))
+                  ? allModuleScores.filter((ms) => profileModuleIds.has(ms.module_id))
                   : allModuleScores
 
                 return (

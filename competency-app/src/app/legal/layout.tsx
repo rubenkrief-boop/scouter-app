@@ -10,7 +10,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-slate-900 mb-8"
         >
           <ArrowLeft className="h-4 w-4" />
-          Retour a l'application
+          Retour a l&apos;application
         </Link>
         {children}
         <div className="mt-12 pt-6 border-t text-sm text-muted-foreground flex gap-6">

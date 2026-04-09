@@ -108,7 +108,7 @@ export default async function MyProfilePage() {
       .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
 
     // Get expected scores
-    let expectedScores: Record<string, number> = {}
+    const expectedScores: Record<string, number> = {}
     if (latestEval.job_profile_id) {
       const { data: jpComps } = await supabase
         .from('job_profile_competencies')
@@ -120,9 +120,9 @@ export default async function MyProfilePage() {
       })
     }
 
-    radarData = (moduleScores ?? []).map((ms: any) => ({
+    radarData = (moduleScores ?? []).map((ms: { module_id: string; module_code: string; module_name: string; completion_pct: string | number }) => ({
       module: `${ms.module_code} - ${ms.module_name}`,
-      actual: parseFloat(ms.completion_pct) || 0,
+      actual: parseFloat(String(ms.completion_pct)) || 0,
       expected: expectedScores[ms.module_id] ?? 70,
       fullMark: 100,
     }))

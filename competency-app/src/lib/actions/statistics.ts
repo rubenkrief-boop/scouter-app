@@ -77,7 +77,7 @@ export async function getGlobalStatistics(): Promise<{
   const evaluationIds = evaluations.map(e => e.id)
 
   // Try batch function first, fall back to parallel calls if not available
-  let allScores: {
+  const allScores: {
     user_id: string
     first_name: string
     last_name: string
@@ -289,7 +289,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
 
   // Get expected modules per job profile
   const profileIds = [...new Set((assignments ?? []).map(a => a.job_profile_id))]
-  let profileModuleMap = new Map<string, Set<string>>()
+  const profileModuleMap = new Map<string, Set<string>>()
   if (profileIds.length > 0) {
     const { data: jpComps } = await supabase
       .from('job_profile_competencies')
@@ -354,7 +354,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
 
       // Filter by relevant modules if available
       const filtered = relevantModules && relevantModules.size > 0
-        ? moduleScores.filter((ms: any) => relevantModules.has(ms.module_id))
+        ? moduleScores.filter((ms: SnapshotModuleScore | null) => ms != null && relevantModules.has(ms.module_id))
         : moduleScores
 
       if (filtered.length === 0) continue
@@ -488,7 +488,7 @@ export async function getGapAnalysis(): Promise<GapAnalysisResult> {
 
   // 4. Get expected scores per job profile per module
   const profileIds = [...new Set((assignments ?? []).map(a => a.job_profile_id))]
-  let expectedMap = new Map<string, Map<string, number>>() // profile_id -> module_id -> expected_score
+  const expectedMap = new Map<string, Map<string, number>>() // profile_id -> module_id -> expected_score
 
   if (profileIds.length > 0) {
     const { data: jpComps } = await supabase

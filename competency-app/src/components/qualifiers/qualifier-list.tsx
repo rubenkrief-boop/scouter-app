@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -20,7 +20,6 @@ interface QualifierListProps {
 export function QualifierList({ qualifiers }: QualifierListProps) {
   const router = useRouter()
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingQualifier, setEditingQualifier] = useState<QualifierWithOptions | null>(null)
   const [loading, setLoading] = useState(false)
   const [createType, setCreateType] = useState<string>('single_choice')
 

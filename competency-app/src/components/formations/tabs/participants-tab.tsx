@@ -14,8 +14,15 @@ import { SESSION_COLORS, type GroupedParticipant, type SortKey, type SortDir } f
 // Participants Tab
 // ============================================
 
+function SortIcon({ col, sortBy, sortDir }: { col: SortKey; sortBy: SortKey; sortDir: SortDir }) {
+  if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
+  return sortDir === 'asc'
+    ? <ArrowUp className="h-3 w-3 ml-1" />
+    : <ArrowDown className="h-3 w-3 ml-1" />
+}
+
 export function ParticipantsTab({
-  participants, selectedSession, search, onSearchChange,
+  participants, selectedSession: _selectedSession, search, onSearchChange,
   filterType, onFilterTypeChange, filterProgramme, onFilterProgrammeChange,
   filterStatut, onFilterStatutChange, onSelectParticipant, showProgrammeFilter,
   sortBy, sortDir, onToggleSort, isAdmin,
@@ -39,12 +46,6 @@ export function ParticipantsTab({
 }) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
-  const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
-    return sortDir === 'asc'
-      ? <ArrowUp className="h-3 w-3 ml-1" />
-      : <ArrowDown className="h-3 w-3 ml-1" />
-  }
 
   return (
     <div className="space-y-3">
@@ -99,20 +100,20 @@ export function ParticipantsTab({
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('nom')}>
-                <span className="flex items-center">Nom <SortIcon col="nom" /></span>
+                <span className="flex items-center">Nom <SortIcon col="nom" sortBy={sortBy} sortDir={sortDir} /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('prenom')}>
-                <span className="flex items-center">Prénom <SortIcon col="prenom" /></span>
+                <span className="flex items-center">Prénom <SortIcon col="prenom" sortBy={sortBy} sortDir={sortDir} /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Centre</th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('type')}>
-                <span className="flex items-center">Type <SortIcon col="type" /></span>
+                <span className="flex items-center">Type <SortIcon col="type" sortBy={sortBy} sortDir={sortDir} /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('statut')}>
-                <span className="flex items-center">Statut <SortIcon col="statut" /></span>
+                <span className="flex items-center">Statut <SortIcon col="statut" sortBy={sortBy} sortDir={sortDir} /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground select-none" onClick={() => onToggleSort('programme')}>
-                <span className="flex items-center">Programme <SortIcon col="programme" /></span>
+                <span className="flex items-center">Programme <SortIcon col="programme" sortBy={sortBy} sortDir={sortDir} /></span>
               </th>
               <th className="text-left p-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Ateliers</th>
               {isAdmin && <th className="p-3 w-10"></th>}

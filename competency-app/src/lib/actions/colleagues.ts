@@ -146,7 +146,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
     const { data: moduleScores } = await supabase
       .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
 
-    let expectedScores: Record<string, number> = {}
+    const expectedScores: Record<string, number> = {}
     if (latestEval.job_profile_id) {
       const { data: jpComps } = await supabase
         .from('job_profile_competencies')
@@ -161,10 +161,10 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
     // Ne montrer que les modules rattachés au profil métier (si défini)
     const profileModuleIds = Object.keys(expectedScores)
     radarData = (moduleScores ?? [])
-      .filter((ms: any) => profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
-      .map((ms: any) => ({
+      .filter((ms: { module_id: string }) => profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
+      .map((ms: { module_id: string; module_code: string; module_name: string; completion_pct: string | number }) => ({
         module: `${ms.module_code} - ${ms.module_name}`,
-        actual: parseFloat(ms.completion_pct) || 0,
+        actual: parseFloat(String(ms.completion_pct)) || 0,
         expected: expectedScores[ms.module_id] ?? 0,
         fullMark: 100,
       }))

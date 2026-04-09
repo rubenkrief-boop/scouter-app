@@ -226,7 +226,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Lieu d'exercice</Label>
+                <Label>Lieu d&apos;exercice</Label>
                 <Select value={createLocationId} onValueChange={setCreateLocationId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun lieu" />
@@ -259,7 +259,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
           </DialogHeader>
           {editingUser && (
             <form onSubmit={handleUpdateUser} className="space-y-4">
@@ -299,7 +299,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Lieu d'exercice</Label>
+                <Label>Lieu d&apos;exercice</Label>
                 <Select value={editLocationId} onValueChange={setEditLocationId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun lieu" />

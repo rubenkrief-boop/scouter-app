@@ -48,12 +48,15 @@ function StatCard({
   )
 }
 
-function CustomBarTooltip({ active, payload, label }: any) {
+type TooltipEntry = { fill?: string; color?: string; stroke?: string; name?: string; value?: number | string; payload?: Record<string, unknown> }
+type TooltipProps = { active?: boolean; payload?: TooltipEntry[]; label?: string }
+
+function CustomBarTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-xl border border-gray-700">
       <p className="font-semibold text-sm mb-1">{label}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i: number) => (
         <div key={i} className="flex items-center gap-2 text-sm">
           <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.fill || entry.color }} />
           <span className="text-gray-300">{entry.name}:</span>
@@ -64,12 +67,12 @@ function CustomBarTooltip({ active, payload, label }: any) {
   )
 }
 
-function CustomAreaTooltip({ active, payload, label }: any) {
+function CustomAreaTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-xl border border-gray-700">
       <p className="font-semibold text-sm mb-2">{label}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i: number) => (
         <div key={i} className="flex items-center gap-2 text-sm">
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.stroke }} />
           <span className="text-gray-300">{entry.name}:</span>
@@ -80,7 +83,8 @@ function CustomAreaTooltip({ active, payload, label }: any) {
   )
 }
 
-function GapTooltip({ active, payload, label }: any) {
+type GapPayload = { fullName?: string; avgActual?: number; avgExpected?: number; gap?: number; workersBelowCount?: number }
+function GapTooltip({ active, payload, label }: { active?: boolean; payload?: { payload?: GapPayload }[]; label?: string }) {
   if (!active || !payload?.length) return null
   const data = payload[0]?.payload
   return (
@@ -99,9 +103,9 @@ function GapTooltip({ active, payload, label }: any) {
           <span className="text-gray-300">Ecart :</span>
           <span className="font-semibold text-red-400">-{data?.gap}%</span>
         </div>
-        {data?.workersBelowCount > 0 && (
+        {(data?.workersBelowCount ?? 0) > 0 && (
           <div className="text-xs text-amber-400 mt-1">
-            {data.workersBelowCount} collaborateur{data.workersBelowCount > 1 ? 's' : ''} sous le seuil
+            {data?.workersBelowCount} collaborateur{(data?.workersBelowCount ?? 0) > 1 ? 's' : ''} sous le seuil
           </div>
         )}
       </div>
@@ -123,7 +127,7 @@ function getAlertBadge(gap: number) {
 }
 
 export function StatisticsDashboard({
-  moduleStats,
+  moduleStats: _moduleStats,
   userSummaries,
   chartColors,
   progressionData,
@@ -246,7 +250,7 @@ export function StatisticsDashboard({
   }, [gapAnalysis.modules])
 
   // Alerts KPIs (memoized: two filters over alerts array)
-  const { criticalAlerts, warningAlerts } = useMemo(() => {
+  const { criticalAlerts, warningAlerts: _warningAlerts } = useMemo(() => {
     let critical = 0
     let warning = 0
     for (const a of gapAnalysis.alerts) {

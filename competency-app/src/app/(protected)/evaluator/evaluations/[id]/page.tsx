@@ -5,8 +5,7 @@ import { Header } from '@/components/layout/header'
 import { EvaluationForm } from '@/components/evaluations/evaluation-form'
 import { CompetencyRadarChart } from '@/components/charts/radar-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import type { RadarDataPoint, QualifierWithOptions } from '@/lib/types'
+import type { RadarDataPoint, QualifierWithOptions, Module, Competency } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { getQualifiersByModule } from '@/lib/actions/modules'
 import { getAuthProfile } from '@/lib/supabase/auth-cache'
@@ -48,7 +47,7 @@ export default async function EvaluationDetailPage({
   }
 
   // Fetch top-level modules with competencies (filtered by job profile if applicable)
-  let modules: any[] = []
+  let modules: (Module & { competencies: Competency[] })[] = []
   if (profileModuleIds !== null && profileModuleIds.length === 0) {
     // Le profil métier existe mais n'a aucun module rattaché → 0 modules
     modules = []
@@ -93,7 +92,7 @@ export default async function EvaluationDetailPage({
   const { data: qualifiers } = await qualifiersQuery
 
   // Build qualifiers par module et par competence
-  const moduleIds = (modules ?? []).map((m: any) => m.id)
+  const moduleIds = (modules ?? []).map((m) => m.id)
   const { byModule: qualifiersByModule, byCompetency: qualifiersByCompetency } = await getQualifiersByModule(
     moduleIds,
     (qualifiers ?? []) as QualifierWithOptions[]
@@ -124,7 +123,7 @@ export default async function EvaluationDetailPage({
   const initialState: Record<string, Record<string, string>> = {}
   existingResults?.forEach((result) => {
     initialState[result.competency_id] = {}
-    result.evaluation_result_qualifiers?.forEach((erq: any) => {
+    result.evaluation_result_qualifiers?.forEach((erq: { qualifier_id: string; qualifier_option_id: string }) => {
       initialState[result.competency_id][erq.qualifier_id] = erq.qualifier_option_id
     })
   })
@@ -133,7 +132,7 @@ export default async function EvaluationDetailPage({
   const { data: moduleScores } = await supabase
     .rpc('get_module_scores', { p_evaluation_id: id })
 
-  let expectedScores: Record<string, number> = {}
+  const expectedScores: Record<string, number> = {}
   if (evaluation.job_profile_id) {
     const { data: jpComps } = await supabase
       .from('job_profile_competencies')
@@ -146,8 +145,8 @@ export default async function EvaluationDetailPage({
   }
 
   // Get module colors for radar labels
-  const scoreModuleIds = (moduleScores ?? []).map((ms: any) => ms.module_id)
-  let moduleColorMap: Record<string, string> = {}
+  const scoreModuleIds = (moduleScores ?? []).map((ms: { module_id: string }) => ms.module_id)
+  const moduleColorMap: Record<string, string> = {}
   if (scoreModuleIds.length > 0) {
     const { data: modColors } = await supabase
       .from('modules')
@@ -159,10 +158,10 @@ export default async function EvaluationDetailPage({
   }
 
   const radarData: RadarDataPoint[] = (moduleScores ?? [])
-    .filter((ms: any) => !profileModuleIds || profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
-    .map((ms: any) => ({
+    .filter((ms: { module_id: string }) => !profileModuleIds || profileModuleIds.length === 0 || profileModuleIds.includes(ms.module_id))
+    .map((ms: { module_id: string; module_code: string; module_name: string; completion_pct: string | number }) => ({
       module: `${ms.module_code} - ${ms.module_name}`,
-      actual: parseFloat(ms.completion_pct) || 0,
+      actual: parseFloat(String(ms.completion_pct)) || 0,
       expected: expectedScores[ms.module_id] ?? 70,
       fullMark: 100,
       moduleColor: moduleColorMap[ms.module_id] || '#6366f1',

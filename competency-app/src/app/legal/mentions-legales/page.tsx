@@ -8,7 +8,7 @@ export default function MentionsLegalesPage() {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm not-prose">
         <p className="font-semibold text-amber-800">A completer avec vos informations :</p>
         <ul className="mt-2 space-y-1 text-amber-700">
-          <li>Raison sociale : <strong>[NOM DE L'ENTREPRISE]</strong></li>
+          <li>Raison sociale : <strong>[NOM DE L&apos;ENTREPRISE]</strong></li>
           <li>Forme juridique : <strong>[SAS / SARL / Auto-entrepreneur / ...]</strong></li>
           <li>Capital social : <strong>[MONTANT] euros</strong></li>
           <li>Siege social : <strong>[ADRESSE COMPLETE]</strong></li>
@@ -24,7 +24,7 @@ export default function MentionsLegalesPage() {
       <h2>2. Hebergement</h2>
       <h3>Application web</h3>
       <p>
-        L'application est hebergee par <strong>Vercel Inc.</strong><br />
+        L&apos;application est hebergee par <strong>Vercel Inc.</strong><br />
         440 N Barranca Ave #4133, Covina, CA 91723, Etats-Unis<br />
         Site web : <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">vercel.com</a>
       </p>
@@ -38,14 +38,14 @@ export default function MentionsLegalesPage() {
 
       <h2>3. Propriete intellectuelle</h2>
       <p>
-        L'ensemble du contenu du site SCOUTER (textes, graphismes, logiciels, images,
-        base de donnees, structure) est protege par le droit d'auteur et le droit des bases de donnees
+        L&apos;ensemble du contenu du site SCOUTER (textes, graphismes, logiciels, images,
+        base de donnees, structure) est protege par le droit d&apos;auteur et le droit des bases de donnees
         conformement aux dispositions du Code de la propriete intellectuelle.
       </p>
       <p>
         Toute reproduction, representation, modification, publication, transmission ou denaturation,
         totale ou partielle, du site ou de son contenu, par quelque procede que ce soit, et sur quelque
-        support que ce soit, est interdite sans l'autorisation ecrite prealable de l'editeur.
+        support que ce soit, est interdite sans l&apos;autorisation ecrite prealable de l&apos;editeur.
       </p>
 
       <h2>4. Donnees personnelles</h2>
@@ -56,18 +56,18 @@ export default function MentionsLegalesPage() {
 
       <h2>5. Cookies</h2>
       <p>
-        Le site utilise des cookies strictement necessaires au fonctionnement de l'application
+        Le site utilise des cookies strictement necessaires au fonctionnement de l&apos;application
         (authentification, session utilisateur). Pour plus de details, consultez notre{' '}
         <a href="/legal/confidentialite">Politique de confidentialite</a>.
       </p>
 
       <h2>6. Limitation de responsabilite</h2>
       <p>
-        L'editeur ne pourra etre tenu responsable des dommages directs et indirects causes
-        au materiel de l'utilisateur lors de l'acces au site SCOUTER.
+        L&apos;editeur ne pourra etre tenu responsable des dommages directs et indirects causes
+        au materiel de l&apos;utilisateur lors de l&apos;acces au site SCOUTER.
       </p>
       <p>
-        L'editeur decline toute responsabilite quant a l'utilisation qui pourrait etre faite
+        L&apos;editeur decline toute responsabilite quant a l&apos;utilisation qui pourrait etre faite
         des informations et contenus presents sur le site.
       </p>
 

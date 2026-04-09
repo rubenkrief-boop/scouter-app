@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { GraduationCap, Calendar, Mic2, Headphones, Clock, BookOpen, Users } from 'lucide-react'
@@ -62,10 +62,10 @@ function getAteliersForParticipant(
 
 export function WorkerFormationsView({
   inscriptions,
-  sessions,
+  sessions: _sessions,
   ateliers,
   progAtelierMappings,
-  workerName,
+  workerName: _workerName,
 }: WorkerFormationsViewProps) {
 
   // Sort inscriptions by session sort_order (most recent first)
@@ -81,8 +81,8 @@ export function WorkerFormationsView({
             <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-semibold mb-2">Aucune formation enregistrée</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Votre compte n'est pas encore rattaché à des inscriptions de formation.
-              Contactez votre responsable si vous pensez que c'est une erreur.
+              Votre compte n&apos;est pas encore rattaché à des inscriptions de formation.
+              Contactez votre responsable si vous pensez que c&apos;est une erreur.
             </p>
           </CardContent>
         </Card>

@@ -50,8 +50,15 @@ function cardinalSplinePath(points: { x: number; y: number }[], tension = 0.35):
   return d
 }
 
+type RadarShapeProps = {
+  points?: { x: number; y: number }[]
+  stroke?: string
+  strokeWidth?: number
+  fill?: string
+}
+
 // Shape custom pour le Radar "actual" (rempli + stroke épais + dots)
-function SmoothRadarActual(props: any) {
+function SmoothRadarActual(props: RadarShapeProps) {
   const { points, stroke, strokeWidth, fill } = props
   if (!points || points.length === 0) return null
 
@@ -61,7 +68,7 @@ function SmoothRadarActual(props: any) {
     <g>
       <path d={d} fill={fill} stroke="none" />
       <path d={d} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-      {points.map((p: any, i: number) => (
+      {points.map((p, i: number) => (
         <circle key={i} cx={p.x} cy={p.y} r={3} fill={stroke} stroke="#fff" strokeWidth={2} />
       ))}
     </g>
@@ -69,7 +76,7 @@ function SmoothRadarActual(props: any) {
 }
 
 // Shape custom pour le Radar "expected" (rempli + stroke dashed, pas de dots)
-function SmoothRadarExpected(props: any) {
+function SmoothRadarExpected(props: RadarShapeProps) {
   const { points, stroke, strokeWidth, fill } = props
   if (!points || points.length === 0) return null
 
@@ -97,13 +104,14 @@ interface CompetencyRadarChartProps {
   fullSize?: boolean
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+type TooltipPayloadEntry = { dataKey?: string; color?: string; name?: string; value?: number | string }
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayloadEntry[]; label?: string }) {
   if (!active || !payload?.length) return null
 
   return (
     <div className="bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl min-w-[220px] border border-gray-700">
       <p className="font-bold text-sm mb-2 border-b border-gray-700 pb-2">{label}</p>
-      {payload.map((entry: any, index: number) => {
+      {payload.map((entry, index: number) => {
         const isActual = entry.dataKey === 'actual'
         return (
           <div key={index} className="flex items-center gap-2.5 text-sm py-1">
@@ -123,7 +131,7 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 // Colored label tick around the radar — eLamp style with module color pills
-function CustomAngleAxisTick({ x, y, payload, cx, cy }: any) {
+function CustomAngleAxisTick({ x, y, payload, cx, cy }: { x: number; y: number; payload: { value: string }; cx: number; cy: number }) {
   const item = payload.value as string
   // We encode color in the label as "COLOR|LABEL"
   const pipeIdx = item.indexOf('|')
@@ -223,7 +231,7 @@ export function CompetencyRadarChart({
           />
           <PolarAngleAxis
             dataKey="label"
-            tick={(props: any) => <CustomAngleAxisTick {...props} />}
+            tick={(props: unknown) => <CustomAngleAxisTick {...(props as { x: number; y: number; payload: { value: string }; cx: number; cy: number })} />}
           />
           <PolarRadiusAxis
             angle={90}

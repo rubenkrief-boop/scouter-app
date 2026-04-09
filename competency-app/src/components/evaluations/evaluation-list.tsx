@@ -3,14 +3,22 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Pencil, BarChart3, Search, Clock } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
+interface EvaluationItem {
+  id: string
+  created_at: string
+  evaluated_at?: string | null
+  audioprothesiste?: { first_name?: string | null; last_name?: string | null } | null
+  evaluator?: { first_name?: string | null; last_name?: string | null } | null
+  job_profile?: { name?: string | null } | null
+}
+
 interface EvaluationListProps {
-  evaluations: any[]
+  evaluations: EvaluationItem[]
 }
 
 export function EvaluationList({ evaluations }: EvaluationListProps) {

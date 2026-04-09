@@ -25,15 +25,22 @@ export function PlannerAttributionEditor({ planners, locations }: PlannerAttribu
 
   // Load assignments when planner changes
   useEffect(() => {
+    let cancelled = false
     if (!selectedPlanner) {
-      setAssignedIds(new Set())
-      return
+      queueMicrotask(() => {
+        if (!cancelled) setAssignedIds(new Set())
+      })
+      return () => { cancelled = true }
     }
-    setLoading(true)
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true)
+    })
     getPlannerLocations(selectedPlanner).then(ids => {
+      if (cancelled) return
       setAssignedIds(new Set(ids))
       setLoading(false)
     })
+    return () => { cancelled = true }
   }, [selectedPlanner])
 
   function toggleLocation(locationId: string) {

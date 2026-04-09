@@ -109,7 +109,7 @@ export function LocationManagement({ locations, zones = [] }: LocationManagement
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nouveau lieu d'exercice</DialogTitle>
+              <DialogTitle>Nouveau lieu d&apos;exercice</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateLocation} className="space-y-4">
               <div className="space-y-2">
@@ -217,8 +217,8 @@ export function LocationManagement({ locations, zones = [] }: LocationManagement
           {locations.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Aucun lieu d'exercice pour le moment.</p>
-              <p className="text-sm">Cliquez sur "Ajouter un lieu" pour commencer.</p>
+              <p>Aucun lieu d&apos;exercice pour le moment.</p>
+              <p className="text-sm">Cliquez sur &quot;Ajouter un lieu&quot; pour commencer.</p>
             </div>
           ) : (
             <Table>

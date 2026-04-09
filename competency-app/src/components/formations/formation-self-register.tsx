@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import {
-  GraduationCap, Calendar, Mic2, Headphones, Eye, Check, X, UserPlus, UserMinus, Loader2,
+  Calendar, Mic2, Headphones, Eye, Check, UserPlus, UserMinus, Loader2,
 } from 'lucide-react'
 import type {
   FormationSession,

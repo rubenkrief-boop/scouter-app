@@ -35,7 +35,7 @@ export default async function EvaluationResultsPage({
     .rpc('get_module_scores', { p_evaluation_id: id })
 
   // Get expected scores and profile module IDs from job_profile_competencies
-  let expectedScores: Record<string, number> = {}
+  const expectedScores: Record<string, number> = {}
   let profileModuleIds: string[] | null = null
   if (evaluation.job_profile_id) {
     const { data: jpComps } = await supabase
@@ -50,14 +50,15 @@ export default async function EvaluationResultsPage({
   }
 
   // Filter module scores by job profile if applicable
-  const filteredModuleScores = profileModuleIds !== null
-    ? (moduleScores ?? []).filter((ms: any) => profileModuleIds!.includes(ms.module_id))
+  type ModuleScore = { module_id: string; module_code: string; module_name: string; completion_pct: string | number }
+  const filteredModuleScores: ModuleScore[] = profileModuleIds !== null
+    ? (moduleScores ?? []).filter((ms: ModuleScore) => profileModuleIds!.includes(ms.module_id))
     : (moduleScores ?? [])
 
   // Get module colors from modules table
-  const moduleIds = filteredModuleScores.map((ms: any) => ms.module_id)
-  let moduleColors: Record<string, string> = {}
-  let moduleIcons: Record<string, string> = {}
+  const moduleIds = filteredModuleScores.map((ms) => ms.module_id)
+  const moduleColors: Record<string, string> = {}
+  const moduleIcons: Record<string, string> = {}
   if (moduleIds.length > 0) {
     const { data: modulesData } = await supabase
       .from('modules')
@@ -71,9 +72,9 @@ export default async function EvaluationResultsPage({
   }
 
   // Transform to radar data
-  const radarData: RadarDataPoint[] = filteredModuleScores.map((ms: any) => ({
+  const radarData: RadarDataPoint[] = filteredModuleScores.map((ms) => ({
     module: `${ms.module_code} - ${ms.module_name}`,
-    actual: parseFloat(ms.completion_pct) || 0,
+    actual: parseFloat(String(ms.completion_pct)) || 0,
     expected: expectedScores[ms.module_id] ?? 0,
     fullMark: 100,
     moduleColor: moduleColors[ms.module_id] || '#6366f1',

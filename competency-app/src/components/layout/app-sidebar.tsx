@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   Home, Users, BookOpen, Layers, ClipboardCheck,
-  BarChart3, User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap, Calendar, Menu,
+  User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap, Calendar, Menu,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/types'
@@ -169,7 +169,17 @@ function SidebarBody({
   const filteredItems = navItems.filter(item =>
     userRole === 'super_admin' || item.roles.includes(userRole)
   )
-  let lastSection: string | undefined
+  // Precompute which items should show a section header (super_admin only),
+  // done before render to avoid mutating variables during render.
+  const sectionVisibility: boolean[] = []
+  {
+    let lastSection: string | undefined
+    for (const item of filteredItems) {
+      const show = userRole === 'super_admin' && !!item.section && item.section !== lastSection
+      sectionVisibility.push(show)
+      if (item.section) lastSection = item.section
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -203,10 +213,9 @@ function SidebarBody({
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {filteredItems.map((item) => {
+        {filteredItems.map((item, idx) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          const showSection = userRole === 'super_admin' && item.section && item.section !== lastSection
-          if (item.section) lastSection = item.section
+          const showSection = sectionVisibility[idx]
 
           return (
             <div key={item.href}>
@@ -280,7 +289,7 @@ export function AppSidebar({ userRole, userName, userEmail: _userEmail }: AppSid
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
-    if (isMobile) setOpen(false)
+    if (isMobile) queueMicrotask(() => setOpen(false))
   }, [pathname, isMobile])
 
   if (isMobile) {

@@ -20,7 +20,7 @@ interface ModuleQualifierEditorProps {
   moduleName: string
 }
 
-export function ModuleQualifierEditor({ moduleId, moduleName }: ModuleQualifierEditorProps) {
+export function ModuleQualifierEditor({ moduleId, moduleName: _moduleName }: ModuleQualifierEditorProps) {
   const [allQualifiers, setAllQualifiers] = useState<QualifierInfo[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -28,33 +28,34 @@ export function ModuleQualifierEditor({ moduleId, moduleName }: ModuleQualifierE
   const [initialIds, setInitialIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    let cancelled = false
+    async function loadData() {
+      const supabase = createClient()
+
+      // Charger tous les qualifiers actifs
+      const { data: qualifiers } = await supabase
+        .from('qualifiers')
+        .select('id, name, qualifier_type, sort_order')
+        .eq('is_active', true)
+        .order('sort_order')
+
+      // Charger les qualifiers deja assignes a ce module
+      const { data: moduleQuals } = await supabase
+        .from('module_qualifiers')
+        .select('qualifier_id')
+        .eq('module_id', moduleId)
+
+      if (cancelled) return
+      const assignedIds = new Set((moduleQuals ?? []).map(mq => mq.qualifier_id))
+
+      setAllQualifiers(qualifiers ?? [])
+      setSelectedIds(assignedIds)
+      setInitialIds(new Set(assignedIds))
+      setLoading(false)
+    }
     loadData()
+    return () => { cancelled = true }
   }, [moduleId])
-
-  async function loadData() {
-    setLoading(true)
-    const supabase = createClient()
-
-    // Charger tous les qualifiers actifs
-    const { data: qualifiers } = await supabase
-      .from('qualifiers')
-      .select('id, name, qualifier_type, sort_order')
-      .eq('is_active', true)
-      .order('sort_order')
-
-    // Charger les qualifiers deja assignes a ce module
-    const { data: moduleQuals } = await supabase
-      .from('module_qualifiers')
-      .select('qualifier_id')
-      .eq('module_id', moduleId)
-
-    const assignedIds = new Set((moduleQuals ?? []).map(mq => mq.qualifier_id))
-
-    setAllQualifiers(qualifiers ?? [])
-    setSelectedIds(assignedIds)
-    setInitialIds(new Set(assignedIds))
-    setLoading(false)
-  }
 
   function toggleQualifier(qId: string) {
     setSelectedIds(prev => {

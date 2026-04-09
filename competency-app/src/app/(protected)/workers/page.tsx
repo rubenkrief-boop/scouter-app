@@ -89,7 +89,7 @@ export default async function WorkersListPage({
         const { data: scores } = await supabase
           .rpc('get_module_scores', { p_evaluation_id: latestEval.id })
         if (scores && scores.length > 0) {
-          const total = scores.reduce((sum: number, s: any) => sum + (parseFloat(s.completion_pct) || 0), 0)
+          const total = scores.reduce((sum: number, s: { completion_pct: string | number }) => sum + (parseFloat(String(s.completion_pct)) || 0), 0)
           avgScore = Math.round(total / scores.length)
         }
       }

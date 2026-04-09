@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,14 +11,10 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
-import { Calendar, Plus, MapPin, User2, ChevronRight } from 'lucide-react'
+import { Calendar, Plus, MapPin, User2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createVisit, cancelVisit, updateVisit } from '@/lib/actions/visits'
 import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
-import Link from 'next/link'
 
 // ============================================
 // Status config
@@ -60,7 +56,7 @@ interface VisitListViewProps {
 // Component
 // ============================================
 
-export function VisitListView({ visits, zones, locations, canPlan, userRole }: VisitListViewProps) {
+export function VisitListView({ visits, zones: _zones, locations, canPlan, userRole: _userRole }: VisitListViewProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [statusFilter, setStatusFilter] = useState('all')
@@ -94,7 +90,6 @@ export function VisitListView({ visits, zones, locations, canPlan, userRole }: V
     const groups: Record<string, VisitWithRelations[]> = {}
     for (const v of filtered) {
       const d = new Date(v.start_date + 'T00:00:00')
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
       if (!groups[label]) groups[label] = []
       groups[label].push(v)

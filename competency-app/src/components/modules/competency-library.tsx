@@ -123,8 +123,13 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
 
   useEffect(() => {
     if (!selectedModuleId) return
-    setLoadingComps(true)
+    let cancelled = false
     const supabase = createClient()
+
+    // Flag loading in a microtask so we don't call setState synchronously in the effect body.
+    queueMicrotask(() => {
+      if (!cancelled) setLoadingComps(true)
+    })
 
     // Charger les competences + les overrides de qualifiers pour ce module
     Promise.all([
@@ -137,6 +142,7 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
         .from('competency_qualifiers')
         .select('competency_id, qualifier_id'),
     ]).then(([compResult, cqResult]) => {
+      if (cancelled) return
       setCompetencies(compResult.data ?? [])
       // Construire la map competency_id -> qualifier_ids
       const map: Record<string, string[]> = {}
@@ -147,6 +153,8 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
       setCompQualifierMap(map)
       setLoadingComps(false)
     })
+
+    return () => { cancelled = true }
   }, [selectedModuleId])
 
   // Charger la liste de tous les qualifiers actifs (une seule fois)
@@ -163,18 +171,23 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
   // Quand on ouvre l'edition d'une competence, charger ses qualifiers
   useEffect(() => {
     if (!editingComp) return
-    setLoadingQualifiers(true)
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setLoadingQualifiers(true)
+    })
     const supabase = createClient()
     supabase
       .from('competency_qualifiers')
       .select('qualifier_id')
       .eq('competency_id', editingComp.id)
       .then(({ data }) => {
+        if (cancelled) return
         const ids = new Set((data ?? []).map(r => r.qualifier_id))
         setEditCompQualifierIds(ids)
         setEditCompQualifierInitialIds(new Set(ids))
         setLoadingQualifiers(false)
       })
+    return () => { cancelled = true }
   }, [editingComp])
 
   // ========== MODULE HANDLERS ==========
