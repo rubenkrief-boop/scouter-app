@@ -23,7 +23,7 @@ import type { ShowMessageFn } from '../hooks/use-admin-message'
 import { useProgrammesFileUpload } from '../hooks/use-programmes-file-upload'
 
 // ============================================
-// Section: Programmes (capacité, fichiers, salles)
+// Section: Programmes (capacite, fichiers, salles)
 // ============================================
 
 const PROGRAMME_OPTIONS = ['P1', 'P2', 'P3', 'P4', 'Format rotatif']
@@ -44,9 +44,12 @@ export function ProgrammesSection({
   const { uploading, handleFileUpload, handleFileDelete } = useProgrammesFileUpload(selectedSession, showMessage)
   const [addingType, setAddingType] = useState<FormationType | null>(null)
   const [addProgramme, setAddProgramme] = useState('')
-  const [addMaxPlaces, setAddMaxPlaces] = useState('')
+  const [addMaxSucc, setAddMaxSucc] = useState('')
+  const [addMaxFranchise, setAddMaxFranchise] = useState('')
+  const [addSalle, setAddSalle] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editMaxPlaces, setEditMaxPlaces] = useState('')
+  const [editMaxSucc, setEditMaxSucc] = useState('')
+  const [editMaxFranchise, setEditMaxFranchise] = useState('')
   const [editSalle, setEditSalle] = useState('')
   const router = useRouter()
 
@@ -66,28 +69,32 @@ export function ProgrammesSection({
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', session.registration_open ? 'Inscriptions fermées' : 'Inscriptions ouvertes')
+        showMessage('success', session.registration_open ? 'Inscriptions fermees' : 'Inscriptions ouvertes')
         router.refresh()
       }
     })
   }
 
   function handleAddSetting(type: FormationType) {
-    if (!addProgramme || !addMaxPlaces) return
+    if (!addProgramme) return
     startTransition(async () => {
       const result = await upsertFormationProgrammeSetting({
         session_id: selectedSession,
         type,
         programme: addProgramme,
-        max_places: parseInt(addMaxPlaces) || 0,
+        max_succ: parseInt(addMaxSucc) || 0,
+        max_franchise: parseInt(addMaxFranchise) || 0,
+        salle: addSalle || undefined,
       })
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', `Programme ${addProgramme} (${type}) configuré`)
+        showMessage('success', `Programme ${addProgramme} (${type}) configure`)
         setAddingType(null)
         setAddProgramme('')
-        setAddMaxPlaces('')
+        setAddMaxSucc('')
+        setAddMaxFranchise('')
+        setAddSalle('')
         router.refresh()
       }
     })
@@ -99,13 +106,14 @@ export function ProgrammesSection({
         session_id: setting.session_id,
         type: setting.type,
         programme: setting.programme,
-        max_places: parseInt(editMaxPlaces) || 0,
+        max_succ: parseInt(editMaxSucc) || 0,
+        max_franchise: parseInt(editMaxFranchise) || 0,
         salle: editSalle || undefined,
       })
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', 'Mis à jour')
+        showMessage('success', 'Mis a jour')
         setEditingId(null)
         router.refresh()
       }
@@ -119,7 +127,7 @@ export function ProgrammesSection({
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', 'Configuration supprimée')
+        showMessage('success', 'Configuration supprimee')
         router.refresh()
       }
     })
@@ -194,7 +202,7 @@ export function ProgrammesSection({
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-medium flex items-center gap-1.5">
             {type === 'Audio' ? <Mic2 className="h-3.5 w-3.5 text-cyan-500" /> : <Headphones className="h-3.5 w-3.5 text-orange-500" />}
-            Capacités {type}
+            Capacites {type}
           </h4>
           {availableProgrammes.length > 0 && (
             <Button
@@ -204,7 +212,9 @@ export function ProgrammesSection({
               onClick={() => {
                 setAddingType(type)
                 setAddProgramme(availableProgrammes[0])
-                setAddMaxPlaces('20')
+                setAddMaxSucc('20')
+                setAddMaxFranchise('10')
+                setAddSalle('')
               }}
             >
               <Plus className="h-3 w-3 mr-1" /> Ajouter
@@ -212,144 +222,195 @@ export function ProgrammesSection({
           )}
         </div>
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-xs text-muted-foreground">
-              <th className="text-left py-1.5 px-2">Programme</th>
-              <th className="text-center py-1.5 px-2">Max</th>
-              <th className="text-center py-1.5 px-2">Inscrits</th>
-              <th className="text-center py-1.5 px-2">Dispo</th>
-              <th className="text-left py-1.5 px-2">Salle</th>
-              <th className="text-right py-1.5 px-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {settings.map(s => {
-              const isEditing = editingId === s.id
-              const dispo = s.max_places === 0 ? '∞' : Math.max(0, s.max_places - s.current_count)
-              const capacityColor = getCapacityColor(s.current_count, s.max_places)
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="text-left py-1.5 px-2">Programme</th>
+                <th className="text-center py-1.5 px-1" colSpan={2}>
+                  <span className="text-blue-600">Succursale</span>
+                </th>
+                <th className="text-center py-1.5 px-1" colSpan={2}>
+                  <span className="text-purple-600">Franchise</span>
+                </th>
+                <th className="text-left py-1.5 px-2">Salle</th>
+                <th className="text-right py-1.5 px-2">Actions</th>
+              </tr>
+              <tr className="border-b text-[10px] text-muted-foreground/70">
+                <th />
+                <th className="text-center py-1 px-1">Max</th>
+                <th className="text-center py-1 px-1">Inscrits</th>
+                <th className="text-center py-1 px-1">Max</th>
+                <th className="text-center py-1 px-1">Inscrits</th>
+                <th />
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {settings.map(s => {
+                const isEditing = editingId === s.id
+                const succColor = getCapacityColor(s.current_count_succ, s.max_succ)
+                const franchiseColor = getCapacityColor(s.current_count_franchise, s.max_franchise)
 
-              return (
-                <tr key={s.id} className="border-b border-border/50">
+                return (
+                  <tr key={s.id} className="border-b border-border/50">
+                    <td className="py-2 px-2">
+                      <Badge variant="outline" className="text-xs">{s.programme}</Badge>
+                    </td>
+                    {/* Succursale */}
+                    <td className="text-center py-2 px-1">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editMaxSucc}
+                          onChange={e => setEditMaxSucc(e.target.value)}
+                          className="h-7 w-14 text-center text-xs mx-auto"
+                        />
+                      ) : (
+                        <span className="text-xs">{s.max_succ === 0 ? '\u221E' : s.max_succ}</span>
+                      )}
+                    </td>
+                    <td className={`text-center py-2 px-1 font-semibold text-xs ${succColor}`}>
+                      {s.current_count_succ}
+                    </td>
+                    {/* Franchise */}
+                    <td className="text-center py-2 px-1">
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={editMaxFranchise}
+                          onChange={e => setEditMaxFranchise(e.target.value)}
+                          className="h-7 w-14 text-center text-xs mx-auto"
+                        />
+                      ) : (
+                        <span className="text-xs">{s.max_franchise === 0 ? '\u221E' : s.max_franchise}</span>
+                      )}
+                    </td>
+                    <td className={`text-center py-2 px-1 font-semibold text-xs ${franchiseColor}`}>
+                      {s.current_count_franchise}
+                    </td>
+                    {/* Salle */}
+                    <td className="py-2 px-2">
+                      {isEditing ? (
+                        <Input
+                          value={editSalle}
+                          onChange={e => setEditSalle(e.target.value)}
+                          placeholder="Ex: Salle B2"
+                          className="h-7 text-xs w-28"
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{s.salle || '\u2014'}</span>
+                      )}
+                    </td>
+                    {/* Actions */}
+                    <td className="text-right py-2 px-2">
+                      {isEditing ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleSaveEdit(s)} disabled={isPending}>
+                            <Save className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setEditingId(s.id)
+                              setEditMaxSucc(String(s.max_succ))
+                              setEditMaxFranchise(String(s.max_franchise))
+                              setEditSalle(s.salle || '')
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500"
+                            onClick={() => handleDeleteSetting(s.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {/* Add row */}
+              {addingType === type && (
+                <tr className="border-b border-border/50 bg-muted/30">
                   <td className="py-2 px-2">
-                    <Badge variant="outline" className="text-xs">{s.programme}</Badge>
+                    <Select value={addProgramme} onValueChange={setAddProgramme}>
+                      <SelectTrigger className="h-7 text-xs w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableProgrammes.map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </td>
-                  <td className="text-center py-2 px-2">
-                    {isEditing ? (
-                      <Input
-                        type="number"
-                        min={0}
-                        value={editMaxPlaces}
-                        onChange={e => setEditMaxPlaces(e.target.value)}
-                        className="h-7 w-16 text-center text-xs mx-auto"
-                      />
-                    ) : (
-                      <span className="text-xs">{s.max_places === 0 ? '∞' : s.max_places}</span>
-                    )}
+                  <td className="text-center py-2 px-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={addMaxSucc}
+                      onChange={e => setAddMaxSucc(e.target.value)}
+                      placeholder="Succ"
+                      className="h-7 w-14 text-center text-xs mx-auto"
+                    />
                   </td>
-                  <td className={`text-center py-2 px-2 font-semibold text-xs ${capacityColor}`}>
-                    {s.current_count}
+                  <td />
+                  <td className="text-center py-2 px-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={addMaxFranchise}
+                      onChange={e => setAddMaxFranchise(e.target.value)}
+                      placeholder="Franc"
+                      className="h-7 w-14 text-center text-xs mx-auto"
+                    />
                   </td>
-                  <td className={`text-center py-2 px-2 text-xs ${capacityColor}`}>
-                    {dispo}
-                  </td>
+                  <td />
                   <td className="py-2 px-2">
-                    {isEditing ? (
-                      <Input
-                        value={editSalle}
-                        onChange={e => setEditSalle(e.target.value)}
-                        placeholder="Ex: Salle B2"
-                        className="h-7 text-xs w-32"
-                      />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{s.salle || '—'}</span>
-                    )}
+                    <Input
+                      value={addSalle}
+                      onChange={e => setAddSalle(e.target.value)}
+                      placeholder="Salle"
+                      className="h-7 text-xs w-28"
+                    />
                   </td>
                   <td className="text-right py-2 px-2">
-                    {isEditing ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleSaveEdit(s)} disabled={isPending}>
-                          <Save className="h-3 w-3 text-green-600" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setEditingId(null)}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => {
-                            setEditingId(s.id)
-                            setEditMaxPlaces(String(s.max_places))
-                            setEditSalle(s.salle || '')
-                          }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-red-500"
-                          onClick={() => handleDeleteSetting(s.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleAddSetting(type)} disabled={isPending}>
+                        <Save className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAddingType(null)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
-              )
-            })}
-            {/* Add row */}
-            {addingType === type && (
-              <tr className="border-b border-border/50 bg-muted/30">
-                <td className="py-2 px-2">
-                  <Select value={addProgramme} onValueChange={setAddProgramme}>
-                    <SelectTrigger className="h-7 text-xs w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableProgrammes.map(p => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="text-center py-2 px-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    value={addMaxPlaces}
-                    onChange={e => setAddMaxPlaces(e.target.value)}
-                    className="h-7 w-16 text-center text-xs mx-auto"
-                  />
-                </td>
-                <td colSpan={2} />
-                <td />
-                <td className="text-right py-2 px-2">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleAddSetting(type)} disabled={isPending}>
-                      <Save className="h-3 w-3 text-green-600" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAddingType(null)}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            )}
-            {settings.length === 0 && addingType !== type && (
-              <tr>
-                <td colSpan={6} className="text-center py-4 text-muted-foreground text-xs">
-                  Aucune configuration de programme
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+              {settings.length === 0 && addingType !== type && (
+                <tr>
+                  <td colSpan={7} className="text-center py-4 text-muted-foreground text-xs">
+                    Aucune configuration de programme
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
@@ -382,20 +443,23 @@ export function ProgrammesSection({
             {session.registration_open ? (
               <><ToggleRight className="h-4 w-4 mr-1.5" /> Inscriptions ouvertes</>
             ) : (
-              <><ToggleLeft className="h-4 w-4 mr-1.5" /> Inscriptions fermées</>
+              <><ToggleLeft className="h-4 w-4 mr-1.5" /> Inscriptions fermees</>
             )}
           </Button>
         )}
       </div>
 
       {!selectedSession ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Sélectionnez une session</p>
+        <p className="text-sm text-muted-foreground text-center py-8">Selectionnez une session</p>
       ) : (
         <div className="space-y-6">
           {/* File uploads */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">Fichiers programme</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Uploadez un fichier pour creer automatiquement le programme
+              </p>
             </CardHeader>
             <CardContent className="space-y-2">
               {renderFileCard('Audio', audioFile)}
@@ -406,7 +470,10 @@ export function ProgrammesSection({
           {/* Capacity settings */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Capacités & Salles</CardTitle>
+              <CardTitle className="text-sm font-semibold">Capacites & Salles</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Definissez le nombre de places max par succursale et par franchise
+              </p>
             </CardHeader>
             <CardContent className="space-y-6">
               {renderSettingsTable('Audio', audioSettings)}

@@ -683,12 +683,12 @@ export async function getFormationProgrammeSettings(
   }
   if (!settings || settings.length === 0) return []
 
-  // 2. Fetch inscription counts grouped by (session_id, type, programme)
+  // 2. Fetch inscription counts grouped by (session_id, type, programme, statut)
   const sessionIds = [...new Set(settings.map(s => s.session_id))]
   const buildCountQuery = () => {
     let query = supabase
       .from('formation_inscriptions')
-      .select('session_id, type, programme')
+      .select('session_id, type, programme, statut')
     if (sessionIds.length === 1) {
       query = query.eq('session_id', sessionIds[0])
     } else {
@@ -697,20 +697,32 @@ export async function getFormationProgrammeSettings(
     return query
   }
 
-  const inscriptions = await paginatedFetch<{ session_id: string; type: string; programme: string }>(buildCountQuery)
+  const inscriptions = await paginatedFetch<{ session_id: string; type: string; programme: string; statut: string }>(buildCountQuery)
 
-  // 3. Count per (session_id, type, programme)
+  // 3. Count per (session_id, type, programme) — total + per statut
   const countMap: Record<string, number> = {}
+  const countSuccMap: Record<string, number> = {}
+  const countFranchiseMap: Record<string, number> = {}
   for (const ins of inscriptions) {
     const key = `${ins.session_id}|${ins.type}|${ins.programme}`
     countMap[key] = (countMap[key] || 0) + 1
+    if (ins.statut === 'Succursale') {
+      countSuccMap[key] = (countSuccMap[key] || 0) + 1
+    } else if (ins.statut === 'Franchise') {
+      countFranchiseMap[key] = (countFranchiseMap[key] || 0) + 1
+    }
   }
 
   // 4. Merge
-  return settings.map(s => ({
-    ...s,
-    current_count: countMap[`${s.session_id}|${s.type}|${s.programme}`] || 0,
-  })) as FormationProgrammeSettingWithCount[]
+  return settings.map(s => {
+    const key = `${s.session_id}|${s.type}|${s.programme}`
+    return {
+      ...s,
+      current_count: countMap[key] || 0,
+      current_count_succ: countSuccMap[key] || 0,
+      current_count_franchise: countFranchiseMap[key] || 0,
+    }
+  }) as FormationProgrammeSettingWithCount[]
 }
 
 // ============================================
@@ -721,7 +733,8 @@ export async function upsertFormationProgrammeSetting(data: {
   session_id: string
   type: FormationType
   programme: string
-  max_places: number
+  max_succ: number
+  max_franchise: number
   salle?: string
 }) {
   // Validate inputs
@@ -731,7 +744,7 @@ export async function upsertFormationProgrammeSetting(data: {
   if (!['Audio', 'Assistante'].includes(data.type)) {
     return { error: 'Type invalide' }
   }
-  if (data.max_places < 0) {
+  if (data.max_succ < 0 || data.max_franchise < 0) {
     return { error: 'Le nombre de places ne peut pas être négatif' }
   }
 
@@ -743,7 +756,8 @@ export async function upsertFormationProgrammeSetting(data: {
         session_id: data.session_id,
         type: data.type,
         programme: data.programme,
-        max_places: data.max_places,
+        max_succ: data.max_succ,
+        max_franchise: data.max_franchise,
         salle: data.salle || null,
       },
       { onConflict: 'session_id,type,programme' }
@@ -813,7 +827,7 @@ export async function selfRegisterFormation(data: {
   // Check capacity
   const { data: setting } = await supabase
     .from('formation_programme_settings')
-    .select('max_places')
+    .select('max_succ, max_franchise')
     .eq('session_id', data.session_id)
     .eq('type', data.type)
     .eq('programme', data.programme)
@@ -821,17 +835,21 @@ export async function selfRegisterFormation(data: {
 
   if (!setting) return { error: 'Ce programme n\'est pas configuré pour cette session' }
 
-  if (setting.max_places > 0) {
-    // Count current inscriptions
+  // Check capacity based on statut
+  const maxForStatut = statut === 'Franchise' ? setting.max_franchise : setting.max_succ
+
+  if (maxForStatut > 0) {
+    // Count current inscriptions for same statut only
     const { count } = await supabase
       .from('formation_inscriptions')
       .select('*', { count: 'exact', head: true })
       .eq('session_id', data.session_id)
       .eq('type', data.type)
       .eq('programme', data.programme)
+      .eq('statut', statut)
 
-    if (count !== null && count >= setting.max_places) {
-      return { error: 'Ce programme est complet, plus de places disponibles' }
+    if (count !== null && count >= maxForStatut) {
+      return { error: `Ce programme est complet pour les ${statut === 'Franchise' ? 'franchisés' : 'succursales'}, plus de places disponibles` }
     }
   }
 
@@ -870,15 +888,16 @@ export async function selfRegisterFormation(data: {
   }
 
   // Re-check capacity after insert to handle race condition
-  if (setting.max_places > 0) {
+  if (maxForStatut > 0) {
     const { count: postCount } = await adminClient
       .from('formation_inscriptions')
       .select('*', { count: 'exact', head: true })
       .eq('session_id', data.session_id)
       .eq('type', data.type)
       .eq('programme', data.programme)
+      .eq('statut', statut)
 
-    if (postCount !== null && postCount > setting.max_places) {
+    if (postCount !== null && postCount > maxForStatut) {
       // Rollback: delete the inscription we just created
       await adminClient
         .from('formation_inscriptions')
@@ -887,7 +906,7 @@ export async function selfRegisterFormation(data: {
         .eq('profile_id', user.id)
         .eq('type', data.type)
         .eq('programme', data.programme)
-      return { error: 'Ce programme est complet, plus de places disponibles' }
+      return { error: `Ce programme est complet pour les ${statut === 'Franchise' ? 'franchisés' : 'succursales'}, plus de places disponibles` }
     }
   }
 

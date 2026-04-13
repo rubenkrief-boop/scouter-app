@@ -31,6 +31,9 @@ export default async function FormationsPage() {
     const openSessions = sessions.filter(s => s.is_active && s.registration_open)
     const openSessionIds = new Set(openSessions.map(s => s.id))
 
+    // Determine user statut from role
+    const userStatut = profile.role === 'formation_user' ? 'Franchise' as const : 'Succursale' as const
+
     return (
       <>
         <Header
@@ -45,6 +48,7 @@ export default async function FormationsPage() {
               programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
               programmeFiles={programmeFiles.filter(f => openSessionIds.has(f.session_id))}
               myInscriptions={myInscriptions}
+              userStatut={userStatut}
             />
           )}
 

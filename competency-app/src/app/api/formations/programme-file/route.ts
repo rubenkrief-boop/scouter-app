@@ -127,6 +127,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Erreur base de données: ${dbError.message}` }, { status: 500 })
   }
 
+  // Auto-create default programme setting if none exists for this (session_id, type)
+  const { data: existingSettings } = await adminClient
+    .from('formation_programme_settings')
+    .select('id')
+    .eq('session_id', sessionId)
+    .eq('type', type)
+    .limit(1)
+
+  if (!existingSettings || existingSettings.length === 0) {
+    const { error: settingError } = await adminClient
+      .from('formation_programme_settings')
+      .insert({
+        session_id: sessionId,
+        type,
+        programme: 'P1',
+        max_succ: 0,
+        max_franchise: 0,
+      })
+    if (settingError) {
+      logger.error('api.formations.programmeFile.autoCreateSetting', settingError, { sessionId, type })
+    }
+  }
+
   return NextResponse.json({ file_url: fileUrl, file_name: file.name })
 }
 

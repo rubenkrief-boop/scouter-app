@@ -22,6 +22,7 @@ interface FormationSelfRegisterProps {
   programmeSettings: FormationProgrammeSettingWithCount[]
   programmeFiles: FormationProgrammeFile[]
   myInscriptions: FormationInscriptionWithSession[]
+  userStatut: 'Succursale' | 'Franchise'
 }
 
 export function FormationSelfRegister({
@@ -29,6 +30,7 @@ export function FormationSelfRegister({
   programmeSettings,
   programmeFiles,
   myInscriptions,
+  userStatut,
 }: FormationSelfRegisterProps) {
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
@@ -56,7 +58,7 @@ export function FormationSelfRegister({
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', `Inscription confirmée : ${confirmingProg.programme} (${confirmingProg.type})`)
+        showMessage('success', `Inscription confirmee : ${confirmingProg.programme} (${confirmingProg.type})`)
       }
       setConfirmingProg(null)
       setDpc(false)
@@ -66,14 +68,14 @@ export function FormationSelfRegister({
   }
 
   function handleUnregister(inscriptionId: string) {
-    if (!confirm('Êtes-vous sûr de vouloir vous désinscrire ?')) return
+    if (!confirm('Etes-vous sur de vouloir vous desinscrire ?')) return
     setActionId(inscriptionId)
     startTransition(async () => {
       const result = await selfUnregisterFormation(inscriptionId)
       if ('error' in result && result.error) {
         showMessage('error', result.error)
       } else {
-        showMessage('success', 'Désinscription effectuée')
+        showMessage('success', 'Desinscription effectuee')
       }
       setActionId(null)
       router.refresh()
@@ -126,7 +128,7 @@ export function FormationSelfRegister({
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium text-sm">{session.label}</span>
                 {session.date_info && (
-                  <span className="text-xs text-muted-foreground">— {session.date_info}</span>
+                  <span className="text-xs text-muted-foreground">&mdash; {session.date_info}</span>
                 )}
               </div>
 
@@ -167,7 +169,7 @@ export function FormationSelfRegister({
               )}
 
               {audioSettings.length === 0 && assistanteSettings.length === 0 && (
-                <p className="text-xs text-muted-foreground pl-6">Aucun programme configuré pour cette session</p>
+                <p className="text-xs text-muted-foreground pl-6">Aucun programme configure pour cette session</p>
               )}
             </div>
           )
@@ -191,7 +193,7 @@ export function FormationSelfRegister({
                   onChange={e => setDpc(e.target.checked)}
                   className="rounded border-border"
                 />
-                DPC (Développement Professionnel Continu)
+                DPC (Developpement Professionnel Continu)
               </label>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => { setConfirmingProg(null); setDpc(false) }}>
@@ -220,8 +222,12 @@ export function FormationSelfRegister({
         {settings.map(s => {
           // Check if user is already registered for this type in this session
           const myInsc = mySessionInscriptions.find(i => i.type === type && i.programme === s.programme)
-          const isFull = s.max_places > 0 && s.current_count >= s.max_places
-          const remaining = s.max_places === 0 ? null : s.max_places - s.current_count
+
+          // Use capacity based on user's statut
+          const maxForUser = userStatut === 'Franchise' ? s.max_franchise : s.max_succ
+          const countForUser = userStatut === 'Franchise' ? s.current_count_franchise : s.current_count_succ
+          const isFull = maxForUser > 0 && countForUser >= maxForUser
+          const remaining = maxForUser === 0 ? null : maxForUser - countForUser
           const isLoading = actionId === `${sessionId}-${type}-${s.programme}` || actionId === myInsc?.id
 
           return (
@@ -233,7 +239,7 @@ export function FormationSelfRegister({
                     {isFull ? 'Complet' : `${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">Places illimitées</span>
+                  <span className="text-xs text-muted-foreground">Places illimitees</span>
                 )}
                 {s.salle && (
                   <Badge variant="secondary" className="text-[10px]">
@@ -256,7 +262,7 @@ export function FormationSelfRegister({
                       disabled={isPending}
                     >
                       {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserMinus className="h-3 w-3 mr-0.5" />}
-                      Se désinscrire
+                      Se desinscrire
                     </Button>
                   </div>
                 ) : isFull ? (

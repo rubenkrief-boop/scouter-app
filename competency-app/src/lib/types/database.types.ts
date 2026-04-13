@@ -379,7 +379,8 @@ export interface FormationProgrammeSetting {
   session_id: string
   type: FormationType
   programme: string
-  max_places: number
+  max_succ: number
+  max_franchise: number
   salle: string | null
   created_at: string
   updated_at: string
@@ -387,6 +388,8 @@ export interface FormationProgrammeSetting {
 
 export interface FormationProgrammeSettingWithCount extends FormationProgrammeSetting {
   current_count: number
+  current_count_succ: number
+  current_count_franchise: number
 }
 
 // Database type for Supabase client
