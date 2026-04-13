@@ -24,12 +24,21 @@ export function useProgrammesFileUpload(
       const json = await res.json()
       if (!res.ok) {
         showMessage('error', json.error || 'Erreur upload')
+      } else if (json.imported) {
+        // Excel import with programme-atelier mappings
+        const { programmes, mappings, unmatched } = json.imported
+        let msg = `Fichier ${type} importe : ${programmes.join(', ')} (${mappings} ateliers lies)`
+        if (unmatched && unmatched.length > 0) {
+          msg += ` — ${unmatched.length} atelier(s) non trouves : ${unmatched.join(', ')}`
+        }
+        showMessage('success', msg)
+        router.refresh()
       } else {
-        showMessage('success', `Fichier ${type} uploadé`)
+        showMessage('success', `Fichier ${type} uploade`)
         router.refresh()
       }
     } catch {
-      showMessage('error', 'Erreur réseau')
+      showMessage('error', 'Erreur reseau')
     } finally {
       setUploading(null)
     }
@@ -45,11 +54,11 @@ export function useProgrammesFileUpload(
       if (!res.ok) {
         showMessage('error', 'Erreur suppression')
       } else {
-        showMessage('success', `Fichier ${type} supprimé`)
+        showMessage('success', `Fichier ${type} supprime`)
         router.refresh()
       }
     } catch {
-      showMessage('error', 'Erreur réseau')
+      showMessage('error', 'Erreur reseau')
     }
   }
 
