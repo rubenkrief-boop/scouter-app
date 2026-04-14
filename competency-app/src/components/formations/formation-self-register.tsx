@@ -217,10 +217,13 @@ export function FormationSelfRegister({
     settings: FormationProgrammeSettingWithCount[],
     mySessionInscriptions: FormationInscriptionWithSession[],
   ) {
+    // Check if user is already registered for ANY programme of this type
+    const alreadyRegisteredForType = mySessionInscriptions.find(i => i.type === type)
+
     return (
       <div className="space-y-1.5 ml-4">
         {settings.map(s => {
-          // Check if user is already registered for this type in this session
+          // Check if user is registered for THIS specific programme
           const myInsc = mySessionInscriptions.find(i => i.type === type && i.programme === s.programme)
 
           // Use capacity based on user's statut
@@ -230,16 +233,21 @@ export function FormationSelfRegister({
           const remaining = maxForUser === 0 ? null : maxForUser - countForUser
           const isLoading = actionId === `${sessionId}-${type}-${s.programme}` || actionId === myInsc?.id
 
+          // User is registered for another programme of this type (not this one)
+          const registeredElsewhere = !myInsc && !!alreadyRegisteredForType
+
           return (
-            <div key={s.id} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-muted/20 border border-border/30">
+            <div key={s.id} className={`flex items-center justify-between py-1.5 px-3 rounded-lg border border-border/30 ${
+              myInsc ? 'bg-emerald-50/50' : isFull ? 'bg-red-50/30' : registeredElsewhere ? 'bg-muted/10 opacity-50' : 'bg-muted/20'
+            }`}>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">{s.programme}</Badge>
                 {remaining !== null ? (
-                  <span className={`text-xs ${isFull ? 'text-red-500' : remaining <= 3 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                  <span className={`text-xs ${isFull ? 'text-red-500 font-medium' : remaining <= 3 ? 'text-orange-500' : 'text-muted-foreground'}`}>
                     {isFull ? 'Complet' : `${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">Places illimitees</span>
+                  <span className="text-xs text-muted-foreground">Places disponibles</span>
                 )}
                 {s.salle && (
                   <Badge variant="secondary" className="text-[10px]">
@@ -269,6 +277,10 @@ export function FormationSelfRegister({
                   <Badge variant="secondary" className="text-xs text-red-500">
                     Complet
                   </Badge>
+                ) : registeredElsewhere ? (
+                  <span className="text-xs text-muted-foreground italic">
+                    Deja inscrit a {alreadyRegisteredForType.programme}
+                  </span>
                 ) : (
                   <Button
                     variant="outline"
