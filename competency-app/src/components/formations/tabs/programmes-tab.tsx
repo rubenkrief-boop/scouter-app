@@ -43,9 +43,16 @@ export function ProgrammesTab({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {visibleSessions.map(session => {
                 const sessionInscriptions = typeInscriptions.filter(i => i.session?.id === session.id)
-                if (sessionInscriptions.length === 0) return null
 
-                const programmes = [...new Set(sessionInscriptions.map(i => i.programme))]
+                // Get programmes from inscriptions AND from progMappings (for sessions without participants yet)
+                const progFromInscriptions = sessionInscriptions.map(i => i.programme)
+                const progFromMappings = progMappings
+                  .filter(m => m.session_id === session.id && m.type === type)
+                  .map(m => m.programme)
+                const programmes = [...new Set([...progFromInscriptions, ...progFromMappings])]
+
+                if (programmes.length === 0) return null
+
                 const isRotatif = programmes.length === 1 && programmes[0] === 'Format rotatif'
 
                 const sessionAteliers = ateliers.filter(a => a.session_id === session.id && a.type === type)
