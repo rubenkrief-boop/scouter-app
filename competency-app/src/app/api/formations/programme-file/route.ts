@@ -192,14 +192,61 @@ export async function POST(request: NextRequest) {
       const programmeNames = Object.keys(programmeAteliers)
 
       if (programmeNames.length > 0) {
-        // 1. Fetch all existing ateliers for name matching
+        // 1. Fetch ateliers for THIS session + type for name matching
         const { data: allAteliers } = await adminClient
           .from('formation_ateliers')
-          .select('id, nom')
+          .select('id, nom, sort_order')
+          .eq('session_id', sessionId)
+          .eq('type', type)
 
         const atelierMap = new Map<string, string>() // lowercase name -> id
         for (const a of allAteliers || []) {
           atelierMap.set(a.nom.toLowerCase().trim(), a.id)
+        }
+
+        // Collect all unique atelier names from Excel to auto-create missing ones
+        const allAtelierNames = new Set<string>()
+        for (const names of Object.values(programmeAteliers)) {
+          for (const name of names) allAtelierNames.add(name.trim())
+        }
+
+        // Auto-create ateliers that don't exist yet in this session
+        const existingSortOrders = (allAteliers || []).map(a => a.sort_order ?? 0)
+        let nextSortOrder = existingSortOrders.length > 0 ? Math.max(...existingSortOrders) + 1 : 0
+        const createdAteliers: string[] = []
+
+        for (const name of allAtelierNames) {
+          if (atelierMap.has(name.toLowerCase())) continue
+
+          // Determine which programmes this atelier belongs to
+          const progs: string[] = []
+          for (const [programme, names] of Object.entries(programmeAteliers)) {
+            if (names.some(n => n.trim().toLowerCase() === name.toLowerCase())) {
+              progs.push(programme)
+            }
+          }
+
+          const { data: newAtelier, error: createErr } = await adminClient
+            .from('formation_ateliers')
+            .insert({
+              session_id: sessionId,
+              nom: name,
+              type,
+              etat: 'Pas commencé',
+              sort_order: nextSortOrder++,
+              programmes: progs.join(', ') || null,
+              formateur: null,
+              duree: null,
+            })
+            .select('id')
+            .single()
+
+          if (!createErr && newAtelier) {
+            atelierMap.set(name.toLowerCase(), newAtelier.id)
+            createdAteliers.push(name)
+          } else {
+            logger.error('api.formations.programmeFile.createAtelier', createErr, { name })
+          }
         }
 
         // 2. Delete old mappings for this session/type
@@ -232,8 +279,6 @@ export async function POST(request: NextRequest) {
           atelier_id: string
         }> = []
 
-        const unmatchedAteliers: string[] = []
-
         for (const [programme, atelierNames] of Object.entries(programmeAteliers)) {
           // Create programme setting
           settingsToInsert.push({
@@ -244,7 +289,7 @@ export async function POST(request: NextRequest) {
             max_franchise: 0,
           })
 
-          // Map ateliers
+          // Map ateliers — all should exist now (either pre-existing or just created)
           for (const atelierName of atelierNames) {
             const atelierId = atelierMap.get(atelierName.toLowerCase().trim())
             if (atelierId) {
@@ -254,8 +299,6 @@ export async function POST(request: NextRequest) {
                 programme,
                 atelier_id: atelierId,
               })
-            } else {
-              unmatchedAteliers.push(atelierName)
             }
           }
         }
@@ -282,9 +325,9 @@ export async function POST(request: NextRequest) {
 
         importedProgrammes = programmeNames
 
-        if (unmatchedAteliers.length > 0) {
-          logger.warn('api.formations.programmeFile.unmatchedAteliers',
-            `${unmatchedAteliers.length} ateliers non trouvés: ${unmatchedAteliers.join(', ')}`
+        if (createdAteliers.length > 0) {
+          logger.info('api.formations.programmeFile.createdAteliers',
+            `${createdAteliers.length} ateliers crees: ${createdAteliers.join(', ')}`
           )
         }
 
@@ -294,7 +337,7 @@ export async function POST(request: NextRequest) {
           imported: {
             programmes: programmeNames,
             mappings: mappingsToInsert.length,
-            unmatched: unmatchedAteliers,
+            created: createdAteliers,
           },
         })
       }
