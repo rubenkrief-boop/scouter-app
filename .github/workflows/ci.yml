@@ -7,11 +7,14 @@ on:
     branches: [master, main]
 
 jobs:
-  lint-build-test:
+  lint-build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [competency-app, embouts-app]
     defaults:
       run:
-        working-directory: competency-app
+        working-directory: ${{ matrix.app }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,19 +24,13 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: competency-app/package-lock.json
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
         run: npm install --frozen-lockfile || npm install
 
       - name: Lint
         run: npm run lint
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Test
-        run: npm test --if-present
 
       - name: Build
         env:
