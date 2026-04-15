@@ -1,0 +1,3 @@
+[submodule "embouts-app"]
+	path = embouts-app
+	url = https://github.com/rubenkrief-boop/3dfit-app.git
