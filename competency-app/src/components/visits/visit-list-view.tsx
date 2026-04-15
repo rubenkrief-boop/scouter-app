@@ -14,7 +14,7 @@ import {
 import { Calendar, Plus, MapPin, User2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createVisit, cancelVisit, updateVisit } from '@/lib/actions/visits'
-import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
+import type { VisitWithRelations, GeographicZone } from '@/lib/types'
 
 // ============================================
 // Status config
@@ -46,17 +46,15 @@ function formatDateRange(start: string, end: string) {
 
 interface VisitListViewProps {
   visits: VisitWithRelations[]
-  zones: GeographicZone[]
   locations: { id: string; name: string }[]
   canPlan: boolean
-  userRole: UserRole
 }
 
 // ============================================
 // Component
 // ============================================
 
-export function VisitListView({ visits, zones: _zones, locations, canPlan, userRole: _userRole }: VisitListViewProps) {
+export function VisitListView({ visits, locations, canPlan }: VisitListViewProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [statusFilter, setStatusFilter] = useState('all')

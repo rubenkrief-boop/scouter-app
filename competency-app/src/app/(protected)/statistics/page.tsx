@@ -19,7 +19,7 @@ export default async function StatisticsPage() {
   }
 
   // Fetch all data in parallel
-  const [{ moduleStats, userSummaries }, chartColors, progressionData, gapAnalysis, visits] = await Promise.all([
+  const [{ userSummaries }, chartColors, progressionData, gapAnalysis, visits] = await Promise.all([
     getGlobalStatistics(),
     getChartColors(),
     getProgressionData(),
@@ -35,7 +35,6 @@ export default async function StatisticsPage() {
       />
       <div className="p-6">
         <StatisticsDashboard
-          moduleStats={moduleStats}
           userSummaries={userSummaries}
           chartColors={chartColors}
           progressionData={progressionData}

@@ -174,7 +174,6 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
       {activeTab === 'participants' && (
         <ParticipantsTab
           participants={groupedParticipants}
-          selectedSession={selectedSession}
           search={search}
           onSearchChange={setSearch}
           filterType={filterType}

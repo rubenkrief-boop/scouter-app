@@ -148,7 +148,6 @@ const navItems: NavItem[] = [
 interface AppSidebarProps {
   userRole: UserRole
   userName: string
-  userEmail: string
 }
 
 /**
@@ -282,7 +281,7 @@ function SidebarBody({
   )
 }
 
-export function AppSidebar({ userRole, userName, userEmail: _userEmail }: AppSidebarProps) {
+export function AppSidebar({ userRole, userName }: AppSidebarProps) {
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)

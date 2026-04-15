@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { GraduationCap, Calendar, Mic2, Headphones, Clock, BookOpen, Users } from 'lucide-react'
-import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
+import type { FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { ProgrammeAtelierMapping } from '@/lib/actions/formations'
 
 const SESSION_COLORS: Record<string, string> = {
@@ -28,10 +28,8 @@ const PROG_COLORS: Record<string, string> = {
 
 interface WorkerFormationsViewProps {
   inscriptions: FormationInscriptionWithSession[]
-  sessions: FormationSession[]
   ateliers: FormationAtelierWithSession[]
   progAtelierMappings: ProgrammeAtelierMapping[]
-  workerName: string
 }
 
 function getAteliersForParticipant(
@@ -62,10 +60,8 @@ function getAteliersForParticipant(
 
 export function WorkerFormationsView({
   inscriptions,
-  sessions: _sessions,
   ateliers,
   progAtelierMappings,
-  workerName: _workerName,
 }: WorkerFormationsViewProps) {
 
   // Sort inscriptions by session sort_order (most recent first)

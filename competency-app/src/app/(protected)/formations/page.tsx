@@ -54,10 +54,8 @@ export default async function FormationsPage() {
 
           <WorkerFormationsView
             inscriptions={myInscriptions}
-            sessions={sessions}
             ateliers={ateliers}
             progAtelierMappings={progAtelierMappings}
-            workerName={`${profile.first_name} ${profile.last_name}`}
           />
         </div>
       </>

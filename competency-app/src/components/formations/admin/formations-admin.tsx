@@ -27,11 +27,10 @@ interface FormationsAdminProps {
   programmeFiles: FormationProgrammeFile[]
   isSuperAdmin: boolean
   isManager: boolean
-  currentUserId: string
   teamProfiles: TeamProfile[]
 }
 
-export function FormationsAdmin({ sessions, ateliers, inscriptions, programmeSettings, programmeFiles, isSuperAdmin, isManager, currentUserId, teamProfiles }: FormationsAdminProps) {
+export function FormationsAdmin({ sessions, ateliers, inscriptions, programmeSettings, programmeFiles, isSuperAdmin, isManager, teamProfiles }: FormationsAdminProps) {
   const [activeSection, setActiveSection] = useState<'sessions' | 'ateliers' | 'inscriptions' | 'programmes'>('sessions')
   const { message, showMessage } = useAdminMessage()
 

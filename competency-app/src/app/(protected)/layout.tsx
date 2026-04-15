@@ -25,7 +25,6 @@ export default async function ProtectedLayout({
       <AppSidebar
         userRole={profile.role as UserRole}
         userName={userName}
-        userEmail={profile.email}
       />
       <main className="flex-1 overflow-auto">
         {children}

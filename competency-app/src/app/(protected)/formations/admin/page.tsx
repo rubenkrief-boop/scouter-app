@@ -40,7 +40,6 @@ export default async function FormationsAdminPage() {
           programmeFiles={programmeFiles}
           isSuperAdmin={profile.role === 'super_admin'}
           isManager={profile.role === 'manager'}
-          currentUserId={profile.id}
           teamProfiles={teamProfiles}
         />
       </div>

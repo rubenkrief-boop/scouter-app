@@ -22,13 +22,12 @@ function SortIcon({ col, sortBy, sortDir }: { col: SortKey; sortBy: SortKey; sor
 }
 
 export function ParticipantsTab({
-  participants, selectedSession: _selectedSession, search, onSearchChange,
+  participants, search, onSearchChange,
   filterType, onFilterTypeChange, filterProgramme, onFilterProgrammeChange,
   filterStatut, onFilterStatutChange, onSelectParticipant, showProgrammeFilter,
   sortBy, sortDir, onToggleSort, isAdmin,
 }: {
   participants: GroupedParticipant[]
-  selectedSession: string
   search: string
   onSearchChange: (v: string) => void
   filterType: string

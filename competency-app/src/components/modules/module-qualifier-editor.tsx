@@ -17,10 +17,9 @@ interface QualifierInfo {
 
 interface ModuleQualifierEditorProps {
   moduleId: string
-  moduleName: string
 }
 
-export function ModuleQualifierEditor({ moduleId, moduleName: _moduleName }: ModuleQualifierEditorProps) {
+export function ModuleQualifierEditor({ moduleId }: ModuleQualifierEditorProps) {
   const [allQualifiers, setAllQualifiers] = useState<QualifierInfo[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)

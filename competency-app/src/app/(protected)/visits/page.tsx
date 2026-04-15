@@ -3,7 +3,6 @@ import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { createClient } from '@/lib/supabase/server'
 import { Header } from '@/components/layout/header'
 import { getVisits, getPlannerLocations } from '@/lib/actions/visits'
-import { getGeographicZones } from '@/lib/actions/geographic-zones'
 import { VisitListView } from '@/components/visits/visit-list-view'
 import { VisitCalendarFresco } from '@/components/visits/visit-calendar-fresco'
 
@@ -16,9 +15,8 @@ export default async function VisitsPage() {
 
   const supabase = await createClient()
 
-  const [visits, zones, { data: allLocations }, myLocationIds] = await Promise.all([
+  const [visits, { data: allLocations }, myLocationIds] = await Promise.all([
     getVisits(),
-    getGeographicZones(),
     supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
     getPlannerLocations(user.id),
   ])
@@ -40,10 +38,8 @@ export default async function VisitsPage() {
         />
         <VisitListView
           visits={visits}
-          zones={zones}
           locations={locations}
           canPlan={canPlan}
-          userRole={profile.role}
         />
       </div>
     </div>

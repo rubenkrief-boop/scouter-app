@@ -669,7 +669,6 @@ export function CompetencyLibrary({ modules }: CompetencyLibraryProps) {
                 <ModuleQualifierEditor
                   key={selectedModuleId}
                   moduleId={selectedModuleId}
-                  moduleName={selectedModule?.name ?? ''}
                 />
               )}
             </CardContent>

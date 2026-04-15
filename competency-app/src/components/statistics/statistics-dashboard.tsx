@@ -15,10 +15,9 @@ import {
   Users, TrendingUp, Award, BarChart3, Activity,
   AlertTriangle, Target, ChevronDown, ChevronUp, MapPin,
 } from 'lucide-react'
-import type { ModuleGlobalStat, UserSummary, ProgressionData, GapAnalysisResult } from '@/lib/actions/statistics'
+import type { UserSummary, ProgressionData, GapAnalysisResult } from '@/lib/actions/statistics'
 
 interface StatisticsDashboardProps {
-  moduleStats: ModuleGlobalStat[]
   userSummaries: UserSummary[]
   chartColors: { actual: string; expected: string }
   progressionData: ProgressionData
@@ -127,7 +126,6 @@ function getAlertBadge(gap: number) {
 }
 
 export function StatisticsDashboard({
-  moduleStats: _moduleStats,
   userSummaries,
   chartColors,
   progressionData,
@@ -250,7 +248,7 @@ export function StatisticsDashboard({
   }, [gapAnalysis.modules])
 
   // Alerts KPIs (memoized: two filters over alerts array)
-  const { criticalAlerts, warningAlerts: _warningAlerts } = useMemo(() => {
+  const { criticalAlerts } = useMemo(() => {
     let critical = 0
     let warning = 0
     for (const a of gapAnalysis.alerts) {
@@ -262,22 +260,23 @@ export function StatisticsDashboard({
 
   // Grouped alerts by user (memoized: heavy Map build + sort that was previously in an IIFE)
   const groupedAlerts = useMemo(() => {
-    const alertsByUser = new Map<string, typeof gapAnalysis.alerts>()
-    for (const alert of gapAnalysis.alerts) {
+    const alerts = gapAnalysis.alerts
+    const alertsByUser = new Map<string, typeof alerts>()
+    for (const alert of alerts) {
       const list = alertsByUser.get(alert.userId) ?? []
       list.push(alert)
       alertsByUser.set(alert.userId, list)
     }
     return Array.from(alertsByUser.entries())
-      .map(([userId, alerts]) => ({
+      .map(([userId, userAlerts]) => ({
         userId,
-        name: alerts[0].name,
-        locationName: alerts[0].locationName,
-        maxGap: Math.max(...alerts.map(a => a.gap)),
-        alerts,
+        name: userAlerts[0].name,
+        locationName: userAlerts[0].locationName,
+        maxGap: Math.max(...userAlerts.map(a => a.gap)),
+        alerts: userAlerts,
       }))
       .sort((a, b) => b.maxGap - a.maxGap)
-  }, [gapAnalysis.alerts])
+  }, [gapAnalysis])
 
   // Color scale for bars
   function getBarColor(score: number) {
