@@ -50,7 +50,7 @@ async function seed() {
 
       for (let i = 0; i < rows.length; i += 50) {
         const batch = rows.slice(i, i + 50)
-        const { error: iErr, count } = await supabase
+        const { error: iErr } = await supabase
           .from('formation_inscriptions')
           .upsert(batch, { onConflict: 'session_id,nom,prenom,type', count: 'exact' })
         if (iErr) { results.errors.push(`Inscriptions batch ${session.code} [${i}]: ${iErr.message}`) }

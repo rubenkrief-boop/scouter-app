@@ -225,7 +225,6 @@ export function FormationsDashboard({ sessions, ateliers, inscriptions, stats, p
           participant={selectedParticipant}
           allInscriptions={inscriptions}
           ateliers={ateliers}
-          sessions={sessions}
           progMappings={progAtelierMappings}
           onClose={() => setSelectedParticipant(null)}
           isAdmin={isAdmin}

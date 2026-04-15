@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { X, User2, Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import type { FormationSession, FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
+import type { FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
 import type { ProgrammeAtelierMapping } from '@/lib/actions/formations'
 import { updateFormationInscription } from '@/lib/actions/formations'
 import { getAteliersForParticipant, SESSION_COLORS, PROG_COLORS, groupByNormalizedName, type GroupedParticipant } from '../formations-helpers'
@@ -16,12 +16,11 @@ import { getAteliersForParticipant, SESSION_COLORS, PROG_COLORS, groupByNormaliz
 // ============================================
 
 export function ParticipantModal({
-  participant, allInscriptions, ateliers, sessions: _sessions, progMappings, onClose, isAdmin,
+  participant, allInscriptions, ateliers, progMappings, onClose, isAdmin,
 }: {
   participant: GroupedParticipant
   allInscriptions: FormationInscriptionWithSession[]
   ateliers: FormationAtelierWithSession[]
-  sessions: FormationSession[]
   progMappings: ProgrammeAtelierMapping[]
   onClose: () => void
   isAdmin?: boolean

@@ -97,7 +97,7 @@ export function FormationsAdmin({ sessions, ateliers, inscriptions, programmeSet
         <AteliersSection ateliers={ateliers} sessions={sessions} showMessage={showMessage} />
       )}
       {activeSection === 'inscriptions' && (
-        <InscriptionsSection inscriptions={inscriptions} sessions={sessions} showMessage={showMessage} isManager={isManager} currentUserId={currentUserId} teamProfiles={teamProfiles} />
+        <InscriptionsSection inscriptions={inscriptions} sessions={sessions} showMessage={showMessage} isManager={isManager} teamProfiles={teamProfiles} />
       )}
       {activeSection === 'programmes' && (
         <ProgrammesSection

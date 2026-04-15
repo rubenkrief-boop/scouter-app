@@ -26,14 +26,12 @@ export function InscriptionsSection({
   sessions,
   showMessage,
   isManager,
-  currentUserId: _currentUserId,
   teamProfiles,
 }: {
   inscriptions: FormationInscriptionWithSession[]
   sessions: FormationSession[]
   showMessage: ShowMessageFn
   isManager: boolean
-  currentUserId: string
   teamProfiles: TeamProfile[]
 }) {
   const [showAdd, setShowAdd] = useState(false)

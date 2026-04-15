@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, MapPin, Mail, Briefcase, BarChart3 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { CompetencyRadarChart } from '@/components/charts/radar-chart'
@@ -59,10 +60,11 @@ export default async function ColleagueProfilePage({
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-2xl font-bold overflow-hidden">
                 {profile.avatar_url ? (
-                  <img
+                  <Image
                     src={profile.avatar_url}
                     alt={fullName}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 ) : (
                   <>{profile.first_name?.[0]}{profile.last_name?.[0]}</>

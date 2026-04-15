@@ -70,7 +70,6 @@ export function ModuleSidebar({ data }: ModuleSidebarProps) {
           <div className="py-1">
             {sorted.map((item, index) => {
               const parts = item.module.split(' - ')
-              const _code = parts[0]?.trim() || ''
               const name = parts[1]?.trim() || item.module
               const color = item.moduleColor || '#6366f1'
               const pct = Math.round(item.actual)

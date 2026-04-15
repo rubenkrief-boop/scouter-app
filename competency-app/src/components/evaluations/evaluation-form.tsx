@@ -34,7 +34,6 @@ function QualifierIcon({ icon }: { icon: string | null }) {
 
 export function EvaluationForm({
   evaluationId,
-  evaluationStatus: _evaluationStatus,
   modules,
   qualifiers,
   qualifiersByModule,

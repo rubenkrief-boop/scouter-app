@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowLeft, Pencil, CheckCircle2, AlertTriangle, User } from 'lucide-react'
 import { ChartViewToggle } from '@/components/charts/chart-view-toggle'
 import { Card, CardContent } from '@/components/ui/card'
@@ -121,10 +122,12 @@ export default async function EvaluationResultsPage({
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center flex-shrink-0">
                 {evaluation.audioprothesiste?.avatar_url ? (
-                  <img
+                  <Image
                     src={evaluation.audioprothesiste.avatar_url}
                     alt={audioName}
-                    className="h-10 w-10 rounded-full object-cover"
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover"
                   />
                 ) : (
                   <User className="h-5 w-5 text-violet-600 dark:text-violet-400" />

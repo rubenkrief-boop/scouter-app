@@ -98,7 +98,7 @@ export function ScouterExplosion({ score, triggered, storageKey, onDismiss }: Sc
       }, 1500)
       return () => clearTimeout(timer)
     }
-  }, [show, phase, storageKey])
+  }, [show, phase, storageKey, onDismiss])
 
   const handleDismiss = useCallback(() => {
     setShow(false)
