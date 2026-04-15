@@ -424,7 +424,21 @@ export async function DELETE(request: NextRequest) {
   const filesToRemove = extensions.map(e => `formation-programmes/${sessionId}_${type}.${e}`)
   await adminClient.storage.from('company-assets').remove(filesToRemove)
 
-  // Delete DB row
+  // Delete programme-atelier mappings (removes ateliers from programme cards)
+  await adminClient
+    .from('formation_programme_ateliers')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('type', type)
+
+  // Delete programme settings (removes P1-P4 from capacities table)
+  await adminClient
+    .from('formation_programme_settings')
+    .delete()
+    .eq('session_id', sessionId)
+    .eq('type', type)
+
+  // Delete DB row (file metadata)
   await adminClient
     .from('formation_programme_files')
     .delete()
