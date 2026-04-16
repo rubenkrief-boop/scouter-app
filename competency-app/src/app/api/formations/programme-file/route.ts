@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/utils-app/rate-limit'
@@ -331,6 +332,10 @@ export async function POST(request: NextRequest) {
           )
         }
 
+        // Invalidate Next.js Data Cache so /formations sees new mappings/settings
+        revalidatePath('/formations')
+        revalidatePath('/formations/admin')
+
         return NextResponse.json({
           file_url: fileUrl,
           file_name: file.name,
@@ -372,6 +377,10 @@ export async function POST(request: NextRequest) {
       }
     }
   }
+
+  // Invalidate Next.js Data Cache so /formations re-fetches programme settings
+  revalidatePath('/formations')
+  revalidatePath('/formations/admin')
 
   return NextResponse.json({ file_url: fileUrl, file_name: file.name })
 }
@@ -444,6 +453,10 @@ export async function DELETE(request: NextRequest) {
     .delete()
     .eq('session_id', sessionId)
     .eq('type', type)
+
+  // Invalidate Next.js Data Cache so /formations re-fetches mappings/settings
+  revalidatePath('/formations')
+  revalidatePath('/formations/admin')
 
   return NextResponse.json({ success: true })
 }
