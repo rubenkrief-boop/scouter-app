@@ -169,8 +169,23 @@ export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocati
                   ? (loc.zone?.target_visits_manager ?? 0)
                   : (loc.zone?.target_visits_resp ?? 0)
               const isMyCenter = myLocationIds.length === 0 || myLocationIds.includes(loc.id)
-              const completedCount = loc.visits.filter(v => v.status === 'completed').length
-              const plannedCount = loc.visits.filter(v => v.status === 'planned').length
+              // Count days, not records: a visit spanning N days counts as N
+              // (1-day visit = 1, 2-day visit = 2, etc.). Only this calendar year.
+              const countDays = (status: 'completed' | 'planned') =>
+                loc.visits.filter(v => v.status === status).reduce((sum, v) => {
+                  const start = new Date(v.start_date + 'T00:00:00')
+                  const end = new Date(v.end_date + 'T00:00:00')
+                  // Clamp to current year so cross-year visits don't double-count
+                  const yearStart = new Date(year, 0, 1)
+                  const yearEnd = new Date(year, 11, 31)
+                  const effStart = start < yearStart ? yearStart : start
+                  const effEnd = end > yearEnd ? yearEnd : end
+                  if (effEnd < effStart) return sum
+                  const days = Math.floor((effEnd.getTime() - effStart.getTime()) / 86400000) + 1
+                  return sum + days
+                }, 0)
+              const completedCount = countDays('completed')
+              const plannedCount = countDays('planned')
               const totalActive = completedCount + plannedCount
 
               return (
