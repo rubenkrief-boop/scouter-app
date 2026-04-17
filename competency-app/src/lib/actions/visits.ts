@@ -107,6 +107,16 @@ export async function getVisits(filters?: {
 
   const supabase = await createClient()
 
+  // Auto-completion: any `planned` visit whose end_date is strictly in the past
+  // flips to `completed`. Runs on every read so the UI is always consistent
+  // without needing a dedicated cron.
+  const today = new Date().toISOString().split('T')[0]
+  await supabase
+    .from('visits')
+    .update({ status: 'completed' })
+    .eq('status', 'planned')
+    .lt('end_date', today)
+
   let query = supabase
     .from('visits')
     .select(`
@@ -269,6 +279,50 @@ export async function updateVisit(id: string, data: {
 
 export async function cancelVisit(id: string) {
   return updateVisit(id, { status: 'cancelled' })
+}
+
+// ============================================
+// REOPEN (completed → planned) — undo auto-completion
+// ============================================
+
+export async function reopenVisit(id: string) {
+  return updateVisit(id, { status: 'planned' })
+}
+
+// ============================================
+// DELETE
+// ============================================
+
+export async function deleteVisit(id: string) {
+  const { user, profile } = await getAuthProfile()
+  if (!user || !profile) return { error: 'Non authentifié' }
+
+  const supabase = await createClient()
+
+  const { data: visit, error: fetchError } = await supabase
+    .from('visits')
+    .select('created_by, location_id')
+    .eq('id', id)
+    .single()
+  if (fetchError || !visit) return { error: 'Visite introuvable' }
+
+  // Same ownership rules as updateVisit
+  if (profile.role !== 'super_admin') {
+    if (profile.role === 'manager' && visit.created_by !== user.id) {
+      return { error: 'Vous ne pouvez supprimer que vos propres visites' }
+    }
+    if (profile.role === 'resp_audiologie') {
+      const modifiable = await getModifiableLocationIds(supabase, user.id, profile.role as UserRole)
+      if (modifiable !== 'all' && !modifiable.includes(visit.location_id)) {
+        return { error: 'Ce centre n\'est pas dans vos attributions' }
+      }
+    }
+  }
+
+  const { error } = await supabase.from('visits').delete().eq('id', id)
+  if (error) return { error: error.message }
+  revalidatePath(REVALIDATE_PATH)
+  return { success: true }
 }
 
 // ============================================
