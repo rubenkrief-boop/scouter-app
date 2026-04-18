@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
 import type { VisitWithRelations, GeographicZone, UserRole } from '@/lib/types'
+import { VisitActionsDialog } from './visit-actions-dialog'
 
 // ============================================
 // Planner colors + initials
@@ -46,6 +47,7 @@ interface CalendarFrescoProps {
 
 export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocationIds = [] }: CalendarFrescoProps) {
   const year = propYear ?? new Date().getFullYear()
+  const [activeVisit, setActiveVisit] = useState<VisitWithRelations | null>(null)
 
   // Calendar constants derived from year (memoized: only recompute when year changes)
   const { daysInMonth, totalDays } = useMemo(() => {
@@ -224,7 +226,7 @@ export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocati
                   </div>
 
                   {/* Timeline bar */}
-                  <div className="flex-1 relative h-10 bg-muted/20 rounded-md border border-border/30 group-hover:bg-muted/40 transition-colors">
+                  <div className="flex-1 relative h-12 bg-muted/20 rounded-md border border-border/30 group-hover:bg-muted/40 transition-colors">
                     {/* Month dividers */}
                     {daysInMonth.map((_, i) => {
                       if (i === 0) return null
@@ -269,8 +271,10 @@ export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocati
                         : ''
 
                       return (
-                        <div
+                        <button
                           key={v.id}
+                          type="button"
+                          onClick={() => setActiveVisit(v)}
                           className="absolute top-1 bottom-1 rounded-md cursor-pointer transition-all hover:scale-y-110 hover:z-10 flex items-center gap-1 px-1 overflow-hidden shadow-sm"
                           style={{
                             left: `${leftPct}%`,
@@ -279,12 +283,12 @@ export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocati
                             opacity: isCancelled ? 0.25 : 0.95,
                             border: isCompleted ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.3)',
                           }}
-                          title={`${creator?.first_name ?? ''} ${creator?.last_name ?? ''}\n${loc.name} — ${dateLabel}${endLabel}\n${isCompleted ? '✅ Terminée' : isCancelled ? '❌ Annulée' : '📅 Planifiée'}`}
+                          title={`${creator?.first_name ?? ''} ${creator?.last_name ?? ''}\n${loc.name} — ${dateLabel}${endLabel}\n${isCompleted ? '✅ Terminée' : isCancelled ? '❌ Annulée' : '📅 Planifiée'}\n\nClic pour modifier / annuler / supprimer`}
                         >
                           <span className="text-[10px] font-bold text-white leading-none drop-shadow-md whitespace-nowrap">
                             {pInit}
                           </span>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -319,6 +323,11 @@ export function VisitCalendarFresco({ visits, year: propYear, userRole, myLocati
           </div>
         </div>
       </CardContent>
+      <VisitActionsDialog
+        visit={activeVisit}
+        open={activeVisit !== null}
+        onOpenChange={o => { if (!o) setActiveVisit(null) }}
+      />
     </Card>
   )
 }

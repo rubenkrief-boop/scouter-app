@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header'
 import { getVisits, getPlannerLocations } from '@/lib/actions/visits'
 import { VisitListView } from '@/components/visits/visit-list-view'
 import { VisitCalendarFresco } from '@/components/visits/visit-calendar-fresco'
+import { CollapsibleList } from '@/components/visits/collapsible-list'
 
 export default async function VisitsPage() {
   const { user, profile } = await getAuthProfile()
@@ -36,11 +37,13 @@ export default async function VisitsPage() {
           userRole={profile.role}
           myLocationIds={myLocationIds}
         />
-        <VisitListView
-          visits={visits}
-          locations={locations}
-          canPlan={canPlan}
-        />
+        <CollapsibleList count={visits.length}>
+          <VisitListView
+            visits={visits}
+            locations={locations}
+            canPlan={canPlan}
+          />
+        </CollapsibleList>
       </div>
     </div>
   )
