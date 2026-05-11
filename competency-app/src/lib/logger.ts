@@ -7,10 +7,15 @@
  *   logger.info('visits.create', 'visit created', { visitId })
  *
  * The context string should follow the convention `<module>.<action>`
- * so logs can be filtered by feature. In production, the implementation
- * can be swapped to forward to Sentry / Logtail / Datadog without
- * touching call sites.
+ * so logs can be filtered by feature.
+ *
+ * RGPD : tout `metadata` est passé à `redact()` avant d'atteindre console
+ * ou Sentry. Les champs sensibles connus (email, name, phone, ip, token...)
+ * sont masqués automatiquement, donc un caller qui oublie de filtrer ne
+ * leak pas de PII. Voir src/lib/utils-app/redact.ts pour les règles.
  */
+
+import { redact } from '@/lib/utils-app/redact'
 
 export type LogMetadata = Record<string, unknown>
 
@@ -95,17 +100,28 @@ export function setLoggerSink(sink: LoggerSink) {
   activeSink = sink
 }
 
+function safeRedact(metadata?: LogMetadata): LogMetadata | undefined {
+  if (!metadata) return undefined
+  try {
+    return redact(metadata) as LogMetadata
+  } catch {
+    // redact() ne doit jamais throw mais belt-and-suspenders : si jamais
+    // ça pète, on prefere logger sans metadata que de tout perdre.
+    return undefined
+  }
+}
+
 export const logger = {
   debug(context: string, message: string, metadata?: LogMetadata) {
-    activeSink('debug', context, message, metadata)
+    activeSink('debug', context, message, safeRedact(metadata))
   },
   info(context: string, message: string, metadata?: LogMetadata) {
-    activeSink('info', context, message, metadata)
+    activeSink('info', context, message, safeRedact(metadata))
   },
   warn(context: string, message: string, metadata?: LogMetadata) {
-    activeSink('warn', context, message, metadata)
+    activeSink('warn', context, message, safeRedact(metadata))
   },
   error(context: string, error: unknown, metadata?: LogMetadata) {
-    activeSink('error', context, error, metadata)
+    activeSink('error', context, error, safeRedact(metadata))
   },
 }
