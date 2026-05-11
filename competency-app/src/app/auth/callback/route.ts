@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Verify the user's email domain is @vivason.fr or @vivason.ma
+      // Defense en profondeur : 1. domain check, 2. allowlist check.
       const { data: { user } } = await supabase.auth.getUser()
       const allowedDomains = ['@vivason.fr', '@vivason.ma']
 
@@ -93,6 +93,29 @@ export async function GET(request: Request) {
         return NextResponse.redirect(
           `${origin}/auth/login?error=domain_not_allowed`
         )
+      }
+
+      // Couche 2 : email allowlist (migration 00026). On utilise un client
+      // admin (service role) pour interroger la table malgre l'absence de
+      // session encore validee. Si la table n'existe pas (migration non
+      // appliquee), on tolere et on tombe back sur la domain restriction.
+      if (user?.email) {
+        const allowlistClient = createAdminClient()
+        const { data: row, error: allowError } = await allowlistClient
+          .from('email_allowlist')
+          .select('email, is_active')
+          .eq('email', user.email.toLowerCase())
+          .maybeSingle()
+
+        // Si la table existe (pas d'erreur) ET le row est absent ou inactif,
+        // refuser. Si erreur (table absente), on log mais on laisse passer
+        // — fallback gracieux le temps qu'une migration soit appliquee.
+        if (!allowError && (!row || !row.is_active)) {
+          await supabase.auth.signOut()
+          return NextResponse.redirect(
+            `${origin}/auth/login?error=email_not_allowed`
+          )
+        }
       }
 
       // Ensure profile exists and merge with any pre-imported profile

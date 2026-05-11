@@ -17,6 +17,7 @@ function LoginForm() {
 
   const errorMessages: Record<string, string> = {
     domain_not_allowed: 'Seuls les comptes @vivason.fr sont autorisés.',
+    email_not_allowed: 'Votre compte n\'est pas autorisé à accéder à SCOUTER. Contactez un administrateur pour être ajouté à la liste des utilisateurs.',
     could_not_verify: 'Erreur de vérification. Veuillez réessayer.',
   }
 
