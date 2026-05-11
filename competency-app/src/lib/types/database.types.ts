@@ -15,6 +15,11 @@ export interface Profile {
   is_active: boolean
   manager_id: string | null
   location_id: string | null
+  /** Version des CGU acceptees par l'utilisateur. Vide = jamais acceptees,
+   *  prompt au prochain login (cf. src/lib/legal.ts pour la version courante). */
+  legal_accepted_version: string | null
+  /** Horodatage UTC de l'acceptation des CGU. A des fins de preuve. */
+  legal_accepted_at: string | null
   created_at: string
   updated_at: string
 }

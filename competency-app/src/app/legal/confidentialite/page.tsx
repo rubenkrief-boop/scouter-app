@@ -135,7 +135,10 @@ export default function ConfidentialitePage() {
       </ul>
       <p>
         Pour exercer ces droits, contactez-nous par email a :{' '}
-        <strong>[EMAIL DPO A COMPLETER]</strong>
+        <a href="mailto:ruben.krief@vivason.fr">ruben.krief@vivason.fr</a>.
+        Vous pouvez egalement exporter vos donnees personnelles ou demander
+        la suppression de votre compte directement depuis l&apos;application
+        (rubrique <em>Mon profil</em>).
       </p>
       <p>
         Vous pouvez egalement introduire une reclamation aupres de la CNIL :{' '}

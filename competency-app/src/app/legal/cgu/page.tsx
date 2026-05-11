@@ -113,12 +113,10 @@ export default function CGUPage() {
       </p>
 
       <h2>12. Contact</h2>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm not-prose">
-        <p className="text-amber-800">
-          Pour toute question relative aux presentes CGU, contactez-nous a :{' '}
-          <strong>[EMAIL DE CONTACT A COMPLETER]</strong>
-        </p>
-      </div>
+      <p>
+        Pour toute question relative aux presentes CGU, contactez-nous a :{' '}
+        <a href="mailto:ruben.krief@vivason.fr">ruben.krief@vivason.fr</a>
+      </p>
     </article>
   )
 }
