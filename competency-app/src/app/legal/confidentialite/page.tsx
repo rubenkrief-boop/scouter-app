@@ -133,13 +133,14 @@ export default function ConfidentialitePage() {
         <li><strong>Droit a la portabilite</strong> : recevoir vos donnees dans un format structure</li>
         <li><strong>Droit d&apos;opposition</strong> : vous opposer au traitement de vos donnees</li>
       </ul>
-      <p>
-        Pour exercer ces droits, contactez-nous par email a :{' '}
-        <a href="mailto:ruben.krief@vivason.fr">ruben.krief@vivason.fr</a>.
-        Vous pouvez egalement exporter vos donnees personnelles ou demander
-        la suppression de votre compte directement depuis l&apos;application
-        (rubrique <em>Mon profil</em>).
-      </p>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm not-prose my-4">
+        <p className="text-amber-800">
+          Pour exercer ces droits, contactez-nous par email a :{' '}
+          <strong>[EMAIL DPO A COMPLETER]</strong>.
+          Vous pouvez egalement exporter vos donnees personnelles ou demander
+          la suppression de votre compte directement depuis l&apos;application.
+        </p>
+      </div>
       <p>
         Vous pouvez egalement introduire une reclamation aupres de la CNIL :{' '}
         <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">www.cnil.fr</a>
