@@ -21,6 +21,24 @@ interface UserManagementProps {
   managers: Profile[]
 }
 
+// Etend un payload d'erreur API en un message lisible utilisateur :
+//   - Si zod a retourne `details.fieldErrors`, on les concatene
+//     ("password: le mot de passe doit contenir au moins 8 caracteres")
+//   - Sinon on tombe sur err.error (texte libre) puis fallback HTTP status.
+function formatApiError(
+  err: { error?: string; details?: { fieldErrors?: Record<string, string[]> } } | null,
+  status: number,
+  verb: 'creer' | 'modifier',
+): string {
+  const fieldErrors = err?.details?.fieldErrors
+  if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+    return Object.entries(fieldErrors)
+      .map(([field, msgs]) => `${field} : ${msgs.join(', ')}`)
+      .join(' • ')
+  }
+  return err?.error || `Erreur ${status} : impossible de ${verb} l'utilisateur`
+}
+
 export function UserManagement({ users, locations, managers }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -78,10 +96,10 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
         router.refresh()
       } else {
         const err = await res.json().catch(() => null)
-        setFormError(err?.error || `Erreur ${res.status}: impossible de créer l'utilisateur`)
+        setFormError(formatApiError(err, res.status, 'creer'))
       }
     } catch {
-      setFormError('Erreur réseau. Vérifiez votre connexion.')
+      setFormError('Erreur reseau. Verifiez votre connexion.')
     }
     setLoading(false)
   }
@@ -118,10 +136,10 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
         router.refresh()
       } else {
         const err = await res.json().catch(() => null)
-        setFormError(err?.error || `Erreur ${res.status}: impossible de modifier l'utilisateur`)
+        setFormError(formatApiError(err, res.status, 'modifier'))
       }
     } catch {
-      setFormError('Erreur réseau. Vérifiez votre connexion.')
+      setFormError('Erreur reseau. Verifiez votre connexion.')
     }
     setLoading(false)
   }
@@ -192,7 +210,10 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Mot de passe *</Label>
-                <Input name="password" type="password" minLength={6} required />
+                <Input name="password" type="password" minLength={8} required />
+                <p className="text-xs text-muted-foreground">
+                  Au moins 8 caracteres.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Role *</Label>
