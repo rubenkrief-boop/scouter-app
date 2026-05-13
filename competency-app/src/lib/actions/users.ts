@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
+import { recordAudit } from '@/lib/audit'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Profile, UserRole } from '@/lib/types'
@@ -57,6 +58,13 @@ export async function updateUserRole(userId: string, role: string) {
     return { error: 'Rôle invalide.' }
   }
 
+  // Lire l'ancien role pour capturer dans l'audit log la transition.
+  const { data: previous } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
   const { error } = await supabase
     .from('profiles')
     .update({ role: role as UserRole })
@@ -65,6 +73,13 @@ export async function updateUserRole(userId: string, role: string) {
   if (error) {
     return { error: error.message }
   }
+
+  await recordAudit({
+    action: 'user.role_changed',
+    actorId: user.id,
+    targetId: userId,
+    metadata: { previous_role: previous?.role ?? null, new_role: role },
+  })
 
   revalidatePath('/admin/users')
   return { success: true }
@@ -115,6 +130,13 @@ export async function toggleUserActive(userId: string) {
       .update({ manager_id: null })
       .eq('manager_id', userId)
   }
+
+  await recordAudit({
+    action: newActive ? 'user.reactivated' : 'user.deactivated',
+    actorId: user.id,
+    targetId: userId,
+    metadata: { role: targetUser.role },
+  })
 
   revalidatePath('/admin/users')
   return { success: true }
@@ -184,6 +206,13 @@ export async function createUser(formData: FormData) {
   if (updateError) {
     logger.error('users.createUser', updateError, { stage: 'profile_update' })
   }
+
+  await recordAudit({
+    action: 'user.created',
+    actorId: user.id,
+    targetId: newUser.user.id,
+    metadata: { role, email_domain: (email.split('@').pop() ?? '') },
+  })
 
   revalidatePath('/admin/users')
   return { success: true }
