@@ -9,6 +9,7 @@ import type { RadarDataPoint } from '@/lib/types'
 import { getChartColors } from '@/lib/utils-app/chart-colors'
 import { ScouterTrigger } from '@/components/animations/scouter-trigger'
 import { WorkerFormationsCard } from '@/components/formations/worker-formations-card'
+import { RgpdActions } from '@/components/profile/rgpd-actions'
 import { getWorkerFormations } from '@/lib/actions/formations'
 import { GraduationCap, MapPin, Briefcase } from 'lucide-react'
 import { relLocationName, relJobProfile } from '@/lib/types/relations'
@@ -79,6 +80,9 @@ export default async function MyProfilePage() {
 
           {/* Formations card */}
           <WorkerFormationsCard formations={workerFormations} />
+
+          {/* RGPD actions — export + delete */}
+          <RgpdActions userEmail={user.email ?? ''} />
         </div>
       </div>
     )
@@ -231,6 +235,9 @@ export default async function MyProfilePage() {
 
         {/* Section : Formations plénières */}
         <WorkerFormationsCard formations={workerFormations} />
+
+        {/* RGPD actions — export + delete */}
+        <RgpdActions userEmail={user.email ?? ''} />
       </div>
     </div>
   )
