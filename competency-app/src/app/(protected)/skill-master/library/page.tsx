@@ -1,10 +1,18 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { Header } from '@/components/layout/header'
 import { CompetencyLibrary } from '@/components/modules/competency-library'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
 export default async function LibraryPage() {
+  const { user, profile } = await getAuthProfile()
+  if (!user || !profile) redirect('/auth/login')
+  if (!['super_admin', 'skill_master'].includes(profile.role)) {
+    redirect('/dashboard')
+  }
+
   const supabase = await createClient()
 
   const { data: modules } = await supabase

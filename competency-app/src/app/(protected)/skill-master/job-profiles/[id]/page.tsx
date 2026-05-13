@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { getAuthProfile } from '@/lib/supabase/auth-cache'
 import { Header } from '@/components/layout/header'
 import { JobProfileEditor } from '@/components/modules/job-profile-editor'
 
@@ -8,6 +9,12 @@ export default async function JobProfileDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const { user, profile } = await getAuthProfile()
+  if (!user || !profile) redirect('/auth/login')
+  if (!['super_admin', 'skill_master'].includes(profile.role)) {
+    redirect('/dashboard')
+  }
+
   const { id } = await params
   const supabase = await createClient()
 
