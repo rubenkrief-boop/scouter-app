@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Noah Drive Sync — Mockup UI</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --window: #ffffff;
+    --window-border: #e5e7eb;
+    --header: #fafbfc;
+    --text: #1f2937;
+    --text-muted: #6b7280;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+    --row-hover: #f9fafb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 20px;
+  }
+  h1 {
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 18px;
+    margin-bottom: 32px;
+  }
+  .layout {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .stage-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  /* Window chrome */
+  .window {
+    width: 480px;
+    background: var(--window);
+    border: 1px solid var(--window-border);
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--header);
+    border-bottom: 1px solid var(--window-border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .icon-app {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+  }
+  .winbtns {
+    display: flex;
+    gap: 8px;
+  }
+  .winbtn {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #d1d5db;
+  }
+  .winbtn.close { background: #ef4444; }
+  .winbtn.min { background: #f59e0b; }
+  .winbtn.max { background: #10b981; }
+
+  /* Hero status section */
+  .hero {
+    padding: 28px 24px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--window-border);
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+  }
+  .status-dot.syncing {
+    background: var(--primary);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .status-dot.error {
+    background: var(--error);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.6); }
+    50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+  }
+  .status-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .status-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+  }
+  .next-sync {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9fafb;
+    border: 1px solid var(--window-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .next-sync-label {
+    color: var(--text-muted);
+  }
+  .next-sync-date {
+    font-weight: 500;
+  }
+
+  /* Main button */
+  .btn-main {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s;
+  }
+  .btn-main:hover { background: var(--primary-hover); }
+  .btn-main:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+  }
+
+  /* Progress bar (sync state) */
+  .progress-wrap {
+    margin-top: 14px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--primary);
+    width: 64%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* Section blocks */
+  .section {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--window-border);
+  }
+  .section:last-child {
+    border-bottom: none;
+  }
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* History list */
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .history-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .history-row:hover {
+    background: var(--row-hover);
+  }
+  .history-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    color: white;
+    font-weight: 600;
+  }
+  .history-icon.ok { background: var(--success); }
+  .history-icon.fail { background: var(--error); }
+  .history-date {
+    color: var(--text);
+  }
+  .history-size {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .history-duration {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    min-width: 50px;
+    text-align: right;
+  }
+  .history-error {
+    color: var(--error);
+    font-size: 12px;
+    grid-column: 2 / 5;
+  }
+
+  /* Config section */
+  .config-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 12px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .config-row:last-child { margin-bottom: 14px; }
+  .config-key {
+    color: var(--text-muted);
+  }
+  .config-value {
+    color: var(--text);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+  }
+  .config-value.normal {
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .btn-secondary {
+    background: white;
+    color: var(--text);
+    border: 1px solid var(--window-border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .btn-secondary:hover { background: var(--row-hover); }
+
+  /* Footer actions */
+  .footer-actions {
+    display: flex;
+    gap: 8px;
+    padding: 14px 24px;
+    background: var(--header);
+  }
+  .footer-link {
+    flex: 1;
+    background: white;
+    border: 1px solid var(--window-border);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    color: var(--text);
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .footer-link:hover { background: var(--row-hover); }
+
+  /* Tray mockup */
+  .tray-stage {
+    background: linear-gradient(180deg, #b8c5d6 0%, #8b9aaa 100%);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: white;
+    font-size: 11px;
+    width: 320px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .tray-icons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .tray-icon {
+    width: 16px;
+    height: 16px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 3px;
+  }
+  .tray-icon.app {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    position: relative;
+  }
+  .tray-icon.app.error { background: linear-gradient(135deg, #ef4444, #f59e0b); }
+  .tray-icon.app::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    border: 1px solid white;
+  }
+  .tray-icon.app.error::after { background: var(--error); }
+  .tray-clock {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .tray-tooltip {
+    background: #f9fafb;
+    color: #1f2937;
+    border: 1px solid var(--window-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    margin-top: 8px;
+    width: 260px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  }
+  .tray-tooltip strong { display: block; margin-bottom: 2px; }
+
+  /* Right-click menu mockup */
+  .ctxmenu {
+    background: white;
+    border: 1px solid var(--window-border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 4px 0;
+    width: 220px;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .ctxmenu-item {
+    padding: 7px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ctxmenu-item:hover { background: var(--row-hover); }
+  .ctxmenu-sep {
+    height: 1px;
+    background: var(--window-border);
+    margin: 4px 0;
+  }
+  .ctxmenu-status {
+    padding: 7px 14px;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Notif mockup */
+  .notif {
+    width: 360px;
+    background: white;
+    border: 1px solid var(--window-border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .notif-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    flex-shrink: 0;
+  }
+  .notif-body { flex: 1; }
+  .notif-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .notif-desc { font-size: 12px; color: var(--text-muted); }
+  .notif-app { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Noah Drive Sync — Proposition d'interface (mockup, pas de code)</h1>
+
+<div class="layout">
+
+  <!-- ============== STAGE 1: Idle ============== -->
+  <div class="stage">
+    <div class="stage-label">État normal — au repos</div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="titlebar-left">
+          <div class="icon-app"></div>
+          <span>Noah Drive Sync</span>
+        </div>
+        <div class="winbtns">
+          <div class="winbtn min"></div>
+          <div class="winbtn max"></div>
+          <div class="winbtn close"></div>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="status">
+          <div class="status-dot"></div>
+          <div class="status-text">Sauvegarde à jour</div>
+        </div>
+        <div class="status-sub">Dernière sauvegarde il y a 4 jours • 202 MB transférés en 1 min 04</div>
+
+        <div class="next-sync">
+          <span class="next-sync-label">Prochaine sauvegarde automatique</span>
+          <span class="next-sync-date">1er juin 2026 à 03:00</span>
+        </div>
+
+        <button class="btn-main">⟳ Synchroniser maintenant</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📊 Historique</div>
+        <div class="history-list">
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">2 mai 2026 à 03:01</div>
+            <div class="history-size">202 MB</div>
+            <div class="history-duration">1m 04s</div>
+          </div>
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">1 avr 2026 à 03:00</div>
+            <div class="history-size">199 MB</div>
+            <div class="history-duration">58s</div>
+          </div>
+          <div class="history-row">
+            <div class="history-icon fail">!</div>
+            <div class="history-date">1 mar 2026 à 03:00</div>
+            <div class="history-size">—</div>
+            <div class="history-duration">échec</div>
+          </div>
+          <div class="history-row" style="padding-top: 0;">
+            <div></div>
+            <div class="history-error">Connexion réseau interrompue. Réessai automatique le lendemain.</div>
+          </div>
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">1 fév 2026 à 03:00</div>
+            <div class="history-size">195 MB</div>
+            <div class="history-duration">1m 12s</div>
+          </div>
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">1 jan 2026 à 03:00</div>
+            <div class="history-size">191 MB</div>
+            <div class="history-duration">1m 02s</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title" style="display: flex; justify-content: space-between;">
+          <span>📁 Configuration</span>
+          <button class="btn-secondary">Modifier</button>
+        </div>
+        <div class="config-row">
+          <span class="config-key">Compte Google</span>
+          <span class="config-value normal">ruben.krief@vivason.fr</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">Source Noah</span>
+          <span class="config-value">C:\ProgramData\HIMSA\Noah\Backup\Database</span>
+        </div>
+        <div class="config-row">
+          <span class="config-key">Destination</span>
+          <span class="config-value normal">Drive partagé Vivason → /Noah Backups/ruben.krief@vivason.fr/</span>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <a class="footer-link">📂 Ouvrir le dossier Drive</a>
+        <a class="footer-link">📄 Voir le journal</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== STAGE 2: Syncing ============== -->
+  <div class="stage">
+    <div class="stage-label">Pendant un sync (manuel ou planifié)</div>
+    <div class="window">
+      <div class="titlebar">
+        <div class="titlebar-left">
+          <div class="icon-app"></div>
+          <span>Noah Drive Sync</span>
+        </div>
+        <div class="winbtns">
+          <div class="winbtn min"></div>
+          <div class="winbtn max"></div>
+          <div class="winbtn close"></div>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="status">
+          <div class="status-dot syncing"></div>
+          <div class="status-text">Sauvegarde en cours…</div>
+        </div>
+        <div class="status-sub">Upload du backup du 4 mai vers Drive partagé Vivason</div>
+
+        <button class="btn-main" disabled>⟳ Synchronisation…</button>
+
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+          <div class="progress-meta">
+            <span>129 MB / 202 MB</span>
+            <span>~22 secondes restantes</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📜 Journal en direct</div>
+        <div style="font-family: ui-monospace, monospace; font-size: 11px; background: #f9fafb; padding: 10px 12px; border-radius: 6px; line-height: 1.6; color: #4b5563;">
+          <div>10:14:42 Recherche du backup le plus récent…</div>
+          <div>10:14:42 Backup retenu : 2026-05-04 15.00.11</div>
+          <div>10:14:43 Compression vers archive temporaire…</div>
+          <div>10:14:46 Archive prête : 202 MB</div>
+          <div>10:14:46 Upload vers Drive partagé…</div>
+          <div style="color: var(--primary);">10:14:51 Progression 64 %</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📊 Historique</div>
+        <div class="history-list">
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">2 mai 2026 à 03:01</div>
+            <div class="history-size">202 MB</div>
+            <div class="history-duration">1m 04s</div>
+          </div>
+          <div class="history-row">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">1 avr 2026 à 03:00</div>
+            <div class="history-size">199 MB</div>
+            <div class="history-duration">58s</div>
+          </div>
+          <div class="history-row" style="opacity: 0.5;">
+            <div class="history-icon ok">✓</div>
+            <div class="history-date">1 mar 2026 à 03:00</div>
+            <div class="history-size">195 MB</div>
+            <div class="history-duration">1m 12s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== STAGE 3: Tray + notifications ============== -->
+  <div class="stage">
+    <div class="stage-label">Système — barre des tâches</div>
+
+    <!-- Mock taskbar with tray -->
+    <div class="tray-stage">
+      <div class="tray-icons">
+        <div class="tray-icon"></div>
+        <div class="tray-icon"></div>
+        <div class="tray-icon app" title="Noah Drive Sync"></div>
+      </div>
+      <span style="opacity: 0.85;">FR</span>
+      <div class="tray-clock">10:14<br><span style="font-size: 10px; opacity: 0.85;">06/05/2026</span></div>
+    </div>
+
+    <!-- Tooltip on hover -->
+    <div class="tray-tooltip">
+      <strong>Noah Drive Sync</strong>
+      Sauvegarde à jour — il y a 4 jours
+    </div>
+
+    <!-- Right-click menu -->
+    <div class="ctxmenu">
+      <div class="ctxmenu-status">Sauvegarde à jour</div>
+      <div class="ctxmenu-sep"></div>
+      <div class="ctxmenu-item">📂 Ouvrir l'application</div>
+      <div class="ctxmenu-item">⟳ Synchroniser maintenant</div>
+      <div class="ctxmenu-item">⚙ Paramètres</div>
+      <div class="ctxmenu-sep"></div>
+      <div class="ctxmenu-item">📄 Voir le journal</div>
+      <div class="ctxmenu-item">🌐 Ouvrir le dossier Drive</div>
+      <div class="ctxmenu-sep"></div>
+      <div class="ctxmenu-item">Quitter</div>
+    </div>
+
+    <!-- Notification toast -->
+    <div class="notif" style="margin-top: 6px;">
+      <div class="notif-icon"></div>
+      <div class="notif-body">
+        <div class="notif-app">Noah Drive Sync</div>
+        <div class="notif-title">Sauvegarde mensuelle réussie</div>
+        <div class="notif-desc">202 MB envoyés vers le Drive Vivason en 1 min 04.</div>
+      </div>
+    </div>
+
+    <!-- Error variant -->
+    <div class="notif" style="margin-top: 6px;">
+      <div class="notif-icon" style="background: linear-gradient(135deg, #ef4444, #f59e0b);"></div>
+      <div class="notif-body">
+        <div class="notif-app">Noah Drive Sync</div>
+        <div class="notif-title">Échec de la sauvegarde</div>
+        <div class="notif-desc">Connexion réseau interrompue. Réessai prévu demain à 03:00.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 40px;">
+  Mockup statique — l'implémentation utilisera customtkinter (look natif Windows) + pystray pour l'icône.
+</p>
+
+</body>
+</html>
