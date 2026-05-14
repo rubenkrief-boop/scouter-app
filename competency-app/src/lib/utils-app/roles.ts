@@ -7,6 +7,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   resp_audiologie: 'Resp. Audiologie',
   worker: 'Collaborateur',
   formation_user: 'Utilisateur Formations',
+  gerant_franchise: 'Gérant franchisé',
 }
 
 export const ROLE_COLORS: Record<UserRole, string> = {
@@ -16,6 +17,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
   resp_audiologie: 'bg-teal-100 text-teal-800',
   worker: 'bg-green-100 text-green-800',
   formation_user: 'bg-blue-100 text-blue-800',
+  gerant_franchise: 'bg-cyan-100 text-cyan-800',
 }
 
 export function canAccessAdmin(role: UserRole): boolean {
@@ -43,6 +45,8 @@ export function getDashboardPath(role: UserRole): string {
     case 'worker':
       return '/my-profile'
     case 'formation_user':
+      return '/formations'
+    case 'gerant_franchise':
       return '/formations'
     default:
       return '/dashboard'

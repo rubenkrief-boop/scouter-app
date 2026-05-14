@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, UserCheck, UserX, Pencil, MapPin, UserCog, Search } from 'lucide-react'
+import { Plus, UserCheck, UserX, Pencil, MapPin, UserCog, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -56,6 +56,12 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [editRole, setEditRole] = useState<string>('worker')
   const [editManagerId, setEditManagerId] = useState<string>('none')
   const [editLocationId, setEditLocationId] = useState<string>('none')
+  const [editFirstName, setEditFirstName] = useState<string>('')
+  const [editLastName, setEditLastName] = useState<string>('')
+  const [editJobTitle, setEditJobTitle] = useState<string>('')
+  const [editStatut, setEditStatut] = useState<string>('succursale')
+  const [editEmail, setEditEmail] = useState<string>('')
+  const [pendingDelete, setPendingDelete] = useState<Profile | null>(null)
 
   const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true
@@ -109,6 +115,11 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
     setEditRole(user.role || 'worker')
     setEditManagerId(user.manager_id || 'none')
     setEditLocationId(user.location_id || 'none')
+    setEditFirstName(user.first_name || '')
+    setEditLastName(user.last_name || '')
+    setEditJobTitle(user.job_title || '')
+    setEditStatut((user as Profile & { statut?: string }).statut || 'succursale')
+    setEditEmail(user.email || '')
     setFormError(null)
   }
 
@@ -119,15 +130,36 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
     setFormError(null)
 
     try {
+      // On envoie chaque champ uniquement s'il a changé pour éviter
+      // de rejeter en cas de validation Zod (ex: email pas modifié mais
+      // déjà invalide en base ne doit pas bloquer un autre changement).
+      const payload: Record<string, unknown> = { userId: editingUser.id }
+      if (editRole !== editingUser.role) payload.role = editRole
+      if ((editManagerId === 'none' ? null : editManagerId) !== editingUser.manager_id) {
+        payload.manager_id = editManagerId === 'none' ? null : editManagerId
+      }
+      if ((editLocationId === 'none' ? null : editLocationId) !== editingUser.location_id) {
+        payload.location_id = editLocationId === 'none' ? null : editLocationId
+      }
+      if (editFirstName !== (editingUser.first_name || '')) payload.first_name = editFirstName
+      if (editLastName !== (editingUser.last_name || '')) payload.last_name = editLastName
+      if (editJobTitle !== (editingUser.job_title || '')) payload.job_title = editJobTitle || null
+      const currentStatut = (editingUser as Profile & { statut?: string }).statut || 'succursale'
+      if (editStatut !== currentStatut) payload.statut = editStatut
+      if (editEmail !== (editingUser.email || '')) payload.email = editEmail
+
+      if (Object.keys(payload).length === 1) {
+        // Rien à mettre à jour
+        setEditingUser(null)
+        setFormError(null)
+        setLoading(false)
+        return
+      }
+
       const res = await fetch('/api/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: editingUser.id,
-          role: editRole,
-          manager_id: editManagerId === 'none' ? null : editManagerId,
-          location_id: editLocationId === 'none' ? null : editLocationId,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (res.ok) {
@@ -137,6 +169,29 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
       } else {
         const err = await res.json().catch(() => null)
         setFormError(formatApiError(err, res.status, 'modifier'))
+      }
+    } catch {
+      setFormError('Erreur reseau. Verifiez votre connexion.')
+    }
+    setLoading(false)
+  }
+
+  async function handleDeleteUser() {
+    if (!pendingDelete) return
+    setLoading(true)
+    setFormError(null)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: pendingDelete.id }),
+      })
+      if (res.ok) {
+        setPendingDelete(null)
+        router.refresh()
+      } else {
+        const err = await res.json().catch(() => null)
+        setFormError(err?.error || `Erreur ${res.status} : impossible de supprimer`)
       }
     } catch {
       setFormError('Erreur reseau. Verifiez votre connexion.')
@@ -283,10 +338,29 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
             <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
           </DialogHeader>
           {editingUser && (
-            <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="font-medium">{editingUser.first_name} {editingUser.last_name}</p>
-                <p className="text-sm text-muted-foreground">{editingUser.email}</p>
+            <form onSubmit={handleUpdateUser} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Prenom</Label>
+                  <Input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nom</Label>
+                  <Input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  Changer l&apos;email modifie aussi le compte auth ; l&apos;utilisateur
+                  devra se reconnecter avec le nouveau mail.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Emploi</Label>
+                <Input value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)}
+                  placeholder="ex: Audioprothésiste, Assistant..." />
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
@@ -298,8 +372,22 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                     <SelectItem value="super_admin">Administrateur</SelectItem>
                     <SelectItem value="skill_master">Skill Master</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="resp_audiologie">Responsable audiologie</SelectItem>
                     <SelectItem value="worker">Collaborateur</SelectItem>
                     <SelectItem value="formation_user">Utilisateur Formations</SelectItem>
+                    <SelectItem value="gerant_franchise">Gérant franchisé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Statut</Label>
+                <Select value={editStatut} onValueChange={setEditStatut}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="succursale">Succursale</SelectItem>
+                    <SelectItem value="franchise">Franchise</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -427,6 +515,15 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
                           <UserCheck className="h-4 w-4 text-green-500" />
                         )}
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setPendingDelete(user)}
+                        title="Supprimer"
+                        aria-label="Supprimer l'utilisateur"
+                      >
+                        <Trash2 className="h-4 w-4 text-rose-600" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -435,6 +532,48 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog de confirmation suppression */}
+      <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Supprimer definitivement ?</DialogTitle>
+          </DialogHeader>
+          {pendingDelete && (
+            <div className="space-y-4">
+              <p className="text-sm">
+                Voulez-vous vraiment supprimer{' '}
+                <strong>
+                  {pendingDelete.first_name} {pendingDelete.last_name}
+                </strong>{' '}
+                ({pendingDelete.email}) ?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Cette action est irreversible. Les inscriptions formation liees
+                a cet utilisateur vont conserver le snapshot nom/prenom mais
+                perdre le lien profile_id.
+              </p>
+              {formError && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">
+                  {formError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setPendingDelete(null)} disabled={loading}>
+                  Annuler
+                </Button>
+                <Button
+                  className="bg-rose-600 hover:bg-rose-700"
+                  onClick={handleDeleteUser}
+                  disabled={loading}
+                >
+                  {loading ? 'Suppression...' : 'Supprimer definitivement'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

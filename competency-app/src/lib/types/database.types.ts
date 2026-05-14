@@ -1,4 +1,6 @@
-export type UserRole = 'super_admin' | 'skill_master' | 'manager' | 'resp_audiologie' | 'worker' | 'formation_user'
+export type UserRole = 'super_admin' | 'skill_master' | 'manager' | 'resp_audiologie' | 'worker' | 'formation_user' | 'gerant_franchise'
+
+export type Statut = 'succursale' | 'franchise'
 
 export type QualifierType = 'single_choice' | 'multiple_choice'
 
@@ -15,6 +17,11 @@ export interface Profile {
   is_active: boolean
   manager_id: string | null
   location_id: string | null
+  /** 'succursale' = reseau Vivason succursale (acces plateforme complete) ;
+   *  'franchise' = centre franchise (typiquement acces formations uniquement).
+   *  Decouple du role pour pouvoir croiser job_title x statut dans les
+   *  listes formations. Cf. migration 00028. */
+  statut: Statut
   /** Version des CGU acceptees par l'utilisateur. Vide = jamais acceptees,
    *  prompt au prochain login (cf. src/lib/legal.ts pour la version courante). */
   legal_accepted_version: string | null

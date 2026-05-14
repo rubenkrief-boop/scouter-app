@@ -114,9 +114,30 @@ export async function PATCH(request: Request) {
       { status: 400 }
     )
   }
-  const { userId, role, manager_id, location_id, is_active } = parsed.data
+  const {
+    userId, role, manager_id, location_id, is_active,
+    first_name, last_name, job_title, statut, email,
+  } = parsed.data
 
   const adminClient = createAdminClient()
+
+  // Anti-lockout : un super_admin ne peut pas se rétrograder lui-même
+  // ni se désactiver. Garde-fou contre un clic accidentel ou un compte
+  // compromis qui tenterait de bloquer toute administration.
+  if (userId === user.id) {
+    if (role !== undefined && role !== 'super_admin') {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas vous rétrograder vous-même.' },
+        { status: 400 },
+      )
+    }
+    if (is_active === false) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas désactiver votre propre compte.' },
+        { status: 400 },
+      )
+    }
+  }
 
   // Build update object explicitly to avoid passing unexpected fields
   const updates: Record<string, unknown> = {}
@@ -124,15 +145,111 @@ export async function PATCH(request: Request) {
   if (manager_id !== undefined) updates.manager_id = manager_id
   if (location_id !== undefined) updates.location_id = location_id
   if (is_active !== undefined) updates.is_active = is_active
+  if (first_name !== undefined) updates.first_name = first_name
+  if (last_name !== undefined) updates.last_name = last_name
+  if (job_title !== undefined) updates.job_title = job_title
+  if (statut !== undefined) updates.statut = statut
 
-  const { error } = await adminClient
+  if (Object.keys(updates).length > 0) {
+    const { error } = await adminClient
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+
+    if (error) {
+      logger.error('api.users.update', error, { userId })
+      return NextResponse.json({ error: `Impossible de mettre à jour: ${error.message}` }, { status: 400 })
+    }
+  }
+
+  // Email change : ça touche auth.users en plus de profiles. On le fait
+  // après le reste pour ne pas bloquer un update simple si la sync
+  // auth.email échoue.
+  if (email !== undefined) {
+    const { error: authErr } = await adminClient.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    })
+    if (authErr) {
+      logger.error('api.users.update_email', authErr, { userId })
+      return NextResponse.json(
+        { error: `Email partiel : profil mis à jour mais auth refuse l'email (${authErr.message})` },
+        { status: 400 },
+      )
+    }
+    // Sync l'email dans profiles aussi (sans cascade auto en place).
+    const { error: profEmailErr } = await adminClient
+      .from('profiles')
+      .update({ email })
+      .eq('id', userId)
+    if (profEmailErr) {
+      logger.error('api.users.update_email_profile', profEmailErr, { userId })
+    }
+  }
+
+  return NextResponse.json({ success: true })
+}
+
+// DELETE - Suppression DEFINITIVE d'un user (admin only)
+// Effets :
+//   - auth.users supprime (cascade -> profiles via FK ON DELETE CASCADE)
+//   - formation_inscriptions.profile_id passe a NULL (ON DELETE SET NULL)
+//   - evaluations / worker_comments avec ce user comme audio/évaluateur :
+//     comportement determine par les FKs (a verifier au cas par cas).
+// Anti-lockout : le super_admin ne peut pas se supprimer lui-meme.
+export async function DELETE(request: Request) {
+  const ip = getClientIp(request)
+  const rl = checkRateLimit(`users-delete:${ip}`, { maxRequests: 10, windowSeconds: 60 })
+  if (!rl.allowed) return rateLimitResponse(rl.resetAt)
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { data: profile } = await supabase
     .from('profiles')
-    .update(updates)
-    .eq('id', userId)
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'super_admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  let body: { userId?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 })
+  }
+
+  if (!body.userId || typeof body.userId !== 'string') {
+    return NextResponse.json({ error: 'userId requis' }, { status: 400 })
+  }
+
+  if (body.userId === user.id) {
+    return NextResponse.json(
+      { error: 'Vous ne pouvez pas supprimer votre propre compte.' },
+      { status: 400 },
+    )
+  }
+
+  const adminClient = createAdminClient()
+
+  // Supprimer via l'admin auth API. ON DELETE CASCADE sur profiles fera
+  // la cascade. Les FKs des autres tables (formation_inscriptions,
+  // evaluations, etc.) ont leurs propres regles ON DELETE.
+  const { error } = await adminClient.auth.admin.deleteUser(body.userId)
 
   if (error) {
-    logger.error('api.users.update', error, { userId })
-    return NextResponse.json({ error: `Impossible de mettre à jour: ${error.message}` }, { status: 400 })
+    logger.error('api.users.delete', error, { userId: body.userId })
+    return NextResponse.json(
+      { error: `Impossible de supprimer: ${error.message}` },
+      { status: 400 },
+    )
   }
 
   return NextResponse.json({ success: true })

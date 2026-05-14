@@ -22,7 +22,10 @@ export const UserRoleEnum = z.enum([
   'resp_audiologie',
   'worker',
   'formation_user',
+  'gerant_franchise',
 ])
+
+export const StatutEnum = z.enum(['succursale', 'franchise'])
 
 // Accept uuid or empty/null to allow "unset" semantics in PATCH
 const NullableUuid = z
@@ -55,13 +58,23 @@ export const UpdateUserSchema = z
     manager_id: NullableUuid,
     location_id: NullableUuid,
     is_active: z.boolean().optional(),
+    first_name: z.string().min(1).max(100).optional(),
+    last_name: z.string().min(1).max(100).optional(),
+    job_title: z.string().max(100).optional().nullable(),
+    statut: StatutEnum.optional(),
+    email: z.string().email({ message: 'email invalide' }).max(254).optional(),
   })
   .refine(
     (d) =>
       d.role !== undefined ||
       d.manager_id !== undefined ||
       d.location_id !== undefined ||
-      d.is_active !== undefined,
+      d.is_active !== undefined ||
+      d.first_name !== undefined ||
+      d.last_name !== undefined ||
+      d.job_title !== undefined ||
+      d.statut !== undefined ||
+      d.email !== undefined,
     { message: 'aucun champ à mettre à jour' }
   )
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>

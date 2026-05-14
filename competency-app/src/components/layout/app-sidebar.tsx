@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     href: '/dashboard',
     icon: <Home className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user', 'gerant_franchise'],
   },
   // Administration
   {
@@ -111,7 +111,7 @@ const navItems: NavItem[] = [
     label: 'Formations',
     href: '/formations',
     icon: <GraduationCap className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'formation_user'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'formation_user', 'gerant_franchise'],
     section: 'Opérationnel',
   },
   {

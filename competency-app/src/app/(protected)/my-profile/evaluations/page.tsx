@@ -8,8 +8,10 @@ export default async function MyEvaluationsPage() {
   const { user, profile } = await getAuthProfile()
   if (!user || !profile) redirect('/auth/login')
 
-  // formation_user has no evaluations — redirect to formations
-  if (profile.role === 'formation_user') redirect('/formations')
+  // formation_user et gerant_franchise n'ont pas d'evaluations — redirect
+  if (profile.role === 'formation_user' || profile.role === 'gerant_franchise') {
+    redirect('/formations')
+  }
 
   const supabase = await createClient()
 

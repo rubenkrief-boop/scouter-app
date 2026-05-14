@@ -34,7 +34,7 @@ export default async function MyProfilePage() {
   // ============================================
   // FORMATION_USER: simplified profile (no evaluations)
   // ============================================
-  if (profile.role === 'formation_user') {
+  if (profile.role === 'formation_user' || profile.role === 'gerant_franchise') {
     return (
       <div>
         <Header
