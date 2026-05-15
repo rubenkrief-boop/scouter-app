@@ -373,7 +373,9 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
                     <SelectItem value="super_admin">Administrateur</SelectItem>
                     <SelectItem value="skill_master">Skill Master</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="resp_audiologie">Responsable audiologie</SelectItem>
                     <SelectItem value="worker">Collaborateur</SelectItem>
+                    <SelectItem value="gerant_franchise">Gérant franchisé</SelectItem>
                     <SelectItem value="formation_user">Utilisateur Formations</SelectItem>
                   </SelectContent>
                 </Select>
