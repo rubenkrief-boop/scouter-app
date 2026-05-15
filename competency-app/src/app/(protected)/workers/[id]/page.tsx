@@ -37,7 +37,7 @@ export default async function WorkerProfilePage({
     .from('profiles')
     .select(`
       id, first_name, last_name, email, job_title, role, created_at, avatar_url,
-      location:locations(name),
+      location:locations!location_id(name),
       manager:profiles!manager_id(first_name, last_name)
     `)
     .eq('id', id)

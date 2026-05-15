@@ -63,7 +63,7 @@ export async function getGlobalStatistics(): Promise<{
       status,
       audioprothesiste:profiles!audioprothesiste_id(
         id, first_name, last_name, email,
-        location:locations(name)
+        location:locations!location_id(name)
       ),
       job_profile:job_profiles!job_profile_id(name)
     `)
@@ -271,7 +271,7 @@ export async function getProgressionData(): Promise<ProgressionData> {
       job_profile_id,
       audioprothesiste:profiles!audioprothesiste_id(
         id, first_name, last_name,
-        location:locations(name)
+        location:locations!location_id(name)
       )
     `)
     .eq('is_continuous', true)
@@ -465,7 +465,7 @@ export async function getGapAnalysis(): Promise<GapAnalysisResult> {
       job_profile_id,
       audioprothesiste:profiles!audioprothesiste_id(
         id, first_name, last_name,
-        location:locations(name)
+        location:locations!location_id(name)
       )
     `)
     .eq('is_continuous', true)

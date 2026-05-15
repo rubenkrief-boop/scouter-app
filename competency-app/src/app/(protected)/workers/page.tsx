@@ -40,7 +40,7 @@ export default async function WorkersListPage({
     .from('profiles')
     .select(`
       id, first_name, last_name, email, job_title, role, avatar_url,
-      location:locations(name),
+      location:locations!location_id(name),
       location_id
     `)
     .eq('role', 'worker')

@@ -26,7 +26,7 @@ export async function getColleagues(): Promise<ColleagueSummary[]> {
     .from('profiles')
     .select(`
       id, first_name, last_name, email, avatar_url,
-      location:locations(name)
+      location:locations!location_id(name)
     `)
     .eq('role', 'worker')
     .eq('is_active', true)
@@ -116,7 +116,7 @@ export async function getColleagueProfile(colleagueId: string): Promise<{
     .from('profiles')
     .select(`
       id, first_name, last_name, email, avatar_url,
-      location:locations(name)
+      location:locations!location_id(name)
     `)
     .eq('id', colleagueId)
     .eq('role', 'worker')
