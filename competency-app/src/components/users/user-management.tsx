@@ -39,6 +39,8 @@ function formatApiError(
   return err?.error || `Erreur ${status} : impossible de ${verb} l'utilisateur`
 }
 
+const FILTER_ALL = '__all__'
+
 export function UserManagement({ users, locations, managers }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -46,6 +48,13 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Filtres rapides
+  const [filterRole, setFilterRole] = useState<string>(FILTER_ALL)
+  const [filterStatut, setFilterStatut] = useState<string>(FILTER_ALL)
+  const [filterJob, setFilterJob] = useState<string>(FILTER_ALL)
+  const [filterLocation, setFilterLocation] = useState<string>(FILTER_ALL)
+  const [filterActive, setFilterActive] = useState<string>(FILTER_ALL)
 
   // Controlled state for create form
   const [createRole, setCreateRole] = useState<string>('worker')
@@ -63,14 +72,69 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [editEmail, setEditEmail] = useState<string>('')
   const [pendingDelete, setPendingDelete] = useState<Profile | null>(null)
 
+  // Liste des emplois distincts pour le dropdown (case-insensitive, trim)
+  const distinctJobs = Array.from(
+    new Set(
+      users
+        .map((u) => (u.job_title ?? '').trim())
+        .filter((v) => v.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'fr'))
+
   const filteredUsers = users.filter((user) => {
-    if (!search.trim()) return true
-    const q = search.toLowerCase()
-    const fullName = `${user.first_name} ${user.last_name}`.toLowerCase()
-    const email = (user.email ?? '').toLowerCase()
-    const jobTitle = (user.job_title ?? '').toLowerCase()
-    return fullName.includes(q) || email.includes(q) || jobTitle.includes(q)
+    // Search texte libre
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      const fullName = `${user.first_name} ${user.last_name}`.toLowerCase()
+      const email = (user.email ?? '').toLowerCase()
+      const jobTitle = (user.job_title ?? '').toLowerCase()
+      if (!fullName.includes(q) && !email.includes(q) && !jobTitle.includes(q)) {
+        return false
+      }
+    }
+    // Filtres dropdown
+    if (filterRole !== FILTER_ALL && user.role !== filterRole) return false
+    if (filterStatut !== FILTER_ALL) {
+      const userStatut = (user as Profile & { statut?: string }).statut || 'succursale'
+      if (userStatut !== filterStatut) return false
+    }
+    if (filterJob !== FILTER_ALL) {
+      if (filterJob === '__none__') {
+        if ((user.job_title ?? '').trim().length > 0) return false
+      } else if ((user.job_title ?? '').trim() !== filterJob) {
+        return false
+      }
+    }
+    if (filterLocation !== FILTER_ALL) {
+      if (filterLocation === '__none__') {
+        if (user.location_id !== null) return false
+      } else if (user.location_id !== filterLocation) {
+        return false
+      }
+    }
+    if (filterActive !== FILTER_ALL) {
+      const wantActive = filterActive === 'active'
+      if (user.is_active !== wantActive) return false
+    }
+    return true
   })
+
+  function resetFilters() {
+    setSearch('')
+    setFilterRole(FILTER_ALL)
+    setFilterStatut(FILTER_ALL)
+    setFilterJob(FILTER_ALL)
+    setFilterLocation(FILTER_ALL)
+    setFilterActive(FILTER_ALL)
+  }
+
+  const hasActiveFilter =
+    search.trim() !== '' ||
+    filterRole !== FILTER_ALL ||
+    filterStatut !== FILTER_ALL ||
+    filterJob !== FILTER_ALL ||
+    filterLocation !== FILTER_ALL ||
+    filterActive !== FILTER_ALL
 
   async function handleCreateUser(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -222,6 +286,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
 
   return (
     <div className="space-y-4">
+      {/* Ligne recherche + compteur + actions */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -232,7 +297,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
             className="pl-9"
           />
         </div>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
           {filteredUsers.length} / {users.length} utilisateur{users.length > 1 ? 's' : ''}
         </span>
         <div className="flex gap-2 ml-auto">
@@ -329,6 +394,79 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
           </DialogContent>
         </Dialog>
         </div>
+      </div>
+
+      {/* Ligne filtres rapides */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={filterRole} onValueChange={setFilterRole}>
+          <SelectTrigger className="h-9 w-[180px]">
+            <SelectValue placeholder="Tous les rôles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={FILTER_ALL}>Tous les rôles</SelectItem>
+            <SelectItem value="super_admin">Administrateur</SelectItem>
+            <SelectItem value="skill_master">Skill Master</SelectItem>
+            <SelectItem value="manager">Manager</SelectItem>
+            <SelectItem value="resp_audiologie">Resp. Audiologie</SelectItem>
+            <SelectItem value="worker">Collaborateur</SelectItem>
+            <SelectItem value="formation_user">Utilisateur Formations</SelectItem>
+            <SelectItem value="gerant_franchise">Gérant franchisé</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterStatut} onValueChange={setFilterStatut}>
+          <SelectTrigger className="h-9 w-[150px]">
+            <SelectValue placeholder="Tous statuts" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={FILTER_ALL}>Tous statuts</SelectItem>
+            <SelectItem value="succursale">Succursale</SelectItem>
+            <SelectItem value="franchise">Franchise</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterJob} onValueChange={setFilterJob}>
+          <SelectTrigger className="h-9 w-[180px]">
+            <SelectValue placeholder="Tous emplois" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={FILTER_ALL}>Tous emplois</SelectItem>
+            {distinctJobs.map((job) => (
+              <SelectItem key={job} value={job}>{job}</SelectItem>
+            ))}
+            <SelectItem value="__none__">(emploi vide)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterLocation} onValueChange={setFilterLocation}>
+          <SelectTrigger className="h-9 w-[200px]">
+            <SelectValue placeholder="Tous lieux" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={FILTER_ALL}>Tous lieux</SelectItem>
+            {locations.filter((l) => l.is_active).map((loc) => (
+              <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+            ))}
+            <SelectItem value="__none__">(sans lieu)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterActive} onValueChange={setFilterActive}>
+          <SelectTrigger className="h-9 w-[140px]">
+            <SelectValue placeholder="Actif et inactif" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={FILTER_ALL}>Actif + Inactif</SelectItem>
+            <SelectItem value="active">Actif uniquement</SelectItem>
+            <SelectItem value="inactive">Inactif uniquement</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasActiveFilter && (
+          <Button variant="ghost" size="sm" onClick={resetFilters}>
+            Réinitialiser
+          </Button>
+        )}
       </div>
 
       {/* Edit Dialog */}
