@@ -25,6 +25,10 @@ interface UserManagementProps {
   locations: Location[]
   managers: Profile[]
   jobProfiles: JobProfileLite[]
+  /** location_id -> liste des gerants affectes a ce centre via
+   *  centre_managers (N-a-N). Permet d'afficher TOUS les co-gerants
+   *  d'un centre dans la colonne Manager du tableau. */
+  managersByLocation: Record<string, Array<{ id: string; name: string }>>
 }
 
 // Etend un payload d'erreur API en un message lisible utilisateur :
@@ -47,7 +51,7 @@ function formatApiError(
 
 const FILTER_ALL = '__all__'
 
-export function UserManagement({ users, locations, managers, jobProfiles }: UserManagementProps) {
+export function UserManagement({ users, locations, managers, jobProfiles, managersByLocation }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
@@ -287,6 +291,19 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
     if (!managerId) return null
     const manager = managers.find(m => m.id === managerId)
     return manager ? `${manager.first_name} ${manager.last_name}` : null
+  }
+
+  /** Pour la colonne Manager du tableau : on prefere afficher TOUS les
+   *  gerants du centre (via centre_managers N-a-N), ce qui couvre les
+   *  co-gerants. Fallback sur manager_id si le centre n'a aucun gerant
+   *  affecte (ou si le user n'a pas de location). */
+  function getCentreManagersForUser(user: Profile): string[] {
+    if (user.location_id) {
+      const mgrs = managersByLocation[user.location_id]
+      if (mgrs && mgrs.length > 0) return mgrs.map(m => m.name)
+    }
+    const fallback = getManagerName(user.manager_id)
+    return fallback ? [fallback] : []
   }
 
   function getLocationName(locationId: string | null) {
@@ -641,14 +658,22 @@ export function UserManagement({ users, locations, managers, jobProfiles }: User
                     {user.job_title || <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>
-                    {getManagerName(user.manager_id) ? (
-                      <div className="flex items-center gap-1 text-sm">
-                        <UserCog className="h-3 w-3 text-muted-foreground" />
-                        {getManagerName(user.manager_id)}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
+                    {(() => {
+                      const mgrNames = getCentreManagersForUser(user)
+                      if (mgrNames.length === 0) {
+                        return <span className="text-muted-foreground text-sm">-</span>
+                      }
+                      return (
+                        <div className="flex flex-col gap-0.5 text-sm">
+                          {mgrNames.map((name, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                              <UserCog className="h-3 w-3 text-muted-foreground" />
+                              {name}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     {getLocationName(user.location_id) ? (

@@ -37,6 +37,26 @@ export default async function UsersPage() {
     .eq('is_active', true)
     .order('name', { ascending: true })
 
+  // Fetch toutes les affectations centre <-> gerant (N-a-N). On en derive
+  // un mapping location_id -> list de gerants pour afficher TOUS les
+  // gerants d'un centre dans la colonne Manager (un centre peut avoir
+  // plusieurs co-gerants depuis migration 00031).
+  const { data: centreManagersRows } = await supabase
+    .from('centre_managers')
+    .select('location_id, manager:profiles!manager_id(id, first_name, last_name)')
+
+  const managersByLocation: Record<string, Array<{ id: string; name: string }>> = {}
+  type CMRow = { location_id: string; manager: { id: string; first_name: string; last_name: string } | { id: string; first_name: string; last_name: string }[] | null }
+  for (const row of (centreManagersRows ?? []) as CMRow[]) {
+    const mgr = Array.isArray(row.manager) ? row.manager[0] : row.manager
+    if (!mgr) continue
+    if (!managersByLocation[row.location_id]) managersByLocation[row.location_id] = []
+    managersByLocation[row.location_id].push({
+      id: mgr.id,
+      name: `${mgr.first_name} ${mgr.last_name}`,
+    })
+  }
+
   return (
     <div>
       <Header
@@ -49,6 +69,7 @@ export default async function UsersPage() {
           locations={locations ?? []}
           managers={managers ?? []}
           jobProfiles={jobProfiles ?? []}
+          managersByLocation={managersByLocation}
         />
       </div>
     </div>
