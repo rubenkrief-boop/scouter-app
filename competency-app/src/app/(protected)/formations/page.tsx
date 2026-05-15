@@ -103,13 +103,20 @@ export default async function FormationsPage() {
   }
 
   // Admin/Manager: dashboard complet
-  const [sessions, ateliers, inscriptions, stats, progAtelierMappings] = await Promise.all([
+  const [sessions, ateliers, inscriptions, stats, progAtelierMappings, programmeSettings, franchiseTeam] = await Promise.all([
     getFormationSessions(),
     getFormationAteliers(),
     getFormationInscriptions(),
     getFormationStats(),
     getAllProgrammeAtelierMappings(),
+    getFormationProgrammeSettings(),
+    // Un manager (Sacha, Pierre-Ugo) peut aussi avoir des centres franchise
+    // affectes via centre_managers -> il voit le bloc "Mon equipe franchise".
+    getMyFranchiseTeam(),
   ])
+
+  const openSessions = sessions.filter(s => s.is_active && s.registration_open)
+  const openSessionIds = new Set(openSessions.map(s => s.id))
 
   return (
     <>
@@ -117,7 +124,18 @@ export default async function FormationsPage() {
         title="Formations Plénières"
         description="Suivi des sessions de formation, ateliers et participants"
       />
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Bloc "Mon equipe franchise" si l'admin/manager gere au moins un
+            centre franchise via centre_managers (ex: Sacha gere 3 franchises
+            en plus de ses succursales). */}
+        {franchiseTeam.length > 0 && openSessions.length > 0 && (
+          <FranchiseTeamEnroll
+            team={franchiseTeam}
+            sessions={openSessions}
+            programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+          />
+        )}
+
         <FormationsDashboard
           sessions={sessions}
           ateliers={ateliers}

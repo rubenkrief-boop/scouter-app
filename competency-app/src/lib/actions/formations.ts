@@ -1006,7 +1006,10 @@ export async function getMyFranchiseTeam(): Promise<FranchiseTeamMember[]> {
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'gerant_franchise') return []
+  // gerant_franchise OU manager (un manager succursale peut aussi avoir
+  // des centres franchise affectes via centre_managers, ex: Sacha Binabout
+  // qui gere 10 succursales + 3 franchises Compiegne/Coulommiers/Creteil).
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin'].includes(profile.role)) return []
 
   // Recup les centres dont l'utilisateur est gerant (table N-a-N).
   const { data: managed } = await supabase
@@ -1080,8 +1083,8 @@ export async function enrollMyFranchiseTeam(params: {
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'gerant_franchise') {
-    return { success: false, error: 'Réservé aux gérants franchisés', results: [] }
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin'].includes(profile.role)) {
+    return { success: false, error: 'Réservé aux gérants et managers', results: [] }
   }
 
   if (!params.profile_ids || params.profile_ids.length === 0) {
