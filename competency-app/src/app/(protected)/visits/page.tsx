@@ -18,7 +18,14 @@ export default async function VisitsPage() {
 
   const [visits, { data: allLocations }, myLocationIds] = await Promise.all([
     getVisits(),
-    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
+    // Les centres franchise (prefixe F-) ne participent pas aux visites
+    // de supervision Vivason : on les exclut cote planification.
+    supabase
+      .from('locations')
+      .select('id, name')
+      .eq('is_active', true)
+      .not('name', 'ilike', 'F-%')
+      .order('name'),
     getPlannerLocations(user.id),
   ])
 

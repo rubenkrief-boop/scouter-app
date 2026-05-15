@@ -346,12 +346,14 @@ export async function getOverdueCenters(): Promise<OverdueCenter[]> {
 
   const supabase = await createClient()
 
-  // Get all active locations with zones
+  // Get all active locations with zones. Les centres franchise (prefixe
+  // F-) sont exclus : ils ne sont pas visites par les superviseurs Vivason.
   const { data: locations } = await supabase
     .from('locations')
     .select('id, name, zone_id, zone:geographic_zones!zone_id(id, name, color, freq_days_admin, freq_days_manager, freq_days_resp, target_visits_admin, target_visits_manager, target_visits_resp)')
     .eq('is_active', true)
     .not('zone_id', 'is', null)
+    .not('name', 'ilike', 'F-%')
 
   if (!locations || locations.length === 0) return []
 

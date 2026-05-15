@@ -18,10 +18,14 @@ export default async function SettingsPage() {
       .in('role', ['super_admin', 'resp_audiologie'])
       .eq('is_active', true)
       .order('last_name'),
+    // Centres franchise (prefixe F-) exclus : pas de visites de
+    // supervision Vivason sur les franchises, donc pas d'attribution
+    // planner non plus.
     supabase
       .from('locations')
       .select('id, name')
       .eq('is_active', true)
+      .not('name', 'ilike', 'F-%')
       .order('name'),
   ])
 
