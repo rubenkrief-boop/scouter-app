@@ -4,10 +4,12 @@ import {
   getFormationSessions, getFormationAteliers, getFormationInscriptions,
   getFormationStats, getAllProgrammeAtelierMappings, getWorkerFormations,
   getFormationProgrammeSettings, getFormationProgrammeFiles,
+  getMyFranchiseTeam,
 } from '@/lib/actions/formations'
 import { FormationsDashboard } from '@/components/formations/formations-dashboard'
 import { WorkerFormationsView } from '@/components/formations/worker-formations-view'
 import { FormationSelfRegister } from '@/components/formations/formation-self-register'
+import { FranchiseTeamEnroll } from '@/components/formations/franchise-team-enroll'
 import { redirect } from 'next/navigation'
 
 export default async function FormationsPage() {
@@ -31,18 +33,42 @@ export default async function FormationsPage() {
     const openSessions = sessions.filter(s => s.is_active && s.registration_open)
     const openSessionIds = new Set(openSessions.map(s => s.id))
 
-    // Determine user statut from role
-    const userStatut = profile.role === 'formation_user' ? 'Franchise' as const : 'Succursale' as const
+    // Determine user statut depuis la colonne `statut` (decouplee du role
+    // depuis migration 00028). Fallback role-base si la colonne manque.
+    const profileStatut = (profile as typeof profile & { statut?: string }).statut
+    const userStatut =
+      profileStatut === 'franchise' ? 'Franchise' as const
+      : profileStatut === 'succursale' ? 'Succursale' as const
+      : profile.role === 'formation_user' ? 'Franchise' as const : 'Succursale' as const
+
+    // Le gerant_franchise voit aussi le bloc "Inscrire mon equipe".
+    const isGerant = profile.role === 'gerant_franchise'
+    const franchiseTeam = isGerant ? await getMyFranchiseTeam() : []
+
+    // Un salarie franchise (formation_user + statut=franchise) ne peut pas
+    // s'auto-inscrire ; on cache donc le composant self-register pour lui.
+    const canSelfRegister =
+      profile.role !== 'formation_user' || userStatut !== 'Franchise'
 
     return (
       <>
         <Header
           title="Mes Formations"
-          description="Vos sessions de formation plénière"
+          description={isGerant ? 'Gérez les inscriptions de votre équipe' : 'Vos sessions de formation plénière'}
         />
         <div className="p-6 space-y-6">
-          {/* Self-registration section (only if open sessions exist) */}
-          {openSessions.length > 0 && (
+          {/* Bloc gerant_franchise : inscription de son equipe */}
+          {isGerant && (
+            <FranchiseTeamEnroll
+              team={franchiseTeam}
+              sessions={openSessions}
+              programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            />
+          )}
+
+          {/* Self-registration section (only if open sessions exist AND user is
+              allowed to self-register — les salaries franchise sont exclus) */}
+          {openSessions.length > 0 && canSelfRegister && (
             <FormationSelfRegister
               sessions={openSessions}
               programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
@@ -50,6 +76,20 @@ export default async function FormationsPage() {
               myInscriptions={myInscriptions}
               userStatut={userStatut}
             />
+          )}
+
+          {/* Pour les salaries franchise sans auto-inscription : info que
+              le gerant doit prendre le relais. */}
+          {openSessions.length > 0 && !canSelfRegister && !isGerant && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800 p-4 text-sm">
+              <p className="font-medium text-amber-900 dark:text-amber-200">Inscription gérée par votre gérant</p>
+              <p className="mt-1 text-amber-800 dark:text-amber-300">
+                En tant que salarié(e) d&apos;un centre franchisé, l&apos;inscription
+                aux formations est effectuée par votre gérant franchisé. Vous
+                retrouverez ci-dessous l&apos;historique de vos inscriptions une
+                fois qu&apos;elles auront été créées.
+              </p>
+            </div>
           )}
 
           <WorkerFormationsView

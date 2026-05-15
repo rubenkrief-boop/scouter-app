@@ -18,11 +18,13 @@ export default async function UsersPage() {
     .eq('is_active', true)
     .order('name', { ascending: true })
 
-  // Fetch managers (users with manager or super_admin role)
+  // Fetch managers (users avec un role qui peut être manager d'autres profils).
+  // Inclut 'gerant_franchise' depuis 00029 — un gérant franchise gère ses
+  // salariés via manager_id, pareil qu'un manager succursale gère ses workers.
   const { data: managers } = await supabase
     .from('profiles')
     .select('*')
-    .in('role', ['manager', 'super_admin'])
+    .in('role', ['manager', 'super_admin', 'gerant_franchise'])
     .eq('is_active', true)
     .order('first_name', { ascending: true })
 

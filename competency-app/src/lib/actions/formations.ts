@@ -798,20 +798,34 @@ export async function selfRegisterFormation(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié' }
 
-  // Fetch profile with location
+  // Fetch profile with location et statut
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, first_name, last_name, role, location_id')
+    .select('id, first_name, last_name, role, location_id, statut')
     .eq('id', user.id)
     .single()
 
   if (!profile) return { error: 'Profil introuvable' }
-  if (!['worker', 'formation_user'].includes(profile.role)) {
+  // Auto-inscription autorisee pour worker (Succ), formation_user (Succ)
+  // et gerant_franchise (le gerant peut s'inscrire LUI-MEME en plus
+  // d'inscrire son equipe via enrollMyFranchiseTeam).
+  if (!['worker', 'formation_user', 'gerant_franchise'].includes(profile.role)) {
     return { error: 'Rôle non autorisé pour l\'inscription' }
   }
 
-  // Determine statut from role
-  const statut = profile.role === 'formation_user' ? 'Franchise' : 'Succursale'
+  // Un salarié franchise (formation_user + statut=franchise) ne peut PAS
+  // s'auto-inscrire ; c'est son gérant_franchise qui s'en charge via
+  // enrollMyFranchiseTeam(). Cf decision produit 2026-05-15.
+  const profileStatut = (profile as { statut?: string }).statut || 'succursale'
+  if (profile.role === 'formation_user' && profileStatut === 'franchise') {
+    return {
+      error: "L'inscription est gérée par votre gérant franchisé. Contactez-le pour vous inscrire à cette formation.",
+    }
+  }
+
+  // Determine statut from the new column (fallback au calcul historique
+  // role-base pour les cas où la colonne aurait été oubliée).
+  const statut = profileStatut === 'franchise' ? 'Franchise' : 'Succursale'
 
   // Check session is active and registration is open
   const { data: session } = await supabase
@@ -954,4 +968,225 @@ export async function selfUnregisterFormation(inscriptionId: string) {
   if (error) return { error: error.message }
   revalidatePath('/formations')
   return { success: true }
+}
+
+// ============================================
+// Gérant franchisé — gestion de son équipe
+// ============================================
+
+export interface FranchiseTeamMember {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  job_title: string | null
+  location_id: string | null
+  location_name: string | null
+  is_active: boolean
+}
+
+/**
+ * Liste les salariés franchise dont le user courant est le gérant
+ * (via profiles.manager_id). N'expose que les profils statut=franchise
+ * pour éviter qu'un gérant_franchise déraillé voie des workers succursale.
+ */
+export async function getMyFranchiseTeam(): Promise<FranchiseTeamMember[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'gerant_franchise') return []
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id, first_name, last_name, email, job_title, location_id, is_active,
+      location:locations!location_id(name)
+    `)
+    .eq('manager_id', user.id)
+    .eq('statut', 'franchise')
+    .order('last_name', { ascending: true })
+
+  if (error) {
+    logger.error('formations.getMyFranchiseTeam', error)
+    return []
+  }
+
+  return (data ?? []).map((row) => {
+    const r = row as typeof row & { location?: { name: string } | { name: string }[] | null }
+    const locField = r.location
+    const locName =
+      Array.isArray(locField) ? (locField[0]?.name ?? null)
+      : locField && typeof locField === 'object' ? (locField as { name: string }).name
+      : null
+    return {
+      id: r.id,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      email: r.email,
+      job_title: r.job_title,
+      location_id: r.location_id,
+      location_name: locName,
+      is_active: r.is_active,
+    }
+  })
+}
+
+/**
+ * Inscrit en lot les salariés sélectionnés à une session de formation.
+ * Réservé au rôle gerant_franchise. Vérifie pour chaque profile_id :
+ *   - manager_id = auth.uid() (le gérant ne peut inscrire QUE sa propre équipe)
+ *   - statut = 'franchise'
+ *   - capacité maxFranchise du programme pas dépassée (après insertion partielle)
+ * Renvoie un détail par profil pour qu'on puisse afficher partiellement réussi.
+ */
+export async function enrollMyFranchiseTeam(params: {
+  session_id: string
+  type: FormationType
+  programme: string
+  profile_ids: string[]
+  dpc?: boolean
+}): Promise<{
+  success: boolean
+  error?: string
+  results: Array<{ profile_id: string; ok: boolean; error?: string }>
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Non authentifié', results: [] }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || profile.role !== 'gerant_franchise') {
+    return { success: false, error: 'Réservé aux gérants franchisés', results: [] }
+  }
+
+  if (!params.profile_ids || params.profile_ids.length === 0) {
+    return { success: false, error: 'Aucun salarié sélectionné', results: [] }
+  }
+
+  // Vérifs session
+  const { data: session } = await supabase
+    .from('formation_sessions')
+    .select('id, is_active, registration_open')
+    .eq('id', params.session_id)
+    .single()
+  if (!session) return { success: false, error: 'Session introuvable', results: [] }
+  if (!session.is_active) return { success: false, error: "Session inactive", results: [] }
+  if (!session.registration_open) return { success: false, error: 'Inscriptions fermées', results: [] }
+
+  // Récup les profils ciblés (admin pour bypass RLS sur les autres profils)
+  const adminClient = createAdminClient()
+  const { data: targets } = await adminClient
+    .from('profiles')
+    .select('id, first_name, last_name, manager_id, statut, location_id')
+    .in('id', params.profile_ids)
+
+  // Récup le centre du gérant (pour passer le nom centre dans l'inscription).
+  // On prend le centre du SALARIE en priorite, sinon celui du gérant.
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('location_id')
+    .eq('id', user.id)
+    .single()
+  let myLocationName: string | null = null
+  if (myProfile?.location_id) {
+    const { data: loc } = await supabase
+      .from('locations')
+      .select('name')
+      .eq('id', myProfile.location_id)
+      .single()
+    myLocationName = loc?.name ?? null
+  }
+
+  // Récup capa max franchise
+  const { data: setting } = await supabase
+    .from('formation_programme_settings')
+    .select('max_franchise')
+    .eq('session_id', params.session_id)
+    .eq('type', params.type)
+    .eq('programme', params.programme)
+    .single()
+  const maxFranchise = setting?.max_franchise ?? 0
+
+  // Count actuel franchise
+  const { count: currentCount } = await adminClient
+    .from('formation_inscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', params.session_id)
+    .eq('type', params.type)
+    .eq('programme', params.programme)
+    .eq('statut', 'Franchise')
+
+  const results: Array<{ profile_id: string; ok: boolean; error?: string }> = []
+  let inserted = 0
+
+  for (const pid of params.profile_ids) {
+    const t = (targets ?? []).find((p) => p.id === pid)
+    if (!t) {
+      results.push({ profile_id: pid, ok: false, error: 'Profil introuvable' })
+      continue
+    }
+    if (t.manager_id !== user.id) {
+      results.push({ profile_id: pid, ok: false, error: 'Ce salarié ne fait pas partie de votre équipe' })
+      continue
+    }
+    if ((t as { statut?: string }).statut !== 'franchise') {
+      results.push({ profile_id: pid, ok: false, error: 'Statut non franchise' })
+      continue
+    }
+    // Capacité
+    if (maxFranchise > 0 && (currentCount ?? 0) + inserted >= maxFranchise) {
+      results.push({ profile_id: pid, ok: false, error: 'Programme complet pour les franchisés' })
+      continue
+    }
+
+    // Récup centre du salarié si different du gerant
+    let centre = myLocationName
+    if (t.location_id) {
+      const { data: tLoc } = await adminClient
+        .from('locations')
+        .select('name')
+        .eq('id', t.location_id)
+        .single()
+      if (tLoc?.name) centre = tLoc.name
+    }
+
+    const { error: insErr } = await adminClient
+      .from('formation_inscriptions')
+      .insert({
+        session_id: params.session_id,
+        profile_id: pid,
+        nom: t.last_name,
+        prenom: t.first_name,
+        type: params.type,
+        statut: 'Franchise',
+        programme: params.programme,
+        centre,
+        dpc: params.dpc ?? false,
+      })
+
+    if (insErr) {
+      const msg = insErr.code === '23505'
+        ? 'Déjà inscrit à cette session pour ce type'
+        : insErr.message
+      results.push({ profile_id: pid, ok: false, error: msg })
+    } else {
+      results.push({ profile_id: pid, ok: true })
+      inserted++
+    }
+  }
+
+  revalidatePath('/formations')
+  return { success: inserted > 0, results }
 }
