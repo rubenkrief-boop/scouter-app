@@ -53,6 +53,8 @@ EMAIL_OVERRIDES: dict[str, str] = {
     "jessica doutreligne": "jessica.planque@vivason.fr",
     # L'Excel ecrit "Zagroun" mais le bon orthographe est "Zaghroun"
     "samuel zagroun": "samuel.zaghroun@vivason.fr",
+    # L'Excel ecrit "Jaskarzek" mais le bon orthographe est "Jaskarzec"
+    "steven jaskarzek": "steven.jaskarzec@vivason.fr",
 }
 
 # Corrections cosmétiques du nom de centre (orthographe Excel → propre en DB).
