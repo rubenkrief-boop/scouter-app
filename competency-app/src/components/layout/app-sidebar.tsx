@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  Home, Users, BookOpen, Layers, ClipboardCheck,
+  Home, Users, Layers, ClipboardCheck,
   User, LogOut, Sliders, Briefcase, MapPin, Settings, PieChart, GraduationCap, Calendar, Menu, Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -111,7 +111,7 @@ const navItems: NavItem[] = [
     label: 'Formations',
     href: '/formations',
     icon: <GraduationCap className="h-5 w-5" />,
-    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'formation_user', 'gerant_franchise'],
+    roles: ['super_admin', 'skill_master', 'manager', 'resp_audiologie', 'worker', 'formation_user', 'gerant_franchise'],
     section: 'Opérationnel',
   },
   {
@@ -133,13 +133,6 @@ const navItems: NavItem[] = [
     label: 'Mes évaluations',
     href: '/my-profile/evaluations',
     icon: <ClipboardCheck className="h-5 w-5" />,
-    roles: ['worker', 'resp_audiologie'],
-    section: 'Mon espace',
-  },
-  {
-    label: 'Mes formations',
-    href: '/my-profile/formations',
-    icon: <BookOpen className="h-5 w-5" />,
     roles: ['worker', 'resp_audiologie'],
     section: 'Mon espace',
   },
