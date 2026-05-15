@@ -57,6 +57,13 @@ const navItems: NavItem[] = [
     section: 'Administration',
   },
   {
+    label: 'Affectations centres',
+    href: '/admin/centre-managers',
+    icon: <Briefcase className="h-5 w-5" />,
+    roles: ['super_admin'],
+    section: 'Administration',
+  },
+  {
     label: 'Statistiques',
     href: '/statistics',
     icon: <PieChart className="h-5 w-5" />,
