@@ -986,9 +986,14 @@ export interface FranchiseTeamMember {
 }
 
 /**
- * Liste les salariés franchise dont le user courant est le gérant
- * (via profiles.manager_id). N'expose que les profils statut=franchise
- * pour éviter qu'un gérant_franchise déraillé voie des workers succursale.
+ * Liste les salariés franchise dont le user courant est gérant via la
+ * table centre_managers (N-à-N depuis migration 00031). Permet :
+ *   - 1 gérant -> plusieurs centres (multi-centres) : voit tous les
+ *     salariés des centres qu'il gère.
+ *   - 1 centre -> plusieurs co-gérants : chaque co-gérant voit la même
+ *     équipe.
+ * N'expose que les profils statut=franchise pour éviter qu'un gérant
+ * déraillé voie des workers succursale.
  */
 export async function getMyFranchiseTeam(): Promise<FranchiseTeamMember[]> {
   const supabase = await createClient()
@@ -1001,7 +1006,18 @@ export async function getMyFranchiseTeam(): Promise<FranchiseTeamMember[]> {
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'gerant_franchise') return []
+  // gerant_franchise OU manager (un manager succursale peut aussi avoir
+  // des centres franchise affectes via centre_managers, ex: Sacha Binabout
+  // qui gere 10 succursales + 3 franchises Compiegne/Coulommiers/Creteil).
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin'].includes(profile.role)) return []
+
+  // Recup les centres dont l'utilisateur est gerant (table N-a-N).
+  const { data: managed } = await supabase
+    .from('centre_managers')
+    .select('location_id')
+    .eq('manager_id', user.id)
+  const locationIds = (managed ?? []).map((m) => m.location_id)
+  if (locationIds.length === 0) return []
 
   const { data, error } = await supabase
     .from('profiles')
@@ -1009,7 +1025,7 @@ export async function getMyFranchiseTeam(): Promise<FranchiseTeamMember[]> {
       id, first_name, last_name, email, job_title, location_id, is_active,
       location:locations!location_id(name)
     `)
-    .eq('manager_id', user.id)
+    .in('location_id', locationIds)
     .eq('statut', 'franchise')
     .order('last_name', { ascending: true })
 
@@ -1067,8 +1083,8 @@ export async function enrollMyFranchiseTeam(params: {
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'gerant_franchise') {
-    return { success: false, error: 'Réservé aux gérants franchisés', results: [] }
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin'].includes(profile.role)) {
+    return { success: false, error: 'Réservé aux gérants et managers', results: [] }
   }
 
   if (!params.profile_ids || params.profile_ids.length === 0) {
@@ -1084,6 +1100,14 @@ export async function enrollMyFranchiseTeam(params: {
   if (!session) return { success: false, error: 'Session introuvable', results: [] }
   if (!session.is_active) return { success: false, error: "Session inactive", results: [] }
   if (!session.registration_open) return { success: false, error: 'Inscriptions fermées', results: [] }
+
+  // Récup les centres geres par le user courant (validation : un salarie
+  // n'est inscrible que si sa location_id appartient a ces centres).
+  const { data: managed } = await supabase
+    .from('centre_managers')
+    .select('location_id')
+    .eq('manager_id', user.id)
+  const managedLocationIds = new Set((managed ?? []).map((m) => m.location_id))
 
   // Récup les profils ciblés (admin pour bypass RLS sur les autres profils)
   const adminClient = createAdminClient()
@@ -1137,8 +1161,8 @@ export async function enrollMyFranchiseTeam(params: {
       results.push({ profile_id: pid, ok: false, error: 'Profil introuvable' })
       continue
     }
-    if (t.manager_id !== user.id) {
-      results.push({ profile_id: pid, ok: false, error: 'Ce salarié ne fait pas partie de votre équipe' })
+    if (!t.location_id || !managedLocationIds.has(t.location_id)) {
+      results.push({ profile_id: pid, ok: false, error: 'Ce salarié ne fait pas partie d\'un centre que vous gérez' })
       continue
     }
     if ((t as { statut?: string }).statut !== 'franchise') {
