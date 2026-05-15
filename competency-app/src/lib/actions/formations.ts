@@ -1214,3 +1214,209 @@ export async function enrollMyFranchiseTeam(params: {
   revalidatePath('/formations')
   return { success: inserted > 0, results }
 }
+
+// ============================================
+// Manager succursale — gestion de son équipe worker
+// ============================================
+
+/**
+ * Liste les workers (role='worker', statut='succursale') des centres geres
+ * par le user courant via la table centre_managers. Symetrique de
+ * getMyFranchiseTeam mais pour le cote succursale.
+ *   - 1 manager -> plusieurs centres : voit tous ses workers
+ *   - 1 centre -> plusieurs co-managers : meme equipe pour chacun
+ */
+export async function getMyWorkerTeam(): Promise<FranchiseTeamMember[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  // Seuls les rôles avec autorité sur des centres peuvent inscrire des workers.
+  if (!profile || !['manager', 'super_admin', 'skill_master'].includes(profile.role)) return []
+
+  const { data: managed } = await supabase
+    .from('centre_managers')
+    .select('location_id')
+    .eq('manager_id', user.id)
+  const locationIds = (managed ?? []).map((m) => m.location_id)
+  if (locationIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      id, first_name, last_name, email, job_title, location_id, is_active,
+      location:locations!location_id(name)
+    `)
+    .in('location_id', locationIds)
+    .eq('role', 'worker')
+    .eq('statut', 'succursale')
+    .order('last_name', { ascending: true })
+
+  if (error) {
+    logger.error('formations.getMyWorkerTeam', error)
+    return []
+  }
+
+  return (data ?? []).map((row) => {
+    const r = row as typeof row & { location?: { name: string } | { name: string }[] | null }
+    const locField = r.location
+    const locName =
+      Array.isArray(locField) ? (locField[0]?.name ?? null)
+      : locField && typeof locField === 'object' ? (locField as { name: string }).name
+      : null
+    return {
+      id: r.id,
+      first_name: r.first_name,
+      last_name: r.last_name,
+      email: r.email,
+      job_title: r.job_title,
+      location_id: r.location_id,
+      location_name: locName,
+      is_active: r.is_active,
+    }
+  })
+}
+
+/**
+ * Inscrit en lot les workers selectionnes (statut Succursale) a une session.
+ * Symetrique de enrollMyFranchiseTeam. Verifs :
+ *   - role = 'worker' AND statut = 'succursale'
+ *   - location_id du worker ∈ centres geres par le user (centre_managers)
+ *   - capacite max_succursale du programme
+ */
+export async function enrollMyWorkerTeam(params: {
+  session_id: string
+  type: FormationType
+  programme: string
+  profile_ids: string[]
+  dpc?: boolean
+}): Promise<{
+  success: boolean
+  error?: string
+  results: Array<{ profile_id: string; ok: boolean; error?: string }>
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Non authentifié', results: [] }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['manager', 'super_admin', 'skill_master'].includes(profile.role)) {
+    return { success: false, error: 'Réservé aux managers / admins', results: [] }
+  }
+
+  if (!params.profile_ids || params.profile_ids.length === 0) {
+    return { success: false, error: 'Aucun salarié sélectionné', results: [] }
+  }
+
+  // Vérifs session
+  const { data: session } = await supabase
+    .from('formation_sessions')
+    .select('id, is_active, registration_open')
+    .eq('id', params.session_id)
+    .single()
+  if (!session) return { success: false, error: 'Session introuvable', results: [] }
+  if (!session.is_active) return { success: false, error: 'Session inactive', results: [] }
+  if (!session.registration_open) return { success: false, error: 'Inscriptions fermées', results: [] }
+
+  const { data: managed } = await supabase
+    .from('centre_managers')
+    .select('location_id')
+    .eq('manager_id', user.id)
+  const managedLocationIds = new Set((managed ?? []).map((m) => m.location_id))
+
+  const adminClient = createAdminClient()
+  const { data: targets } = await adminClient
+    .from('profiles')
+    .select('id, first_name, last_name, role, statut, location_id')
+    .in('id', params.profile_ids)
+
+  // Capa max succursale
+  const { data: setting } = await supabase
+    .from('formation_programme_settings')
+    .select('max_succursale')
+    .eq('session_id', params.session_id)
+    .eq('type', params.type)
+    .eq('programme', params.programme)
+    .single()
+  const maxSucc = (setting as { max_succursale?: number } | null)?.max_succursale ?? 0
+
+  // Count actuel succursale
+  const { count: currentCount } = await adminClient
+    .from('formation_inscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', params.session_id)
+    .eq('type', params.type)
+    .eq('programme', params.programme)
+    .eq('statut', 'Succursale')
+
+  const results: Array<{ profile_id: string; ok: boolean; error?: string }> = []
+  let inserted = 0
+
+  for (const pid of params.profile_ids) {
+    const t = (targets ?? []).find((p) => p.id === pid)
+    if (!t) {
+      results.push({ profile_id: pid, ok: false, error: 'Profil introuvable' })
+      continue
+    }
+    if (!t.location_id || !managedLocationIds.has(t.location_id)) {
+      results.push({ profile_id: pid, ok: false, error: 'Worker hors de vos centres' })
+      continue
+    }
+    if (t.role !== 'worker' || (t as { statut?: string }).statut !== 'succursale') {
+      results.push({ profile_id: pid, ok: false, error: 'Doit être un worker succursale' })
+      continue
+    }
+    if (maxSucc > 0 && (currentCount ?? 0) + inserted >= maxSucc) {
+      results.push({ profile_id: pid, ok: false, error: 'Programme complet (succursale)' })
+      continue
+    }
+
+    let centre: string | null = null
+    if (t.location_id) {
+      const { data: tLoc } = await adminClient
+        .from('locations')
+        .select('name')
+        .eq('id', t.location_id)
+        .single()
+      if (tLoc?.name) centre = tLoc.name
+    }
+
+    const { error: insErr } = await adminClient
+      .from('formation_inscriptions')
+      .insert({
+        session_id: params.session_id,
+        profile_id: pid,
+        nom: t.last_name,
+        prenom: t.first_name,
+        type: params.type,
+        statut: 'Succursale',
+        programme: params.programme,
+        centre,
+        dpc: params.dpc ?? false,
+      })
+
+    if (insErr) {
+      const msg = insErr.code === '23505'
+        ? 'Déjà inscrit à cette session pour ce type'
+        : insErr.message
+      results.push({ profile_id: pid, ok: false, error: msg })
+    } else {
+      results.push({ profile_id: pid, ok: true })
+      inserted++
+    }
+  }
+
+  revalidatePath('/formations')
+  return { success: inserted > 0, results }
+}
