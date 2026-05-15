@@ -13,6 +13,9 @@ export interface Profile {
   last_name: string
   role: UserRole
   job_title: string | null
+  /** FK -> job_profiles.id. Pilote la grille de competences a evaluer pour
+   *  cet utilisateur. Le `job_title` est le label affiche cote UI. */
+  job_profile_id: string | null
   avatar_url: string | null
   is_active: boolean
   manager_id: string | null

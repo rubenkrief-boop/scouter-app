@@ -28,6 +28,15 @@ export default async function UsersPage() {
     .eq('is_active', true)
     .order('first_name', { ascending: true })
 
+  // Fetch job profiles : pilotent la grille de competences. Le champ Emploi
+  // dans la modale d'edition est un Select sur ces profils metiers ; la
+  // selection set job_profile_id (FK -> grille) ET job_title (texte affiche).
+  const { data: jobProfiles } = await supabase
+    .from('job_profiles')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
   return (
     <div>
       <Header
@@ -39,6 +48,7 @@ export default async function UsersPage() {
           users={users ?? []}
           locations={locations ?? []}
           managers={managers ?? []}
+          jobProfiles={jobProfiles ?? []}
         />
       </div>
     </div>

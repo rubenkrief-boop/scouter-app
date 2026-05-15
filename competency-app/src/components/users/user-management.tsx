@@ -15,10 +15,16 @@ import { ROLE_LABELS, ROLE_COLORS } from '@/lib/utils-app/roles'
 import type { Profile, UserRole, Location } from '@/lib/types'
 import { ExcelImportDialog } from '@/components/users/excel-import-dialog'
 
+interface JobProfileLite {
+  id: string
+  name: string
+}
+
 interface UserManagementProps {
   users: Profile[]
   locations: Location[]
   managers: Profile[]
+  jobProfiles: JobProfileLite[]
 }
 
 // Etend un payload d'erreur API en un message lisible utilisateur :
@@ -41,7 +47,7 @@ function formatApiError(
 
 const FILTER_ALL = '__all__'
 
-export function UserManagement({ users, locations, managers }: UserManagementProps) {
+export function UserManagement({ users, locations, managers, jobProfiles }: UserManagementProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
@@ -68,6 +74,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
   const [editFirstName, setEditFirstName] = useState<string>('')
   const [editLastName, setEditLastName] = useState<string>('')
   const [editJobTitle, setEditJobTitle] = useState<string>('')
+  const [editJobProfileId, setEditJobProfileId] = useState<string>('none')
   const [editStatut, setEditStatut] = useState<string>('succursale')
   const [editEmail, setEditEmail] = useState<string>('')
   const [pendingDelete, setPendingDelete] = useState<Profile | null>(null)
@@ -182,6 +189,7 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
     setEditFirstName(user.first_name || '')
     setEditLastName(user.last_name || '')
     setEditJobTitle(user.job_title || '')
+    setEditJobProfileId(user.job_profile_id || 'none')
     setEditStatut((user as Profile & { statut?: string }).statut || 'succursale')
     setEditEmail(user.email || '')
     setFormError(null)
@@ -208,6 +216,9 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
       if (editFirstName !== (editingUser.first_name || '')) payload.first_name = editFirstName
       if (editLastName !== (editingUser.last_name || '')) payload.last_name = editLastName
       if (editJobTitle !== (editingUser.job_title || '')) payload.job_title = editJobTitle || null
+      const currentJobProfileId = editingUser.job_profile_id || null
+      const nextJobProfileId = editJobProfileId === 'none' ? null : editJobProfileId
+      if (nextJobProfileId !== currentJobProfileId) payload.job_profile_id = nextJobProfileId
       const currentStatut = (editingUser as Profile & { statut?: string }).statut || 'succursale'
       if (editStatut !== currentStatut) payload.statut = editStatut
       if (editEmail !== (editingUser.email || '')) payload.email = editEmail
@@ -497,8 +508,33 @@ export function UserManagement({ users, locations, managers }: UserManagementPro
               </div>
               <div className="space-y-2">
                 <Label>Emploi</Label>
-                <Input value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)}
-                  placeholder="ex: Audioprothésiste, Assistant..." />
+                <Select
+                  value={editJobProfileId}
+                  onValueChange={(v) => {
+                    setEditJobProfileId(v)
+                    // Synchronise job_title avec le nom du profil metier
+                    // selectionne pour rester coherent dans l'affichage table.
+                    if (v === 'none') {
+                      setEditJobTitle('')
+                    } else {
+                      const jp = jobProfiles.find((p) => p.id === v)
+                      if (jp) setEditJobTitle(jp.name)
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun emploi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun emploi</SelectItem>
+                    {jobProfiles.map((jp) => (
+                      <SelectItem key={jp.id} value={jp.id}>{jp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  L&apos;emploi selectionne pilote la grille de competences a evaluer.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>

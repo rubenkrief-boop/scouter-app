@@ -116,7 +116,7 @@ export async function PATCH(request: Request) {
   }
   const {
     userId, role, manager_id, location_id, is_active,
-    first_name, last_name, job_title, statut, email,
+    first_name, last_name, job_title, job_profile_id, statut, email,
   } = parsed.data
 
   const adminClient = createAdminClient()
@@ -148,6 +148,7 @@ export async function PATCH(request: Request) {
   if (first_name !== undefined) updates.first_name = first_name
   if (last_name !== undefined) updates.last_name = last_name
   if (job_title !== undefined) updates.job_title = job_title
+  if (job_profile_id !== undefined) updates.job_profile_id = job_profile_id
   if (statut !== undefined) updates.statut = statut
 
   if (Object.keys(updates).length > 0) {

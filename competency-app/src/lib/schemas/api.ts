@@ -61,6 +61,7 @@ export const UpdateUserSchema = z
     first_name: z.string().min(1).max(100).optional(),
     last_name: z.string().min(1).max(100).optional(),
     job_title: z.string().max(100).optional().nullable(),
+    job_profile_id: NullableUuid,
     statut: StatutEnum.optional(),
     email: z.string().email({ message: 'email invalide' }).max(254).optional(),
   })
@@ -73,6 +74,7 @@ export const UpdateUserSchema = z
       d.first_name !== undefined ||
       d.last_name !== undefined ||
       d.job_title !== undefined ||
+      d.job_profile_id !== undefined ||
       d.statut !== undefined ||
       d.email !== undefined,
     { message: 'aucun champ à mettre à jour' }
