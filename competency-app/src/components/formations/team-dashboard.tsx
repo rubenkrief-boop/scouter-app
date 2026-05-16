@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, GraduationCap, BookOpen, Award, Search, Trash2, ChevronDown } from 'lucide-react'
+import { Users, GraduationCap, BookOpen, Award, Search, Trash2, MoreVertical, ArrowRightLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -290,7 +290,7 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                 <TableHead>Centre</TableHead>
                 <TableHead>Emploi</TableHead>
                 <TableHead>Inscriptions</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -338,20 +338,51 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                         )}
                       </TableCell>
                       <TableCell>
-                        {/* Menu actions : uniquement pour les inscriptions sur
-                            sessions encore ouvertes (les sessions passees ne
-                            sont ni modifiables ni desinscribables). */}
-                        {myIns.filter((ins) => openSessionIds.has(ins.session_id)).length > 0 && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <ChevronDown className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {myIns
-                                .filter((ins) => openSessionIds.has(ins.session_id))
-                                .map((ins) => (
+                        {/* Menu actions : si UNE seule inscription sur
+                            session ouverte → 2 boutons icones inline
+                            (visibles). Sinon → dropdown avec
+                            choix par inscription. */}
+                        {(() => {
+                          const openIns = myIns.filter((ins) => openSessionIds.has(ins.session_id))
+                          if (openIns.length === 0) return null
+
+                          if (openIns.length === 1) {
+                            const ins = openIns[0]
+                            return (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  title="Changer de programme"
+                                  onClick={() => openChangeProg(ins)}
+                                  disabled={isPending}
+                                >
+                                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  title="Désinscrire"
+                                  onClick={() => handleUnenroll(ins)}
+                                  disabled={isPending}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )
+                          }
+                          // Plusieurs inscriptions : dropdown
+                          return (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="h-7 w-7" title="Actions">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {openIns.map((ins) => (
                                   <div key={ins.id}>
                                     <DropdownMenuLabel className="text-xs text-muted-foreground">
                                       {ins.session_label} · {ins.type} · {ins.programme}
@@ -360,7 +391,7 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                                       onClick={() => openChangeProg(ins)}
                                       disabled={isPending}
                                     >
-                                      <ChevronDown className="h-3 w-3 mr-2" />
+                                      <ArrowRightLeft className="h-3 w-3 mr-2" />
                                       Changer de programme
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -374,9 +405,10 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                                     <DropdownMenuSeparator />
                                   </div>
                                 ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )
+                        })()}
                       </TableCell>
                     </TableRow>
                   )
