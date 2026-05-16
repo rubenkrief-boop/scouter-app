@@ -71,6 +71,8 @@ export default async function FormationsPage() {
               inscriptions={teamInscriptions}
               sessions={openSessions}
               programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+              ateliers={ateliers}
+              progAtelierMappings={progAtelierMappings}
               mode="franchise"
             />
           )}
@@ -149,6 +151,8 @@ export default async function FormationsPage() {
             inscriptions={teamInscriptions.filter(i => i.statut === 'Succursale')}
             sessions={openSessions}
             programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
             mode="succursale"
           />
         )}
@@ -160,6 +164,8 @@ export default async function FormationsPage() {
             inscriptions={teamInscriptions.filter(i => i.statut === 'Franchise')}
             sessions={openSessions}
             programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
             mode="franchise"
           />
         )}

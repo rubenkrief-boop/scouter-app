@@ -14,11 +14,17 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { enrollMyFranchiseTeam, type FranchiseTeamMember, type TeamMemberInscription } from '@/lib/actions/formations'
+import {
+  enrollMyFranchiseTeam,
+  type FranchiseTeamMember,
+  type TeamMemberInscription,
+  type ProgrammeAtelierMapping,
+} from '@/lib/actions/formations'
 import type {
   FormationSession,
   FormationProgrammeSettingWithCount,
   FormationType,
+  FormationAtelierWithSession,
 } from '@/lib/types'
 
 interface Props {
@@ -28,9 +34,13 @@ interface Props {
   /** Inscriptions deja existantes de l'equipe : permet de griser un membre
    *  deja inscrit a (session, type) - un seul programme par couple. */
   existingInscriptions?: TeamMemberInscription[]
+  /** Ateliers + mapping pour afficher le contenu d'un programme dans le
+   *  dialog d'inscription. */
+  ateliers?: FormationAtelierWithSession[]
+  progAtelierMappings?: ProgrammeAtelierMapping[]
 }
 
-export function FranchiseTeamEnroll({ team, sessions, programmeSettings, existingInscriptions = [] }: Props) {
+export function FranchiseTeamEnroll({ team, sessions, programmeSettings, existingInscriptions = [], ateliers = [], progAtelierMappings = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
@@ -228,6 +238,38 @@ export function FranchiseTeamEnroll({ team, sessions, programmeSettings, existin
                   ))}
                 </SelectContent>
               </Select>
+              {/* Apercu du contenu du programme selectionne */}
+              {programme && sessionId && (() => {
+                const ids = new Set(
+                  progAtelierMappings
+                    .filter((m) => m.session_id === sessionId && m.type === type && m.programme === programme)
+                    .map((m) => m.atelier_id),
+                )
+                const list = ateliers.filter((a) => ids.has(a.id)).sort((a, b) => a.sort_order - b.sort_order)
+                if (list.length === 0) return null
+                return (
+                  <div className="rounded-md border bg-muted/30 p-3 mt-2 space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Contenu de {programme} ({list.length} atelier{list.length > 1 ? 's' : ''})
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      {list.map((a) => (
+                        <li key={a.id} className="flex items-start gap-2">
+                          <span className="text-muted-foreground">•</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{a.nom}</p>
+                            <p className="text-muted-foreground">
+                              {a.formateur && <>par {a.formateur}</>}
+                              {a.formateur && a.duree && ' · '}
+                              {a.duree}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">

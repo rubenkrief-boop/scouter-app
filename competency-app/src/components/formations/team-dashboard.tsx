@@ -24,10 +24,11 @@ import {
 import {
   unenrollMyTeamMember, changeMyTeamMemberProgramme,
   type FranchiseTeamMember, type TeamMemberInscription,
+  type ProgrammeAtelierMapping,
 } from '@/lib/actions/formations'
 import { FranchiseTeamEnroll } from './franchise-team-enroll'
 import { ManagerWorkerEnroll } from './manager-worker-enroll'
-import type { FormationSession, FormationProgrammeSettingWithCount } from '@/lib/types'
+import type { FormationSession, FormationProgrammeSettingWithCount, FormationAtelierWithSession } from '@/lib/types'
 
 const FILTER_ALL = '__all__'
 
@@ -50,9 +51,14 @@ interface Props {
   sessions: FormationSession[]       // sessions inscription ouverte
   programmeSettings: FormationProgrammeSettingWithCount[]
   mode: 'franchise' | 'succursale'   // pour customiser libelles + composant d'inscription
+  /** Ateliers + mapping pour afficher le contenu d'un programme dans les
+   *  dialogs (inscription / changement). Optionnel : si non passe, on
+   *  affiche juste le code programme. */
+  ateliers?: FormationAtelierWithSession[]
+  progAtelierMappings?: ProgrammeAtelierMapping[]
 }
 
-export function TeamDashboard({ team, inscriptions, sessions, programmeSettings, mode }: Props) {
+export function TeamDashboard({ team, inscriptions, sessions, programmeSettings, mode, ateliers = [], progAtelierMappings = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
@@ -226,6 +232,8 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
             sessions={sessions}
             programmeSettings={programmeSettings}
             existingInscriptions={inscriptions}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
           />
         ) : (
           <ManagerWorkerEnroll
@@ -233,6 +241,8 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
             sessions={sessions}
             programmeSettings={programmeSettings}
             existingInscriptions={inscriptions}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
           />
         )
       )}
@@ -447,6 +457,40 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                   </SelectContent>
                 </Select>
               </div>
+              {/* Apercu des ateliers du programme selectionne */}
+              {newProg && (() => {
+                const atelierIds = new Set(
+                  progAtelierMappings
+                    .filter((m) => m.session_id === changingProg.session_id && m.type === changingProg.type && m.programme === newProg)
+                    .map((m) => m.atelier_id),
+                )
+                const programmeAteliers = ateliers
+                  .filter((a) => atelierIds.has(a.id))
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                if (programmeAteliers.length === 0) return null
+                return (
+                  <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Contenu de {newProg} ({programmeAteliers.length} atelier{programmeAteliers.length > 1 ? 's' : ''})
+                    </p>
+                    <ul className="space-y-1 text-xs">
+                      {programmeAteliers.map((a) => (
+                        <li key={a.id} className="flex items-start gap-2">
+                          <span className="text-muted-foreground">•</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{a.nom}</p>
+                            <p className="text-muted-foreground">
+                              {a.formateur && <>par {a.formateur}</>}
+                              {a.formateur && a.duree && ' · '}
+                              {a.duree}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
             </div>
           )}
           <DialogFooter>
