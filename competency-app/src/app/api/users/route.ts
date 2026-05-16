@@ -163,6 +163,28 @@ export async function PATCH(request: Request) {
     }
   }
 
+  // Sync audioprothesiste_assignments : quand on attribue/change le
+  // job_profile_id d'un user, on cree (ou supprime) automatiquement
+  // l'entree correspondante dans audioprothesiste_assignments. Comme ca
+  // la fiche /workers/[id] reflete l'emploi sans qu'il faille re-cliquer
+  // "Ajouter un profil métier".
+  if (job_profile_id !== undefined) {
+    if (job_profile_id) {
+      const { error: assignErr } = await adminClient
+        .from('audioprothesiste_assignments')
+        .upsert(
+          { audioprothesiste_id: userId, job_profile_id },
+          { onConflict: 'audioprothesiste_id,job_profile_id' },
+        )
+      if (assignErr) {
+        logger.error('api.users.sync_assignment', assignErr, { userId, job_profile_id })
+      }
+    }
+    // Si job_profile_id passe a null, on ne supprime PAS automatiquement
+    // les assignments existants (peut etre intentionnel pour garder
+    // l'historique). L'admin peut le retirer depuis /workers/[id].
+  }
+
   // Email change : ça touche auth.users en plus de profiles. On le fait
   // après le reste pour ne pas bloquer un update simple si la sync
   // auth.email échoue.
