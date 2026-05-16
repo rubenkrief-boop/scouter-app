@@ -3,8 +3,12 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { GraduationCap, Calendar, Mic2, Headphones, Clock, BookOpen, Users } from 'lucide-react'
-import type { FormationAtelierWithSession, FormationInscriptionWithSession } from '@/lib/types'
+import { GraduationCap, Calendar, Mic2, Headphones, Clock, BookOpen, Users, MapPin, Sparkles } from 'lucide-react'
+import type {
+  FormationAtelierWithSession,
+  FormationInscriptionWithSession,
+  FormationProgrammeSettingWithCount,
+} from '@/lib/types'
 import type { ProgrammeAtelierMapping } from '@/lib/actions/formations'
 
 const SESSION_COLORS: Record<string, string> = {
@@ -30,6 +34,9 @@ interface WorkerFormationsViewProps {
   inscriptions: FormationInscriptionWithSession[]
   ateliers: FormationAtelierWithSession[]
   progAtelierMappings: ProgrammeAtelierMapping[]
+  /** Pour afficher la salle attribuee a chaque programme. Optionnel :
+   *  si non passe, la salle ne sera juste pas affichee. */
+  programmeSettings?: FormationProgrammeSettingWithCount[]
 }
 
 function getAteliersForParticipant(
@@ -62,12 +69,27 @@ export function WorkerFormationsView({
   inscriptions,
   ateliers,
   progAtelierMappings,
+  programmeSettings = [],
 }: WorkerFormationsViewProps) {
 
   // Sort inscriptions by session sort_order (most recent first)
   const sorted = [...inscriptions].sort(
     (a, b) => (b.session?.sort_order ?? 0) - (a.session?.sort_order ?? 0)
   )
+
+  // La 1ere inscription (= session la plus recente / a venir) est mise en
+  // avant comme "Ma prochaine formation". Les autres apparaissent dessous
+  // comme historique normal.
+  const upcoming = sorted[0] ?? null
+  const history = sorted.slice(1)
+
+  // Helper : trouver la salle attribuee a un programme dans une session
+  function getSalle(sessionId: string, type: string, programme: string): string | null {
+    const setting = programmeSettings.find(
+      (s) => s.session_id === sessionId && s.type === type && s.programme === programme,
+    )
+    return setting?.salle ?? null
+  }
 
   if (sorted.length === 0) {
     return (
@@ -135,62 +157,117 @@ export function WorkerFormationsView({
         </Card>
       </div>
 
-      {/* Sessions */}
-      <div className="space-y-4">
-        {sorted.map((insc) => {
-          const sessionAteliers = getAteliersForParticipant(
-            insc.session_id, insc.type, insc.programme, ateliers, progAtelierMappings
-          ).sort((a, b) => a.sort_order - b.sort_order)
+      {/* Prochaine formation mise en avant */}
+      {upcoming && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <Sparkles className="h-4 w-4" />
+            Ma prochaine formation
+          </div>
+          <InscriptionCard
+            insc={upcoming}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
+            salle={getSalle(upcoming.session_id, upcoming.type, upcoming.programme)}
+            highlight
+          />
+        </div>
+      )}
 
-          return (
-            <Card key={insc.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      variant="outline"
-                      className={`text-sm font-semibold ${SESSION_COLORS[insc.session?.code] || ''}`}
-                    >
-                      {insc.session?.label}
-                    </Badge>
-                    {insc.session?.date_info && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {insc.session.date_info}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        insc.type === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'
-                      }`}
-                    >
-                      {insc.type === 'Audio' ? (
-                        <Mic2 className="h-3 w-3 mr-1" />
-                      ) : (
-                        <Headphones className="h-3 w-3 mr-1" />
-                      )}
-                      {insc.type}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs font-semibold ${PROG_COLORS[insc.programme] || ''}`}
-                    >
-                      {insc.programme}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${
-                        insc.statut === 'Succursale' ? 'text-blue-500 border-blue-500/30' : 'text-amber-500 border-amber-500/30'
-                      }`}
-                    >
-                      {insc.statut}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
+      {/* Historique des autres sessions */}
+      {history.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Historique ({history.length})
+          </p>
+          <div className="space-y-4">
+            {history.map((insc) => (
+              <InscriptionCard
+                key={insc.id}
+                insc={insc}
+                ateliers={ateliers}
+                progAtelierMappings={progAtelierMappings}
+                salle={getSalle(insc.session_id, insc.type, insc.programme)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// Sous-composant : carte d'une inscription
+// ============================================
+interface InscriptionCardProps {
+  insc: FormationInscriptionWithSession
+  ateliers: FormationAtelierWithSession[]
+  progAtelierMappings: ProgrammeAtelierMapping[]
+  salle: string | null
+  highlight?: boolean
+}
+
+function InscriptionCard({ insc, ateliers, progAtelierMappings, salle, highlight }: InscriptionCardProps) {
+  const sessionAteliers = getAteliersForParticipant(
+    insc.session_id, insc.type, insc.programme, ateliers, progAtelierMappings,
+  ).sort((a, b) => a.sort_order - b.sort_order)
+
+  return (
+    <Card className={highlight ? 'border-2 border-primary shadow-md' : ''}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Badge
+              variant="outline"
+              className={`text-sm font-semibold ${SESSION_COLORS[insc.session?.code] || ''}`}
+            >
+              {insc.session?.label}
+            </Badge>
+            {insc.session?.date_info && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {insc.session.date_info}
+              </span>
+            )}
+            {salle && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                Salle {salle}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                insc.type === 'Audio' ? 'text-cyan-500 border-cyan-500/30' : 'text-orange-500 border-orange-500/30'
+              }`}
+            >
+              {insc.type === 'Audio' ? (
+                <Mic2 className="h-3 w-3 mr-1" />
+              ) : (
+                <Headphones className="h-3 w-3 mr-1" />
+              )}
+              {insc.type}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs font-semibold ${PROG_COLORS[insc.programme] || ''}`}
+            >
+              {insc.programme}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-xs ${
+                insc.statut === 'Succursale' ? 'text-blue-500 border-blue-500/30' : 'text-amber-500 border-amber-500/30'
+              }`}
+            >
+              {insc.statut}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
               {sessionAteliers.length > 0 && (
                 <>
                   <Separator />
@@ -236,14 +313,10 @@ export function WorkerFormationsView({
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </CardContent>
-                </>
-              )}
-            </Card>
-          )
-        })}
-      </div>
-    </div>
+          </div>
+        </CardContent>
+        </>
+      )}
+    </Card>
   )
 }

@@ -107,6 +107,7 @@ export default async function FormationsPage() {
             inscriptions={myInscriptions}
             ateliers={ateliers}
             progAtelierMappings={progAtelierMappings}
+            programmeSettings={programmeSettings}
           />
         </div>
       </>
