@@ -1303,6 +1303,98 @@ export async function getMyTeamInscriptions(): Promise<TeamMemberInscription[]> 
 }
 
 /**
+ * Change le programme d'une inscription existante (P1 -> P2 par exemple).
+ * Garde session_id, type, statut, dpc inchanges. Verifie scope via
+ * centre_managers et capacite max du nouveau programme.
+ */
+export async function changeMyTeamMemberProgramme(params: {
+  inscription_id: string
+  new_programme: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Non authentifié' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin', 'skill_master'].includes(profile.role)) {
+    return { ok: false, error: 'Reservé aux gérants/managers' }
+  }
+
+  const adminClient = createAdminClient()
+  const { data: insc } = await adminClient
+    .from('formation_inscriptions')
+    .select('id, profile_id, session_id, type, statut, programme, centre, dpc, nom, prenom')
+    .eq('id', params.inscription_id)
+    .single()
+  if (!insc) return { ok: false, error: 'Inscription introuvable' }
+  if (insc.programme === params.new_programme) {
+    return { ok: false, error: 'Programme inchangé' }
+  }
+
+  // Verif scope
+  if (insc.profile_id) {
+    const { data: target } = await adminClient
+      .from('profiles')
+      .select('location_id')
+      .eq('id', insc.profile_id)
+      .single()
+    if (!target?.location_id) return { ok: false, error: 'Salarié sans centre' }
+    const { data: managed } = await supabase
+      .from('centre_managers')
+      .select('location_id')
+      .eq('manager_id', user.id)
+      .eq('location_id', target.location_id)
+    if (!managed || managed.length === 0) {
+      return { ok: false, error: 'Ce salarié ne fait pas partie de vos centres' }
+    }
+  }
+
+  // Verif capacite du nouveau programme
+  const { data: setting } = await adminClient
+    .from('formation_programme_settings')
+    .select('max_succ, max_franchise')
+    .eq('session_id', insc.session_id)
+    .eq('type', insc.type)
+    .eq('programme', params.new_programme)
+    .single()
+  if (!setting) {
+    return { ok: false, error: 'Programme cible introuvable pour cette session' }
+  }
+  const maxCol = insc.statut === 'Succursale' ? 'max_succ' : 'max_franchise'
+  const maxVal = (setting as Record<string, number>)[maxCol] ?? 0
+  if (maxVal > 0) {
+    const { count: currentCount } = await adminClient
+      .from('formation_inscriptions')
+      .select('*', { count: 'exact', head: true })
+      .eq('session_id', insc.session_id)
+      .eq('type', insc.type)
+      .eq('programme', params.new_programme)
+      .eq('statut', insc.statut)
+    if ((currentCount ?? 0) >= maxVal) {
+      return { ok: false, error: `Capacité ${insc.statut.toLowerCase()} atteinte pour ${params.new_programme}` }
+    }
+  }
+
+  // UPDATE programme (plus simple qu'un DELETE+INSERT qui aurait des
+  // effets de bord sur les FK d'audit eventuelles).
+  const { error } = await adminClient
+    .from('formation_inscriptions')
+    .update({ programme: params.new_programme, updated_at: new Date().toISOString() })
+    .eq('id', params.inscription_id)
+  if (error) {
+    logger.error('formations.changeMyTeamMemberProgramme', error, { inscriptionId: params.inscription_id, new_programme: params.new_programme })
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath('/formations')
+  return { ok: true }
+}
+
+/**
  * Desinscrit un membre d'equipe d'une inscription. Verifie que le user
  * courant gere bien le centre du membre vise. Reservation aux roles
  * gerant_franchise/manager/admin.

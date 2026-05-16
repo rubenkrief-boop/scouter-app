@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -15,9 +16,15 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { unenrollMyTeamMember, type FranchiseTeamMember, type TeamMemberInscription } from '@/lib/actions/formations'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  unenrollMyTeamMember, changeMyTeamMemberProgramme,
+  type FranchiseTeamMember, type TeamMemberInscription,
+} from '@/lib/actions/formations'
 import { FranchiseTeamEnroll } from './franchise-team-enroll'
 import { ManagerWorkerEnroll } from './manager-worker-enroll'
 import type { FormationSession, FormationProgrammeSettingWithCount } from '@/lib/types'
@@ -124,6 +131,44 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
         return
       }
       toast.success('Désinscrit')
+      router.refresh()
+    })
+  }
+
+  // Dialog changement de programme
+  const [changingProg, setChangingProg] = useState<TeamMemberInscription | null>(null)
+  const [newProg, setNewProg] = useState<string>('')
+
+  function openChangeProg(ins: TeamMemberInscription) {
+    setChangingProg(ins)
+    setNewProg('')
+  }
+
+  // Liste des programmes disponibles pour la session+type de l'inscription
+  // (depuis programmeSettings) en excluant le programme courant.
+  const changeProgrammeOptions = useMemo(() => {
+    if (!changingProg) return [] as string[]
+    return programmeSettings
+      .filter((s) => s.session_id === changingProg.session_id && s.type === changingProg.type)
+      .map((s) => s.programme)
+      .filter((p) => p !== changingProg.programme)
+      .sort()
+  }, [changingProg, programmeSettings])
+
+  function handleChangeProg() {
+    if (!changingProg || !newProg) return
+    startTransition(async () => {
+      const res = await changeMyTeamMemberProgramme({
+        inscription_id: changingProg.id,
+        new_programme: newProg,
+      })
+      if (!res.ok) {
+        toast.error(res.error ?? 'Erreur')
+        return
+      }
+      toast.success(`Programme changé : ${changingProg.programme} → ${newProg}`)
+      setChangingProg(null)
+      setNewProg('')
       router.refresh()
     })
   }
@@ -293,9 +338,9 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                         )}
                       </TableCell>
                       <TableCell>
-                        {/* Menu desinscription : uniquement pour les inscriptions
-                            sur sessions encore ouvertes (les sessions passees
-                            ne sont pas desinscribables). */}
+                        {/* Menu actions : uniquement pour les inscriptions sur
+                            sessions encore ouvertes (les sessions passees ne
+                            sont ni modifiables ni desinscribables). */}
                         {myIns.filter((ins) => openSessionIds.has(ins.session_id)).length > 0 && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -307,15 +352,27 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                               {myIns
                                 .filter((ins) => openSessionIds.has(ins.session_id))
                                 .map((ins) => (
-                                  <DropdownMenuItem
-                                    key={ins.id}
-                                    onClick={() => handleUnenroll(ins)}
-                                    disabled={isPending}
-                                    className="text-destructive"
-                                  >
-                                    <Trash2 className="h-3 w-3 mr-2" />
-                                    Désinscrire de {ins.session_label}
-                                  </DropdownMenuItem>
+                                  <div key={ins.id}>
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                                      {ins.session_label} · {ins.type} · {ins.programme}
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                      onClick={() => openChangeProg(ins)}
+                                      disabled={isPending}
+                                    >
+                                      <ChevronDown className="h-3 w-3 mr-2" />
+                                      Changer de programme
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleUnenroll(ins)}
+                                      disabled={isPending}
+                                      className="text-destructive"
+                                    >
+                                      <Trash2 className="h-3 w-3 mr-2" />
+                                      Désinscrire
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </div>
                                 ))}
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -329,6 +386,47 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
           </Table>
         </CardContent>
       </Card>
+
+      {/* Dialog : changement de programme */}
+      <Dialog open={!!changingProg} onOpenChange={(o) => { if (!o) { setChangingProg(null); setNewProg('') } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Changer de programme</DialogTitle>
+          </DialogHeader>
+          {changingProg && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{changingProg.prenom} {changingProg.nom}</span> est actuellement inscrit·e en <span className="font-medium">{changingProg.programme}</span> pour <span className="font-medium">{changingProg.session_label}</span> ({changingProg.type}).
+              </p>
+              <div className="space-y-2">
+                <Label>Nouveau programme</Label>
+                <Select value={newProg} onValueChange={setNewProg}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un programme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {changeProgrammeOptions.length === 0 ? (
+                      <SelectItem value="__none" disabled>Aucun autre programme disponible</SelectItem>
+                    ) : (
+                      changeProgrammeOptions.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangingProg(null)} disabled={isPending}>
+              Annuler
+            </Button>
+            <Button onClick={handleChangeProg} disabled={isPending || !newProg}>
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
