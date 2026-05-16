@@ -10,6 +10,7 @@ import { FormationsDashboard } from '@/components/formations/formations-dashboar
 import { WorkerFormationsView } from '@/components/formations/worker-formations-view'
 import { FormationSelfRegister } from '@/components/formations/formation-self-register'
 import { TeamDashboard } from '@/components/formations/team-dashboard'
+import { UpcomingSessionPreview } from '@/components/formations/upcoming-session-preview'
 import { redirect } from 'next/navigation'
 
 export default async function FormationsPage() {
@@ -65,6 +66,16 @@ export default async function FormationsPage() {
           {/* Bloc gerant_franchise : dashboard equipe (stats + tableau +
               dialog d'inscription). Remplace l'ancien FranchiseTeamEnroll
               minimaliste. */}
+          {/* Apercu des sessions a venir : tous les programmes + ateliers
+              visibles avant de cliquer "Inscrire mon equipe". */}
+          {isGerant && openSessions.length > 0 && (
+            <UpcomingSessionPreview
+              sessions={openSessions}
+              programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+              ateliers={ateliers}
+              progAtelierMappings={progAtelierMappings}
+            />
+          )}
           {isGerant && (
             <TeamDashboard
               team={franchiseTeam}
@@ -144,6 +155,17 @@ export default async function FormationsPage() {
         description="Suivi des sessions de formation, ateliers et participants"
       />
       <div className="p-6 space-y-6">
+        {/* Apercu des sessions a venir : visible par admin/manager qui
+            gere au moins une equipe (sinon inutile). */}
+        {(workerTeam.length > 0 || franchiseTeam.length > 0) && openSessions.length > 0 && (
+          <UpcomingSessionPreview
+            sessions={openSessions}
+            programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            ateliers={ateliers}
+            progAtelierMappings={progAtelierMappings}
+          />
+        )}
+
         {/* Dashboard equipe succursale (workers des centres geres) */}
         {workerTeam.length > 0 && (
           <TeamDashboard
