@@ -4,13 +4,12 @@ import {
   getFormationSessions, getFormationAteliers, getFormationInscriptions,
   getFormationStats, getAllProgrammeAtelierMappings, getWorkerFormations,
   getFormationProgrammeSettings, getFormationProgrammeFiles,
-  getMyFranchiseTeam, getMyWorkerTeam,
+  getMyFranchiseTeam, getMyWorkerTeam, getMyTeamInscriptions,
 } from '@/lib/actions/formations'
 import { FormationsDashboard } from '@/components/formations/formations-dashboard'
 import { WorkerFormationsView } from '@/components/formations/worker-formations-view'
 import { FormationSelfRegister } from '@/components/formations/formation-self-register'
-import { FranchiseTeamEnroll } from '@/components/formations/franchise-team-enroll'
-import { ManagerWorkerEnroll } from '@/components/formations/manager-worker-enroll'
+import { TeamDashboard } from '@/components/formations/team-dashboard'
 import { redirect } from 'next/navigation'
 
 export default async function FormationsPage() {
@@ -42,9 +41,12 @@ export default async function FormationsPage() {
       : profileStatut === 'succursale' ? 'Succursale' as const
       : profile.role === 'formation_user' ? 'Franchise' as const : 'Succursale' as const
 
-    // Le gerant_franchise voit aussi le bloc "Inscrire mon equipe".
+    // Le gerant_franchise voit le dashboard "Mon equipe" (stats + tableau
+    // d'inscriptions + bouton d'inscription en lot).
     const isGerant = profile.role === 'gerant_franchise'
-    const franchiseTeam = isGerant ? await getMyFranchiseTeam() : []
+    const [franchiseTeam, teamInscriptions] = isGerant
+      ? await Promise.all([getMyFranchiseTeam(), getMyTeamInscriptions()])
+      : [[], []]
 
     // Les salaries (worker succursale ET formation_user franchise) ne peuvent
     // pas s'auto-inscrire : c'est le manager/gerant qui inscrit son equipe en
@@ -60,12 +62,16 @@ export default async function FormationsPage() {
           description={isGerant ? 'Gérez les inscriptions de votre équipe' : 'Vos sessions de formation plénière'}
         />
         <div className="p-6 space-y-6">
-          {/* Bloc gerant_franchise : inscription de son equipe */}
+          {/* Bloc gerant_franchise : dashboard equipe (stats + tableau +
+              dialog d'inscription). Remplace l'ancien FranchiseTeamEnroll
+              minimaliste. */}
           {isGerant && (
-            <FranchiseTeamEnroll
+            <TeamDashboard
               team={franchiseTeam}
+              inscriptions={teamInscriptions}
               sessions={openSessions}
               programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+              mode="franchise"
             />
           )}
 
@@ -108,7 +114,7 @@ export default async function FormationsPage() {
   }
 
   // Admin/Manager: dashboard complet
-  const [sessions, ateliers, inscriptions, stats, progAtelierMappings, programmeSettings, franchiseTeam, workerTeam] = await Promise.all([
+  const [sessions, ateliers, inscriptions, stats, progAtelierMappings, programmeSettings, franchiseTeam, workerTeam, teamInscriptions] = await Promise.all([
     getFormationSessions(),
     getFormationAteliers(),
     getFormationInscriptions(),
@@ -121,6 +127,8 @@ export default async function FormationsPage() {
     // Les workers succursale des centres geres : le manager les inscrit
     // (ils ne peuvent pas s'auto-inscrire).
     getMyWorkerTeam(),
+    // Inscriptions des membres de l'equipe pour le dashboard team.
+    getMyTeamInscriptions(),
   ])
 
   const openSessions = sessions.filter(s => s.is_active && s.registration_open)
@@ -133,24 +141,25 @@ export default async function FormationsPage() {
         description="Suivi des sessions de formation, ateliers et participants"
       />
       <div className="p-6 space-y-6">
-        {/* Bloc "Mon equipe succursale" : tous les workers des centres
-            geres par ce manager (via centre_managers). */}
-        {workerTeam.length > 0 && openSessions.length > 0 && (
-          <ManagerWorkerEnroll
+        {/* Dashboard equipe succursale (workers des centres geres) */}
+        {workerTeam.length > 0 && (
+          <TeamDashboard
             team={workerTeam}
+            inscriptions={teamInscriptions.filter(i => i.statut === 'Succursale')}
             sessions={openSessions}
             programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            mode="succursale"
           />
         )}
 
-        {/* Bloc "Mon equipe franchise" si l'admin/manager gere au moins un
-            centre franchise via centre_managers (ex: Sacha gere 3 franchises
-            en plus de ses succursales). */}
-        {franchiseTeam.length > 0 && openSessions.length > 0 && (
-          <FranchiseTeamEnroll
+        {/* Dashboard equipe franchise (ex: Sacha gere 3 franchises) */}
+        {franchiseTeam.length > 0 && (
+          <TeamDashboard
             team={franchiseTeam}
+            inscriptions={teamInscriptions.filter(i => i.statut === 'Franchise')}
             sessions={openSessions}
             programmeSettings={programmeSettings.filter(s => openSessionIds.has(s.session_id))}
+            mode="franchise"
           />
         )}
 

@@ -1216,6 +1216,156 @@ export async function enrollMyFranchiseTeam(params: {
 }
 
 // ============================================
+// Vue gerant/manager : inscriptions de toute mon equipe
+// ============================================
+
+export interface TeamMemberInscription {
+  id: string
+  profile_id: string | null
+  nom: string
+  prenom: string
+  session_id: string
+  session_label: string | null
+  session_code: string | null
+  type: FormationType
+  programme: string
+  statut: string
+  centre: string | null
+  dpc: boolean
+}
+
+/**
+ * Recupere toutes les inscriptions formation des membres d'equipe du
+ * user courant (via centre_managers). Pour le dashboard gerant/manager
+ * qui veut voir d'un coup d'oeil qui est inscrit a quoi.
+ */
+export async function getMyTeamInscriptions(): Promise<TeamMemberInscription[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  // Centres geres
+  const { data: managed } = await supabase
+    .from('centre_managers')
+    .select('location_id')
+    .eq('manager_id', user.id)
+  const locationIds = (managed ?? []).map((m) => m.location_id)
+  if (locationIds.length === 0) return []
+
+  // Membres d'equipe (worker + formation_user des centres geres)
+  const { data: members } = await supabase
+    .from('profiles')
+    .select('id')
+    .in('location_id', locationIds)
+    .in('role', ['worker', 'formation_user'])
+
+  const memberIds = (members ?? []).map((m) => m.id)
+  if (memberIds.length === 0) return []
+
+  // Inscriptions de ces membres
+  const { data: inscriptions } = await supabase
+    .from('formation_inscriptions')
+    .select(`
+      id, profile_id, nom, prenom, session_id, type, programme, statut, centre, dpc,
+      session:formation_sessions!session_id(label, code)
+    `)
+    .in('profile_id', memberIds)
+
+  return ((inscriptions ?? []) as Array<{
+    id: string
+    profile_id: string | null
+    nom: string
+    prenom: string
+    session_id: string
+    type: string
+    programme: string
+    statut: string
+    centre: string | null
+    dpc: boolean
+    session: { label: string; code: string } | { label: string; code: string }[] | null
+  }>).map((row) => {
+    const sess = Array.isArray(row.session) ? row.session[0] : row.session
+    return {
+      id: row.id,
+      profile_id: row.profile_id,
+      nom: row.nom,
+      prenom: row.prenom,
+      session_id: row.session_id,
+      session_label: sess?.label ?? null,
+      session_code: sess?.code ?? null,
+      type: row.type as FormationType,
+      programme: row.programme,
+      statut: row.statut,
+      centre: row.centre,
+      dpc: row.dpc,
+    }
+  })
+}
+
+/**
+ * Desinscrit un membre d'equipe d'une inscription. Verifie que le user
+ * courant gere bien le centre du membre vise. Reservation aux roles
+ * gerant_franchise/manager/admin.
+ */
+export async function unenrollMyTeamMember(params: {
+  inscription_id: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Non authentifié' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (!profile || !['gerant_franchise', 'manager', 'super_admin', 'skill_master'].includes(profile.role)) {
+    return { ok: false, error: 'Reservé aux gérants/managers' }
+  }
+
+  const adminClient = createAdminClient()
+  // Recupere l'inscription + son profil cible
+  const { data: insc } = await adminClient
+    .from('formation_inscriptions')
+    .select('id, profile_id')
+    .eq('id', params.inscription_id)
+    .single()
+  if (!insc) return { ok: false, error: 'Inscription introuvable' }
+
+  if (insc.profile_id) {
+    // Verifie que le user courant gere le centre du membre cible
+    const { data: target } = await adminClient
+      .from('profiles')
+      .select('location_id')
+      .eq('id', insc.profile_id)
+      .single()
+    if (!target?.location_id) {
+      return { ok: false, error: 'Salarié sans centre' }
+    }
+    const { data: managed } = await supabase
+      .from('centre_managers')
+      .select('location_id')
+      .eq('manager_id', user.id)
+      .eq('location_id', target.location_id)
+    if (!managed || managed.length === 0) {
+      return { ok: false, error: 'Ce salarié ne fait pas partie de vos centres' }
+    }
+  }
+
+  const { error } = await adminClient
+    .from('formation_inscriptions')
+    .delete()
+    .eq('id', params.inscription_id)
+  if (error) {
+    logger.error('formations.unenrollMyTeamMember', error, { inscriptionId: params.inscription_id })
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath('/formations')
+  return { ok: true }
+}
+
+// ============================================
 // Manager succursale — gestion de son équipe worker
 // ============================================
 
