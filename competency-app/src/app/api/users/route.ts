@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       { status: 400 }
     )
   }
-  const { email, password, first_name, last_name, role, manager_id, location_id } = parsed.data
+  const { email, password, first_name, last_name, role, manager_id, location_id, job_profile_id, job_title, statut } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -59,17 +59,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Impossible de créer cet utilisateur: ${error.message}` }, { status: 400 })
   }
 
-  // Update the profile with manager_id and location_id if provided
-  if (newUser?.user && (manager_id || location_id)) {
-    const { error: updErr } = await adminClient
-      .from('profiles')
-      .update({
-        manager_id: manager_id || null,
-        location_id: location_id || null,
-      })
-      .eq('id', newUser.user.id)
-    if (updErr) {
-      logger.error('api.users.create', updErr, { userId: newUser.user.id, step: 'profile-update' })
+  // Update the profile with the optional fields. Le trigger handle_new_user
+  // a deja cree la ligne profiles ; on la complete ici.
+  if (newUser?.user) {
+    const profileUpdates: Record<string, unknown> = {}
+    if (manager_id !== undefined) profileUpdates.manager_id = manager_id || null
+    if (location_id !== undefined) profileUpdates.location_id = location_id || null
+    if (job_profile_id !== undefined) profileUpdates.job_profile_id = job_profile_id || null
+    if (job_title !== undefined) profileUpdates.job_title = job_title || null
+    if (statut !== undefined) profileUpdates.statut = statut
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: updErr } = await adminClient
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', newUser.user.id)
+      if (updErr) {
+        logger.error('api.users.create', updErr, { userId: newUser.user.id, step: 'profile-update' })
+      }
+    }
+
+    // Sync audioprothesiste_assignments si worker succursale + job_profile_id.
+    const effectiveStatut = statut ?? 'succursale'
+    if (job_profile_id && role === 'worker' && effectiveStatut === 'succursale') {
+      const { error: assignErr } = await adminClient
+        .from('audioprothesiste_assignments')
+        .upsert(
+          { audioprothesiste_id: newUser.user.id, job_profile_id },
+          { onConflict: 'audioprothesiste_id,job_profile_id' },
+        )
+      if (assignErr) {
+        logger.error('api.users.create_sync_assignment', assignErr, { userId: newUser.user.id })
+      }
     }
   }
 

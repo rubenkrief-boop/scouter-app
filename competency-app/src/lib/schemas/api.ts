@@ -48,6 +48,9 @@ export const CreateUserSchema = z.object({
   role: UserRoleEnum,
   manager_id: NullableUuid,
   location_id: NullableUuid,
+  job_profile_id: NullableUuid,
+  job_title: z.string().max(100).optional().nullable(),
+  statut: StatutEnum.optional(),
 })
 export type CreateUserInput = z.infer<typeof CreateUserSchema>
 

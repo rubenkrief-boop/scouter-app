@@ -70,6 +70,8 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
   const [createRole, setCreateRole] = useState<string>('worker')
   const [createManagerId, setCreateManagerId] = useState<string>('none')
   const [createLocationId, setCreateLocationId] = useState<string>('none')
+  const [createJobProfileId, setCreateJobProfileId] = useState<string>('none')
+  const [createStatut, setCreateStatut] = useState<string>('succursale')
 
   // Controlled state for edit form
   const [editRole, setEditRole] = useState<string>('worker')
@@ -154,6 +156,10 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
     const formData = new FormData(e.currentTarget)
 
     try {
+      const jobProfileIdSel = createJobProfileId === 'none' ? null : createJobProfileId
+      const jobTitleSync = jobProfileIdSel
+        ? (jobProfiles.find((p) => p.id === jobProfileIdSel)?.name ?? null)
+        : null
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,6 +171,9 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
           role: createRole,
           manager_id: createManagerId === 'none' ? null : createManagerId,
           location_id: createLocationId === 'none' ? null : createLocationId,
+          job_profile_id: jobProfileIdSel,
+          job_title: jobTitleSync,
+          statut: createStatut,
         }),
       })
 
@@ -173,6 +182,8 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
         setCreateRole('worker')
         setCreateManagerId('none')
         setCreateLocationId('none')
+        setCreateJobProfileId('none')
+        setCreateStatut('succursale')
         setFormError(null)
         router.refresh()
       } else {
@@ -411,6 +422,34 @@ export function UserManagement({ users, locations, managers, jobProfiles, manage
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Statut</Label>
+                <Select value={createStatut} onValueChange={setCreateStatut}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="succursale">Succursale</SelectItem>
+                    <SelectItem value="franchise">Franchise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Emploi</Label>
+                <Select value={createJobProfileId} onValueChange={setCreateJobProfileId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun emploi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun emploi</SelectItem>
+                    {jobProfiles.map((jp) => (
+                      <SelectItem key={jp.id} value={jp.id}>{jp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Pour un worker succursale : l&apos;emploi cree aussi son entree
+                  dans &laquo;&nbsp;Emplois actuels&nbsp;&raquo; (grille de competences).
+                </p>
               </div>
               {formError && (
                 <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">
