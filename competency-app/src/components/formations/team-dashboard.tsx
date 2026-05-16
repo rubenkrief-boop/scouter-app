@@ -24,6 +24,19 @@ import type { FormationSession, FormationProgrammeSettingWithCount } from '@/lib
 
 const FILTER_ALL = '__all__'
 
+// Couleurs identiques a WorkerFormationsView pour rester coherent entre vues.
+const SESSION_COLORS: Record<string, string> = {
+  s22: 'bg-orange-100 text-orange-800 border-orange-200',
+  m23: 'bg-pink-100 text-pink-800 border-pink-200',
+  s23: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  m24: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  s24: 'bg-purple-100 text-purple-800 border-purple-200',
+  m25: 'bg-green-100 text-green-800 border-green-200',
+  s25: 'bg-amber-100 text-amber-800 border-amber-200',
+  m26: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  s26: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+}
+
 interface Props {
   team: FranchiseTeamMember[]
   inscriptions: TeamMemberInscription[]
@@ -42,6 +55,11 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
 
   const isFranchise = mode === 'franchise'
   const memberLabel = isFranchise ? 'salarié' : 'collaborateur'
+
+  // Set des sessions actuellement inscription ouverte : seules celles-ci
+  // doivent etre desinscribables (les sessions passees / fermees ne le sont
+  // pas — ca ne sert a rien et c'est confusant).
+  const openSessionIds = useMemo(() => new Set(sessions.map((s) => s.id)), [sessions])
 
   // Map profile_id -> inscriptions[]
   const inscriptionsByMember = useMemo(() => {
@@ -252,16 +270,28 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                           <span className="text-xs text-muted-foreground">—</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
-                            {myIns.map((ins) => (
-                              <Badge key={ins.id} variant="outline" className="text-[10px]">
-                                {ins.session_code ?? ins.session_label} · {ins.type === 'Audio' ? 'A' : 'As'} · {ins.programme}
-                              </Badge>
-                            ))}
+                            {myIns.map((ins) => {
+                              const sessionColor = ins.session_code
+                                ? (SESSION_COLORS[ins.session_code] ?? '')
+                                : ''
+                              return (
+                                <Badge
+                                  key={ins.id}
+                                  variant="outline"
+                                  className={`text-[10px] ${sessionColor}`}
+                                >
+                                  {ins.session_code ?? ins.session_label} · {ins.type === 'Audio' ? 'A' : 'As'} · {ins.programme}
+                                </Badge>
+                              )
+                            })}
                           </div>
                         )}
                       </TableCell>
                       <TableCell>
-                        {myIns.length > 0 && (
+                        {/* Menu desinscription : uniquement pour les inscriptions
+                            sur sessions encore ouvertes (les sessions passees
+                            ne sont pas desinscribables). */}
+                        {myIns.filter((ins) => openSessionIds.has(ins.session_id)).length > 0 && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -269,17 +299,19 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {myIns.map((ins) => (
-                                <DropdownMenuItem
-                                  key={ins.id}
-                                  onClick={() => handleUnenroll(ins)}
-                                  disabled={isPending}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3 mr-2" />
-                                  Désinscrire de {ins.session_label}
-                                </DropdownMenuItem>
-                              ))}
+                              {myIns
+                                .filter((ins) => openSessionIds.has(ins.session_id))
+                                .map((ins) => (
+                                  <DropdownMenuItem
+                                    key={ins.id}
+                                    onClick={() => handleUnenroll(ins)}
+                                    disabled={isPending}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-2" />
+                                    Désinscrire de {ins.session_label}
+                                  </DropdownMenuItem>
+                                ))}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
