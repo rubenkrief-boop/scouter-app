@@ -35,7 +35,10 @@ export function FormationSelfRegister({
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const [confirmingProg, setConfirmingProg] = useState<{ sessionId: string; type: FormationType; programme: string } | null>(null)
-  const [dpc, setDpc] = useState(false)
+  // Le DPC est intrinseque a un programme (un programme est ou n'est pas
+  // DPC, defini cote admin). On envoie toujours false depuis l'UI et la
+  // logique DPC sera deduite du programme cote serveur si besoin.
+  const dpc = false
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const router = useRouter()
 
@@ -61,7 +64,6 @@ export function FormationSelfRegister({
         showMessage('success', `Inscription confirmee : ${confirmingProg.programme} (${confirmingProg.type})`)
       }
       setConfirmingProg(null)
-      setDpc(false)
       setActionId(null)
       router.refresh()
     })
@@ -186,17 +188,8 @@ export function FormationSelfRegister({
                 pour la session{' '}
                 <strong>{sessions.find(s => s.id === confirmingProg.sessionId)?.label}</strong>.
               </p>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={dpc}
-                  onChange={e => setDpc(e.target.checked)}
-                  className="rounded border-border"
-                />
-                DPC (Developpement Professionnel Continu)
-              </label>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => { setConfirmingProg(null); setDpc(false) }}>
+                <Button variant="outline" size="sm" onClick={() => setConfirmingProg(null)}>
                   Annuler
                 </Button>
                 <Button size="sm" onClick={handleRegister} disabled={isPending}>
