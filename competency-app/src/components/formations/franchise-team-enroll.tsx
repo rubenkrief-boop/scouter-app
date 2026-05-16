@@ -14,7 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { enrollMyFranchiseTeam, type FranchiseTeamMember } from '@/lib/actions/formations'
+import { enrollMyFranchiseTeam, type FranchiseTeamMember, type TeamMemberInscription } from '@/lib/actions/formations'
 import type {
   FormationSession,
   FormationProgrammeSettingWithCount,
@@ -25,9 +25,12 @@ interface Props {
   team: FranchiseTeamMember[]
   sessions: FormationSession[]                              // sessions inscription ouverte
   programmeSettings: FormationProgrammeSettingWithCount[]   // limit par programme x type
+  /** Inscriptions deja existantes de l'equipe : permet de griser un membre
+   *  deja inscrit a (session, type) - un seul programme par couple. */
+  existingInscriptions?: TeamMemberInscription[]
 }
 
-export function FranchiseTeamEnroll({ team, sessions, programmeSettings }: Props) {
+export function FranchiseTeamEnroll({ team, sessions, programmeSettings, existingInscriptions = [] }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [open, setOpen] = useState(false)
@@ -60,6 +63,21 @@ export function FranchiseTeamEnroll({ team, sessions, programmeSettings }: Props
     })
   }, [team, type])
 
+  // Map profile_id -> programme deja inscrit sur (sessionId, type). Un membre
+  // ne peut etre inscrit qu'a 1 seul programme par couple session+type, donc
+  // on grise les deja inscrits dans la liste a cocher.
+  const alreadyEnrolledMap = useMemo(() => {
+    const m = new Map<string, string>()
+    if (!sessionId) return m
+    for (const ins of existingInscriptions) {
+      if (!ins.profile_id) continue
+      if (ins.session_id === sessionId && ins.type === type) {
+        m.set(ins.profile_id, ins.programme)
+      }
+    }
+    return m
+  }, [existingInscriptions, sessionId, type])
+
   function reset() {
     setSessionId('')
     setType('Audio')
@@ -75,10 +93,11 @@ export function FranchiseTeamEnroll({ team, sessions, programmeSettings }: Props
   }
 
   function toggleAll() {
-    if (selectedIds.size === filteredTeam.length) {
+    const selectables = filteredTeam.filter((m) => !alreadyEnrolledMap.has(m.id))
+    if (selectedIds.size === selectables.length) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(filteredTeam.map((m) => m.id)))
+      setSelectedIds(new Set(selectables.map((m) => m.id)))
     }
   }
 
@@ -223,21 +242,33 @@ export function FranchiseTeamEnroll({ team, sessions, programmeSettings }: Props
                     Aucun salarié actif compatible avec ce type.
                   </p>
                 ) : (
-                  filteredTeam.map((m) => (
-                    <label
-                      key={m.id}
-                      className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        checked={selectedIds.has(m.id)}
-                        onChange={() => toggleOne(m.id)}
-                      />
-                      <span className="text-sm">{m.first_name} {m.last_name}</span>
-                      {m.job_title && <span className="text-xs text-muted-foreground">— {m.job_title}</span>}
-                    </label>
-                  ))
+                  filteredTeam.map((m) => {
+                    const alreadyProg = alreadyEnrolledMap.get(m.id)
+                    const disabled = !!alreadyProg
+                    return (
+                      <label
+                        key={m.id}
+                        className={`flex items-center gap-2 px-2 py-1 rounded ${
+                          disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted cursor-pointer'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:cursor-not-allowed"
+                          checked={selectedIds.has(m.id) && !disabled}
+                          disabled={disabled}
+                          onChange={() => !disabled && toggleOne(m.id)}
+                        />
+                        <span className="text-sm">{m.first_name} {m.last_name}</span>
+                        {m.job_title && <span className="text-xs text-muted-foreground">— {m.job_title}</span>}
+                        {alreadyProg && (
+                          <Badge variant="secondary" className="text-[10px] ml-auto">
+                            Déjà inscrit en {alreadyProg}
+                          </Badge>
+                        )}
+                      </label>
+                    )
+                  })
                 )}
               </div>
             </div>

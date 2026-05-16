@@ -170,19 +170,24 @@ export function TeamDashboard({ team, inscriptions, sessions, programmeSettings,
         </CardContent></Card>
       </div>
 
-      {/* Bouton d'inscription en lot (reutilise le dialog existant) */}
+      {/* Bouton d'inscription en lot (reutilise le dialog existant).
+          On passe les inscriptions existantes pour permettre de griser
+          les salaries deja inscrits dans le dialog (1 seul programme
+          par session+type). */}
       {sessions.length > 0 && (
         isFranchise ? (
           <FranchiseTeamEnroll
             team={team}
             sessions={sessions}
             programmeSettings={programmeSettings}
+            existingInscriptions={inscriptions}
           />
         ) : (
           <ManagerWorkerEnroll
             team={team}
             sessions={sessions}
             programmeSettings={programmeSettings}
+            existingInscriptions={inscriptions}
           />
         )
       )}
