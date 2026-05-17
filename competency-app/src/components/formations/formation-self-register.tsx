@@ -23,6 +23,10 @@ interface FormationSelfRegisterProps {
   programmeFiles: FormationProgrammeFile[]
   myInscriptions: FormationInscriptionWithSession[]
   userStatut: 'Succursale' | 'Franchise'
+  /** Filtre les programmes affiches au type metier de l'utilisateur :
+   *  un audioprothesiste ne voit que les programmes Audio, une
+   *  assistante que les Assistante. null = affiche les deux types. */
+  userType?: 'Audio' | 'Assistante' | null
 }
 
 export function FormationSelfRegister({
@@ -31,6 +35,7 @@ export function FormationSelfRegister({
   programmeFiles,
   myInscriptions,
   userStatut,
+  userType = null,
 }: FormationSelfRegisterProps) {
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
@@ -134,8 +139,8 @@ export function FormationSelfRegister({
                 )}
               </div>
 
-              {/* Audio section */}
-              {audioSettings.length > 0 && (
+              {/* Audio section : masquee si userType=Assistante */}
+              {audioSettings.length > 0 && userType !== 'Assistante' && (
                 <div className="space-y-2 pl-2 border-l-2 border-cyan-200">
                   <div className="flex items-center gap-2">
                     <Mic2 className="h-3.5 w-3.5 text-cyan-500" />
@@ -152,8 +157,8 @@ export function FormationSelfRegister({
                 </div>
               )}
 
-              {/* Assistante section */}
-              {assistanteSettings.length > 0 && (
+              {/* Assistante section : masquee si userType=Audio */}
+              {assistanteSettings.length > 0 && userType !== 'Audio' && (
                 <div className="space-y-2 pl-2 border-l-2 border-orange-200">
                   <div className="flex items-center gap-2">
                     <Headphones className="h-3.5 w-3.5 text-orange-500" />

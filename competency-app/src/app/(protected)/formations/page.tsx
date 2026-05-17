@@ -56,6 +56,15 @@ export default async function FormationsPage() {
       profile.role !== 'worker' &&
       !(profile.role === 'formation_user' && userStatut === 'Franchise')
 
+    // Filtre les programmes affiches au type metier de l'utilisateur (job_title).
+    // Un audioprothesiste ne voit que les Audio, une assistante que les
+    // Assistante. Si le job_title est vide ou inconnu, on affiche les deux.
+    const jobTitleLower = (profile.job_title ?? '').toLowerCase()
+    const userType: 'Audio' | 'Assistante' | null =
+      jobTitleLower.includes('audio') ? 'Audio'
+      : jobTitleLower.includes('assist') ? 'Assistante'
+      : null
+
     return (
       <>
         <Header
@@ -97,6 +106,7 @@ export default async function FormationsPage() {
               programmeFiles={programmeFiles.filter(f => openSessionIds.has(f.session_id))}
               myInscriptions={myInscriptions}
               userStatut={userStatut}
+              userType={userType}
             />
           )}
 
