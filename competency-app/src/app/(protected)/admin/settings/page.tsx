@@ -12,10 +12,14 @@ export default async function SettingsPage() {
 
   const [zones, { data: planners }, { data: locations }] = await Promise.all([
     getGeographicZones(),
+    // Planners potentiels : super_admin, manager, resp_audiologie (les
+    // memes roles autorises cote server actions PLANNER_ROLES dans
+    // src/lib/actions/visits.ts). Les managers Sacha/Pierre-Ugo peuvent
+    // ainsi etre affectes a leurs centres a visiter.
     supabase
       .from('profiles')
       .select('id, first_name, last_name, role')
-      .in('role', ['super_admin', 'resp_audiologie'])
+      .in('role', ['super_admin', 'manager', 'resp_audiologie'])
       .eq('is_active', true)
       .order('last_name'),
     // Centres franchise (prefixe F-) exclus : pas de visites de
